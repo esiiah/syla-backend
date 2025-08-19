@@ -1,8 +1,23 @@
 from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 import io
 
 app = FastAPI()
+
+# ✅ CORS setup
+origins = [
+    "http://localhost:3000",               # Local React dev
+    "https://syla-frontend.onrender.com"   # deployed frontend on Render
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,          # Or use ["*"] to allow all origins (less secure)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def read_root():
