@@ -1,42 +1,38 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
-import io
+from io import StringIO
 
 app = FastAPI()
 
-# ✅ CORS setup
 origins = [
-    "http://localhost:3000",               # Local React dev
-    "https://syla-frontend.onrender.com"   # deployed frontend on Render
+    "http://localhost:3000",
+    "https://syla-frontend.onrender.com"
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,          # Or use ["*"] to allow all origins (less secure)
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 @app.get("/")
-def read_root():
+def root():
     return {"message": "Backend is running 🚀"}
 
 @app.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_csv(file: UploadFile = File(...)):
+    if not file.filename.endswith(".csv"):
+        return {"error": "Only CSV files are allowed"}
+    contents = await file.read()
     try:
-        if file.content_type == "text/csv":
-            contents = await file.read()
-            df = pd.read_csv(io.BytesIO(contents))
-            # Basic cleaning: drop empty cols, fill NaN
-            df = df.dropna(axis=1, how="all").fillna("")
-            return {
-                "filename": file.filename,
-                "columns": df.columns.tolist(),
-                "rows": len(df)
-            }
-        else:
-            return {"error": "Only CSV files supported for now."}
+        df = pd.read_csv(StringIO(contents.decode("utf-8")))
+        return {
+            "filename": file.filename,
+            "rows": len(df),
+            "columns": list(df.columns),
+        }
     except Exception as e:
         return {"error": str(e)}
