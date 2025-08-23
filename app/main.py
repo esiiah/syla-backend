@@ -2,6 +2,7 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
 from io import StringIO
+from .utils import clean_dataframe, detect_column_types, summarize_numeric
 
 app = FastAPI()
 
@@ -26,13 +27,26 @@ def root():
 async def upload_csv(file: UploadFile = File(...)):
     if not file.filename.endswith(".csv"):
         return {"error": "Only CSV files are allowed"}
+
     contents = await file.read()
     try:
-        df = pd.read_csv(StringIO(contents.decode("utf-8")))
+        # Read CSV (utf-8 fallback-safe)
+        df = pd.read_csv(StringIO(contents.decode("utf-8", errors="ignore")))
+
+        # Clean + normalize
+        df_clean = clean_dataframe(df.copy())
+
+        # Types + summary
+        column_types = detect_column_types(df_clean)
+        summary = summarize_numeric(df_clean)
+
         return {
             "filename": file.filename,
-            "rows": len(df),
-            "columns": list(df.columns),
+            "rows": len(df_clean),
+            "columns": list(df_clean.columns),
+            "types": column_types,              # {"col": "numeric" | "categorical" | "datetime"}
+            "summary": summary,                 # basic stats for numeric cols
+            "data": df_clean.to_dict("records") # cleaned rows for charts
         }
     except Exception as e:
         return {"error": str(e)}
