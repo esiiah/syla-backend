@@ -5,10 +5,11 @@ from .utils import clean_dataframe, detect_column_types, summarize_numeric
 
 app = FastAPI()
 
-# Allow only your deployed frontend
+# Temporary: allow all origins to confirm network works
+# Once confirmed, replace "*" with your frontend URL
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://syla-frontend.onrender.com"],
+    allow_origins=["*"],  # Replace "*" with "https://syla-frontend.onrender.com" later
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -24,13 +25,8 @@ async def upload_csv(file: UploadFile = File(...)):
         return {"error": "Only CSV files are allowed"}
 
     try:
-        # Read CSV directly from UploadFile
         df = pd.read_csv(file.file)
-
-        # Clean and normalize
         df_clean = clean_dataframe(df.copy())
-
-        # Column types and numeric summary
         column_types = detect_column_types(df_clean)
         summary = summarize_numeric(df_clean)
 
