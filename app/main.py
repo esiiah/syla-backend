@@ -5,13 +5,14 @@ from .utils import clean_dataframe, detect_column_types, summarize_numeric
 
 app = FastAPI()
 
-# CORSMiddleware applied immediately to handle preflight correctly
+# ✅ CORSMiddleware applied immediately
+# This configuration handles preflight OPTIONS correctly
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://syla-frontend.onrender.com"],  # your deployed frontend
+    allow_origins=["https://syla-frontend.onrender.com"],  # exact frontend
     allow_credentials=True,
-    allow_methods=["*"],  # allow GET, POST, OPTIONS, etc.
-    allow_headers=["*"],  # allow Content-Type, Authorization, etc.
+    allow_methods=["*"],       # allow OPTIONS, POST, GET, etc.
+    allow_headers=["*"],       # allow Content-Type, Authorization
 )
 
 @app.get("/")
@@ -27,10 +28,10 @@ async def upload_csv(file: UploadFile = File(...)):
         # Read CSV directly from UploadFile
         df = pd.read_csv(file.file)
 
-        # Clean + normalize
+        # Clean and normalize
         df_clean = clean_dataframe(df.copy())
 
-        # Detect column types and summarize
+        # Column types and numeric summary
         column_types = detect_column_types(df_clean)
         summary = summarize_numeric(df_clean)
 
