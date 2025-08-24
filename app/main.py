@@ -9,10 +9,10 @@ app = FastAPI()
 # This configuration handles preflight OPTIONS correctly
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://syla-frontend.onrender.com"],  # exact frontend
+    allow_origins=["*"]
     allow_credentials=True,
-    allow_methods=["*"],       # allow OPTIONS, POST, GET, etc.
-    allow_headers=["*"],       # allow Content-Type, Authorization
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 @app.get("/")
