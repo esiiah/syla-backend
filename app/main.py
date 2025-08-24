@@ -1,19 +1,14 @@
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 import pandas as pd
-from io import StringIO
 from .utils import clean_dataframe, detect_column_types, summarize_numeric
 
 app = FastAPI()
 
-origins = [
-    "http://localhost:3000",
-    "https://syla-frontend.onrender.com"
-]
-
+# Allow only your deployed frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["https://syla-frontend.onrender.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,15 +23,14 @@ async def upload_csv(file: UploadFile = File(...)):
     if not file.filename.endswith(".csv"):
         return {"error": "Only CSV files are allowed"}
 
-    contents = await file.read()
     try:
-        # Read CSV (utf-8 fallback-safe)
-        df = pd.read_csv(StringIO(contents.decode("utf-8", errors="ignore")))
+        # Read CSV directly from UploadFile
+        df = pd.read_csv(file.file)
 
-        # Clean + normalize
+        # Clean and normalize
         df_clean = clean_dataframe(df.copy())
 
-        # Types + summary
+        # Column types and numeric summary
         column_types = detect_column_types(df_clean)
         summary = summarize_numeric(df_clean)
 
@@ -44,9 +38,9 @@ async def upload_csv(file: UploadFile = File(...)):
             "filename": file.filename,
             "rows": len(df_clean),
             "columns": list(df_clean.columns),
-            "types": column_types,              # {"col": "numeric" | "categorical" | "datetime"}
-            "summary": summary,                 # basic stats for numeric cols
-            "data": df_clean.to_dict("records") # cleaned rows for charts
+            "types": column_types,
+            "summary": summary,
+            "data": df_clean.to_dict("records")
         }
     except Exception as e:
         return {"error": str(e)}
