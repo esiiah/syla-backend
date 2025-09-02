@@ -1,4 +1,6 @@
+// src/components/FileUpload.jsx
 import React, { useState } from "react";
+import { config } from "../config"; // import your config
 
 function FileUpload({ onData, onColumns, onTypes, onSummary }) {
   const [file, setFile] = useState(null);
@@ -16,7 +18,7 @@ function FileUpload({ onData, onColumns, onTypes, onSummary }) {
     formData.append("file", file);
 
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", `${API_URL}/upload`, true);
+    xhr.open("POST", `${config.apiBaseUrl}/upload`, true); // use config
 
     // Track upload progress
     xhr.upload.onprogress = (event) => {
