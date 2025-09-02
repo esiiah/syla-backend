@@ -16,7 +16,7 @@ function FileUpload({ onData, onColumns, onTypes, onSummary }) {
     formData.append("file", file);
 
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", "https://syla-backend.onrender.com/upload", true);
+    xhr.open("POST", `${API_URL}/upload`, true);
 
     // Track upload progress
     xhr.upload.onprogress = (event) => {
