@@ -1,25 +1,30 @@
 from fastapi import FastAPI, File, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import pandas as pd
 from .utils import clean_dataframe, detect_column_types, summarize_numeric
 
 app = FastAPI()
 
-# ✅ CORSMiddleware applied immediately
-# This configuration handles preflight OPTIONS correctly
+# CORS middleware (optional for development, not needed in production if same origin)
+from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],      # ← comma fixed here
+    allow_origins=["*"],        # during production with same domain, this can be restricted
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.get("/")
-def root():
+# Serve React frontend from frontend/dist
+app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="frontend")
+
+# API route for health check
+@app.get("/api/health")
+def health_check():
     return {"message": "Backend is running 🚀"}
 
-@app.post("/upload")
+# CSV upload endpoint
+@app.post("/api/upload")
 async def upload_csv(file: UploadFile = File(...)):
     if not file.filename.endswith(".csv"):
         return {"error": "Only CSV files are allowed"}
