@@ -7,9 +7,5 @@ Built with **React + Chart.js** and deployed on **Render (Static Site)**.
 ```bash
 # Install dependencies
 npm install
+npm run dev
 
-# Run locally
-npm start
-
-# Build for deployment
-npm run build
