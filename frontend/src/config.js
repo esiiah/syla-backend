@@ -1,4 +1,4 @@
 // src/config.js
 export const config = {
-  apiBaseUrl: "/api"
+  apiBaseUrl: "/api"   // requests will go to backend/api/*
 };
