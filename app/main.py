@@ -7,53 +7,40 @@ from .utils import clean_dataframe, detect_column_types, summarize_numeric
 
 app = FastAPI()
 
-# ------------------- CORS -------------------
+# ✅ CORS: either list origins & allow credentials, or '*' without credentials
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ------------------- API ROUTES -------------------
-
-# Health check
 @app.get("/api/health")
 def health_check():
     return {"message": "Backend is running 🚀"}
 
-# CSV upload
 @app.post("/api/upload")
-async def upload_csv(file: UploadFile = File(...)):
+async def upload_csv(file: UploadFile = File(...)):  # ✅ fixed
     if not file.filename.endswith(".csv"):
         return {"error": "Only CSV files are allowed"}
-
     try:
-        # Read CSV directly
         df = pd.read_csv(file.file)
-
-        # Clean and normalize
         df_clean = clean_dataframe(df.copy())
-
-        # Column types + summary
         column_types = detect_column_types(df_clean)
         summary = summarize_numeric(df_clean)
-
         return {
             "filename": file.filename,
             "rows": len(df_clean),
             "columns": list(df_clean.columns),
             "types": column_types,
             "summary": summary,
-            "data": df_clean.to_dict("records")
+            "data": df_clean.to_dict("records"),
         }
     except Exception as e:
         return {"error": str(e)}
 
-# ------------------- FRONTEND -------------------
-# Serve React build from frontend/dist
-frontend_dist_path = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
-)
-app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="frontend")
+# ✅ If you choose to serve the built frontend from the backend:
+frontend_dist_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "dist"))
+if os.path.isdir(frontend_dist_path):
+    app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="frontend")
