@@ -1,10 +1,9 @@
 from fastapi import FastAPI, File, UploadFile
 from fastapi.staticfiles import StaticFiles
-import pandas as pd
-from .utils import clean_dataframe, detect_column_types, summarize_numeric
-
 from fastapi.middleware.cors import CORSMiddleware
 import os
+import pandas as pd
+from .utils import clean_dataframe, detect_column_types, summarize_numeric
 
 app = FastAPI()
 
@@ -53,6 +52,8 @@ async def upload_csv(file: UploadFile = File(...)):
         return {"error": str(e)}
 
 # ------------------- FRONTEND -------------------
-# Ensure frontend/dist is served for all non-API routes
-frontend_path = os.path.join(os.path.dirname(__file__), "dist")
-app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
+# Serve React build from frontend/dist
+frontend_dist_path = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+)
+app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="frontend")
