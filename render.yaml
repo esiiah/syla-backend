@@ -5,7 +5,7 @@ services:
     plan: free
     region: oregon
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn -k uvicorn.workers.UvicornWorker -w 4 -b 0.0.0.0:10000 app.main:app
+    startCommand: gunicorn -k uvicorn.workers.UvicornWorker -w 1 -b 0.0.0.0:$PORT app.main:app
     envVars:
       - key: PYTHONUNBUFFERED
         value: "1"
