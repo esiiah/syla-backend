@@ -4,10 +4,11 @@ import pandas as pd
 from .utils import clean_dataframe, detect_column_types, summarize_numeric
 
 from fastapi.middleware.cors import CORSMiddleware
+import os
 
 app = FastAPI()
 
-# CORS middleware (you can tighten origins later if needed)
+# ------------------- CORS -------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  
@@ -52,5 +53,6 @@ async def upload_csv(file: UploadFile = File(...)):
         return {"error": str(e)}
 
 # ------------------- FRONTEND -------------------
-# Mount AFTER API so `/api/*` doesn’t get swallowed
-app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="frontend")
+# Ensure frontend/dist is served for all non-API routes
+frontend_path = os.path.join(os.path.dirname(__file__), "dist")
+app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
