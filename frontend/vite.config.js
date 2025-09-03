@@ -3,5 +3,5 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/', // <-- important for deployed assets
+  base: '/', // fine for Render Static Sites
 })
