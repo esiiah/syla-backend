@@ -7,11 +7,15 @@ from .utils import clean_dataframe, detect_column_types, summarize_numeric
 
 app = FastAPI()
 
-# ✅ CORS: '*' without credentials is safe
+# ✅ CORS configuration
+# Allow Vite dev server locally + your deployed Render backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=[
+        "http://localhost:5173",                 # local frontend (Vite dev)
+        "https://syla-backend-gld2.onrender.com" # Render live service
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -40,7 +44,7 @@ async def upload_csv(file: UploadFile = File(...)):  # ✅ fixed syntax
     except Exception as e:
         return {"error": str(e)}
 
-# ✅ Serve built frontend (app/dist) only if it exists
+# ✅ Serve built frontend (app/dist) if present
 frontend_dist_path = os.path.join(os.path.dirname(__file__), "dist")
 if os.path.isdir(frontend_dist_path):
     app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="frontend")
