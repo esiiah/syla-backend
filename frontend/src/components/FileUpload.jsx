@@ -1,6 +1,5 @@
-// src/components/FileUpload.jsx
 import React, { useState } from "react";
-import { config } from "../config"; // import your config
+import { config } from "../config";
 
 function FileUpload({ onData, onColumns, onTypes, onSummary }) {
   const [file, setFile] = useState(null);
@@ -18,9 +17,8 @@ function FileUpload({ onData, onColumns, onTypes, onSummary }) {
     formData.append("file", file);
 
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", `${config.apiBaseUrl}/upload`, true); // use config
+    xhr.open("POST", `${config.apiBaseUrl}/upload`, true);
 
-    // Track upload progress
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
         const percent = Math.round((event.loaded / event.total) * 100);
