@@ -7,7 +7,7 @@ from .utils import clean_dataframe, detect_column_types, summarize_numeric
 
 app = FastAPI()
 
-# ✅ CORS: either list origins & allow credentials, or '*' without credentials
+# ✅ CORS: '*' without credentials is safe
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,7 +21,7 @@ def health_check():
     return {"message": "Backend is running 🚀"}
 
 @app.post("/api/upload")
-async def upload_csv(file: UploadFile = File(...)):  # ✅ fixed
+async def upload_csv(file: UploadFile = File(...)):  # ✅ fixed syntax
     if not file.filename.endswith(".csv"):
         return {"error": "Only CSV files are allowed"}
     try:
@@ -40,7 +40,7 @@ async def upload_csv(file: UploadFile = File(...)):  # ✅ fixed
     except Exception as e:
         return {"error": str(e)}
 
-# ✅ If you choose to serve the built frontend from the backend:
-frontend_dist_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "dist"))
+# ✅ Serve built frontend (app/dist) only if it exists
+frontend_dist_path = os.path.join(os.path.dirname(__file__), "dist")
 if os.path.isdir(frontend_dist_path):
     app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="frontend")
