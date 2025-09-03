@@ -1,4 +1,3 @@
-// src/config.js
 export const config = {
-  apiBaseUrl: "/api"   // requests will go to backend/api/*
-};
+  apiBaseUrl: import.meta.env.VITE_API_BASE_URL
+}
