@@ -22,7 +22,9 @@ function ChartView({ data = [], columns = [], types = {} }) {
     const numericCols = columns.filter((c) => types[c] === "numeric");
 
     const labelKey = categoricalCols[0] || columns[0];
-    const labels = data.map((row, i) => (row[labelKey] ? String(row[labelKey]) : `Row ${i+1}`));
+    const labels = data.map((row, i) =>
+      row[labelKey] ? String(row[labelKey]) : `Row ${i + 1}`
+    );
     const yKey = numericCols[0] || null;
 
     return { labels, yKey };
@@ -40,7 +42,7 @@ function ChartView({ data = [], columns = [], types = {} }) {
   const datasetValues = data.map((row) => {
     const v = row[yKey];
     return typeof v === "number" ? v : Number(v) || 0;
-    });
+  });
 
   const chartData = {
     labels,
