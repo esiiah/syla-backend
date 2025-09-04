@@ -28,7 +28,7 @@ async def upload_csv(file: UploadFile = File(...)):
     if not file.filename.endswith(".csv"):
         return {"error": "Only CSV files are allowed"}
     try:
-        file.file.seek(0)  # ✅ reset file pointer
+        file.file.seek(0)  # reset pointer
         df = pd.read_csv(file.file)
         if df.empty:
             return {"error": "CSV is empty"}
@@ -43,7 +43,7 @@ async def upload_csv(file: UploadFile = File(...)):
             "columns": list(df_clean.columns),
             "types": column_types,
             "summary": summary,
-            # "data": df_clean.to_dict("records"),  # optional for big CSVs
+            # data omitted to avoid huge response
         }
     except Exception as e:
         return {"error": str(e)}
