@@ -7,7 +7,7 @@ from .utils import clean_dataframe, detect_column_types, summarize_numeric
 
 app = FastAPI()
 
-# ✅ CORS: local dev + Railway deployment
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -28,24 +28,27 @@ async def upload_csv(file: UploadFile = File(...)):
     if not file.filename.endswith(".csv"):
         return {"error": "Only CSV files are allowed"}
     try:
+        file.file.seek(0)  # ✅ reset file pointer
         df = pd.read_csv(file.file)
         if df.empty:
             return {"error": "CSV is empty"}
+
         df_clean = clean_dataframe(df)
         column_types = detect_column_types(df_clean)
         summary = summarize_numeric(df_clean)
+
         return {
             "filename": file.filename,
             "rows": len(df_clean),
             "columns": list(df_clean.columns),
             "types": column_types,
             "summary": summary,
-            "data": df_clean.to_dict("records"),
+            # "data": df_clean.to_dict("records"),  # optional for big CSVs
         }
     except Exception as e:
         return {"error": str(e)}
 
-# ✅ Serve built frontend at the very end
+# Serve frontend if exists
 frontend_dist_path = os.path.join(os.path.dirname(__file__), "dist")
 if os.path.isdir(frontend_dist_path):
     app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="frontend")
