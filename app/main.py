@@ -7,17 +7,18 @@ from .utils import clean_dataframe, detect_column_types, summarize_numeric
 
 app = FastAPI()
 
-# ✅ CORS: local + deployed
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "https://syla-backend-gld2.onrender.com",
+        # add your Railway domain later if you want,
+        # e.g. "https://<your-service>.up.railway.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.get("/api/health")
 def health_check():
