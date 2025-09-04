@@ -7,18 +7,17 @@ from .utils import clean_dataframe, detect_column_types, summarize_numeric
 
 app = FastAPI()
 
+# ✅ CORS: local dev + Railway deployment
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        # add your Railway domain later if you want,
-        # e.g. "https://<your-service>.up.railway.app",
+        "https://syla-backend-production.up.railway.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 @app.get("/api/health")
 def health_check():
@@ -30,7 +29,9 @@ async def upload_csv(file: UploadFile = File(...)):
         return {"error": "Only CSV files are allowed"}
     try:
         df = pd.read_csv(file.file)
-        df_clean = clean_dataframe(df.copy())
+        if df.empty:
+            return {"error": "CSV is empty"}
+        df_clean = clean_dataframe(df)
         column_types = detect_column_types(df_clean)
         summary = summarize_numeric(df_clean)
         return {
