@@ -34,29 +34,29 @@ def _normalize_headers(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 def _to_numeric_series(s) -> pd.Series:
+    # Accept single-column DataFrames too
+    if isinstance(s, pd.DataFrame) and s.shape[1] == 1:
+        s = s.iloc[:, 0]
     if not isinstance(s, pd.Series):
-        raise ValueError(f"Expected pd.Series, got {type(s)}")
+        return s  # fallback for anything else
+
     if s.dtype != object:
         return s
+
     s2 = s.astype(str).str.strip()
     s2 = s2.replace({"": np.nan, "nan": np.nan, "None": np.nan})
-    is_percent = s2.str.contains(PERCENT, regex=True, na=False)
+
     s2 = s2.str.replace(CURRENCY_SIGNS, "", regex=True)
     s2 = s2.str.replace(THOUSAND_SEP, "", regex=True)
     s2 = s2.str.replace(PERCENT, "", regex=True)
-    numeric = pd.to_numeric(s2, errors="coerce")
-    return numeric
+
+    return pd.to_numeric(s2, errors="coerce")
 
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df = _normalize_headers(df)
     for col in df.columns:
-        if df[col].dtype == object:
-            df[col] = df[col].astype(str).str.strip()
-    for col in df.columns:
-        converted = _to_numeric_series(df[col])
-        if pd.api.types.is_numeric_dtype(converted) and converted.notna().mean() >= 0.6:
-            df[col] = converted
-    for col in df.columns:
+        df[col] = _to_numeric_series(df[col])
+        # Try datetime conversion if still object
         if df[col].dtype == object:
             try:
                 dt = pd.to_datetime(df[col], errors="raise", infer_datetime_format=True)
@@ -86,12 +86,12 @@ def summarize_numeric(df: pd.DataFrame) -> dict:
     nums = df.select_dtypes(include=[np.number])
     result = {}
     for col in nums.columns:
-        series = nums[col]
+        s = nums[col]
         result[col] = {
-            "count": int(series.count()),
-            "min": float(series.min()) if series.count() else 0.0,
-            "max": float(series.max()) if series.count() else 0.0,
-            "mean": float(series.mean()) if series.count() else 0.0,
-            "sum": float(series.sum()) if series.count() else 0.0,
+            "count": int(s.count()),
+            "min": float(s.min()) if s.count() else 0.0,
+            "max": float(s.max()) if s.count() else 0.0,
+            "mean": float(s.mean()) if s.count() else 0.0,
+            "sum": float(s.sum()) if s.count() else 0.0,
         }
     return result
