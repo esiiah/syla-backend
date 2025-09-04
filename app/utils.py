@@ -20,7 +20,7 @@ HEADER_MAP = {
     r"^\s*unique\s*clicks.*$": "Unique Clicks",
 }
 
-def _normalize_headers(df):
+def _normalize_headers(df: pd.DataFrame) -> pd.DataFrame:
     new_cols = []
     for c in df.columns:
         base = str(c).strip()
@@ -33,10 +33,11 @@ def _normalize_headers(df):
     df.columns = new_cols
     return df
 
-def _to_numeric_series(s):
-    # Ensure Series input
-    if isinstance(s, pd.DataFrame):
-        s = s.iloc[:, 0]
+def _to_numeric_series(s: pd.Series) -> pd.Series:
+    """Convert strings like '12,000', '50%', '$123' into numeric."""
+    if not isinstance(s, pd.Series):
+        return s
+
     if s.dtype != object:
         return s
 
@@ -53,19 +54,21 @@ def _to_numeric_series(s):
         return numeric
     return numeric
 
-def clean_dataframe(df):
+def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df = _normalize_headers(df)
 
+    # Strip string columns
     for col in df.columns:
         if df[col].dtype == object:
             df[col] = df[col].astype(str).str.strip()
 
+    # Try numeric conversion
     for col in df.columns:
-        if df[col].dtype == object:
-            numeric_try = _to_numeric_series(df[col])
-            if pd.api.types.is_numeric_dtype(numeric_try) and numeric_try.notna().mean() >= 0.6:
-                df[col] = numeric_try
+        converted = _to_numeric_series(df[col])
+        if pd.api.types.is_numeric_dtype(converted) and converted.notna().mean() >= 0.6:
+            df[col] = converted
 
+    # Try datetime conversion
     for col in df.columns:
         if df[col].dtype == object:
             try:
@@ -75,14 +78,18 @@ def clean_dataframe(df):
             except Exception:
                 pass
 
+    # Drop empty columns
     df = df.dropna(axis=1, how="all")
+
+    # Fill NaNs
     for col in df.select_dtypes(include=[np.number]).columns:
         df[col] = df[col].fillna(0)
     for col in df.columns.difference(df.select_dtypes(include=[np.number]).columns):
         df[col] = df[col].fillna("")
+
     return df
 
-def detect_column_types(df):
+def detect_column_types(df: pd.DataFrame) -> dict:
     out = {}
     for col in df.columns:
         if pd.api.types.is_numeric_dtype(df[col]):
@@ -93,7 +100,7 @@ def detect_column_types(df):
             out[col] = "categorical"
     return out
 
-def summarize_numeric(df):
+def summarize_numeric(df: pd.DataFrame) -> dict:
     nums = df.select_dtypes(include=[np.number])
     result = {}
     for col in nums.columns:
