@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { config } from "../config";
 
 function FileUpload({ onData, onColumns, onTypes, onSummary }) {
   const [file, setFile] = useState(null);
