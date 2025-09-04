@@ -33,13 +33,16 @@ def _normalize_headers(df: pd.DataFrame) -> pd.DataFrame:
     df.columns = new_cols
     return df
 
-def _to_numeric_series(s: pd.Series) -> pd.Series:
+def _to_numeric_series(s) -> pd.Series:
     """Convert strings like '12,000', '50%', '$123' into numeric."""
-    if not isinstance(s, pd.Series):
-        return s
 
+    # --- FIX: ensure s is a Series ---
+    if not isinstance(s, pd.Series):
+        raise ValueError(f"Expected pd.Series, got {type(s)}")
+
+    # Only check dtype if it's really a Series
     if s.dtype != object:
-        return s
+        return s  # numeric or datetime columns are returned as-is
 
     s2 = s.astype(str).str.strip()
     s2 = s2.replace({"": np.nan, "nan": np.nan, "None": np.nan})
@@ -50,9 +53,8 @@ def _to_numeric_series(s: pd.Series) -> pd.Series:
     s2 = s2.str.replace(PERCENT, "", regex=True)
 
     numeric = pd.to_numeric(s2, errors="coerce")
-    if is_percent.sum() > max(2, int(0.2 * len(s))):
-        return numeric
     return numeric
+
 
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df = _normalize_headers(df)
