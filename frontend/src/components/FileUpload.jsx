@@ -17,7 +17,8 @@ function FileUpload({ onData, onColumns, onTypes, onSummary }) {
     formData.append("file", file);
 
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", `${config.apiBaseUrl}/upload`, true);
+    xhr.open("POST", "/api/upload", true);
+
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
