@@ -34,43 +34,28 @@ def _normalize_headers(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 def _to_numeric_series(s) -> pd.Series:
-    """Convert strings like '12,000', '50%', '$123' into numeric."""
-
-    # --- FIX: ensure s is a Series ---
     if not isinstance(s, pd.Series):
         raise ValueError(f"Expected pd.Series, got {type(s)}")
-
-    # Only check dtype if it's really a Series
     if s.dtype != object:
-        return s  # numeric or datetime columns are returned as-is
-
+        return s
     s2 = s.astype(str).str.strip()
     s2 = s2.replace({"": np.nan, "nan": np.nan, "None": np.nan})
-
     is_percent = s2.str.contains(PERCENT, regex=True, na=False)
     s2 = s2.str.replace(CURRENCY_SIGNS, "", regex=True)
     s2 = s2.str.replace(THOUSAND_SEP, "", regex=True)
     s2 = s2.str.replace(PERCENT, "", regex=True)
-
     numeric = pd.to_numeric(s2, errors="coerce")
     return numeric
 
-
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df = _normalize_headers(df)
-
-    # Strip string columns
     for col in df.columns:
         if df[col].dtype == object:
             df[col] = df[col].astype(str).str.strip()
-
-    # Try numeric conversion
     for col in df.columns:
         converted = _to_numeric_series(df[col])
         if pd.api.types.is_numeric_dtype(converted) and converted.notna().mean() >= 0.6:
             df[col] = converted
-
-    # Try datetime conversion
     for col in df.columns:
         if df[col].dtype == object:
             try:
@@ -79,16 +64,11 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
                     df[col] = dt
             except Exception:
                 pass
-
-    # Drop empty columns
     df = df.dropna(axis=1, how="all")
-
-    # Fill NaNs
     for col in df.select_dtypes(include=[np.number]).columns:
         df[col] = df[col].fillna(0)
     for col in df.columns.difference(df.select_dtypes(include=[np.number]).columns):
         df[col] = df[col].fillna("")
-
     return df
 
 def detect_column_types(df: pd.DataFrame) -> dict:
