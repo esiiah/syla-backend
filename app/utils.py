@@ -34,11 +34,16 @@ def _normalize_headers(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 def _to_numeric_series(s) -> pd.Series:
-    # Accept single-column DataFrames too
-    if isinstance(s, pd.DataFrame) and s.shape[1] == 1:
-        s = s.iloc[:, 0]
+    # If it's a DataFrame, reduce it to first column
+    if isinstance(s, pd.DataFrame):
+        if s.shape[1] == 1:
+            s = s.iloc[:, 0]
+        else:
+            # pick the first column if duplicates exist
+            s = s.iloc[:, 0]
+
     if not isinstance(s, pd.Series):
-        return s  # fallback for anything else
+        return pd.Series(s)
 
     if s.dtype != object:
         return s
@@ -52,10 +57,11 @@ def _to_numeric_series(s) -> pd.Series:
 
     return pd.to_numeric(s2, errors="coerce")
 
+
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df = _normalize_headers(df)
     for col in df.columns:
-        df[col] = _to_numeric_series(df[col].squeeze())
+        df[col] = _to_numeric_series(df[col])
         # Try datetime conversion if still object
         if df[col].dtype == object:
             try:
