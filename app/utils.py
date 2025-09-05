@@ -21,7 +21,11 @@ HEADER_MAP = {
 }
 
 def _normalize_headers(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Normalize column headers using HEADER_MAP and ensure all columns are unique.
+    """
     new_cols = []
+    seen = set()
     for c in df.columns:
         base = str(c).strip()
         mapped = None
@@ -29,28 +33,34 @@ def _normalize_headers(df: pd.DataFrame) -> pd.DataFrame:
             if re.match(pattern, base, flags=re.IGNORECASE):
                 mapped = target
                 break
-        new_cols.append(mapped or base)
+        final_name = mapped or base
+
+        # Ensure uniqueness
+        counter = 1
+        orig_name = final_name
+        while final_name in seen:
+            final_name = f"{orig_name}_{counter}"
+            counter += 1
+        seen.add(final_name)
+        new_cols.append(final_name)
     df.columns = new_cols
     return df
 
 def _to_numeric_series(s) -> pd.Series:
-    # If it's a DataFrame, reduce it to first column
+    """
+    Convert a Series (or single-column DataFrame) to numeric, coercing errors.
+    """
     if isinstance(s, pd.DataFrame):
-        if s.shape[1] == 1:
-            s = s.iloc[:, 0]
-        else:
-            # pick the first column if duplicates exist
-            s = s.iloc[:, 0]
+        s = s.iloc[:, 0]  # pick first column if multiple columns
 
     if not isinstance(s, pd.Series):
-        return pd.Series(s)
+        s = pd.Series(s)
 
     if s.dtype != object:
         return s
 
     s2 = s.astype(str).str.strip()
     s2 = s2.replace({"": np.nan, "nan": np.nan, "None": np.nan})
-
     s2 = s2.str.replace(CURRENCY_SIGNS, "", regex=True)
     s2 = s2.str.replace(THOUSAND_SEP, "", regex=True)
     s2 = s2.str.replace(PERCENT, "", regex=True)
@@ -77,6 +87,7 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         df[col] = df[col].fillna("")
     return df
 
+
 def detect_column_types(df: pd.DataFrame) -> dict:
     out = {}
     for col in df.columns:
@@ -87,6 +98,7 @@ def detect_column_types(df: pd.DataFrame) -> dict:
         else:
             out[col] = "categorical"
     return out
+
 
 def summarize_numeric(df: pd.DataFrame) -> dict:
     nums = df.select_dtypes(include=[np.number])
