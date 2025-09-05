@@ -18,7 +18,6 @@ function FileUpload({ onData, onColumns, onTypes, onSummary }) {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/upload", true);
 
-
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
         const percent = Math.round((event.loaded / event.total) * 100);
