@@ -55,7 +55,7 @@ def _to_numeric_series(s) -> pd.Series:
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df = _normalize_headers(df)
     for col in df.columns:
-        df[col] = _to_numeric_series(df[col])
+        df[col] = _to_numeric_series(df[col].squeeze())
         # Try datetime conversion if still object
         if df[col].dtype == object:
             try:
