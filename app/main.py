@@ -28,16 +28,14 @@ async def upload_csv(file: UploadFile = File(...)):
     if not file.filename.endswith(".csv"):
         return {"error": "Only CSV files are allowed"}
     try:
-        file.file.seek(0)  # reset pointer
-        df = pd.read_csv(file.file)
+        file.file.seek(0)
+        df = pd.read_csv(file.file)  # Pandas will mangle duplicates if needed
         if df.empty:
             return {"error": "CSV is empty"}
 
         df_clean = clean_dataframe(df)
         column_types = detect_column_types(df_clean)
         summary = summarize_numeric(df_clean)
-
-        # Convert dataframe to list of dicts for frontend
         data_records = df_clean.to_dict(orient="records")
 
         return {
@@ -46,7 +44,7 @@ async def upload_csv(file: UploadFile = File(...)):
             "columns": list(df_clean.columns),
             "types": column_types,
             "summary": summary,
-            "data": data_records,  # <-- FIX: return actual row data
+            "data": data_records,
         }
     except Exception as e:
         return {"error": str(e)}
