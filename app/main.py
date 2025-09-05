@@ -37,13 +37,16 @@ async def upload_csv(file: UploadFile = File(...)):
         column_types = detect_column_types(df_clean)
         summary = summarize_numeric(df_clean)
 
+        # Convert dataframe to list of dicts for frontend
+        data_records = df_clean.to_dict(orient="records")
+
         return {
             "filename": file.filename,
             "rows": len(df_clean),
             "columns": list(df_clean.columns),
             "types": column_types,
             "summary": summary,
-            # data omitted to avoid huge response
+            "data": data_records,  # <-- FIX: return actual row data
         }
     except Exception as e:
         return {"error": str(e)}
