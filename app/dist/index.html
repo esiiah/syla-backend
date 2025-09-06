@@ -5,8 +5,21 @@
     <link rel="icon" type="image/png" href="/favicon.png" /> 
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Syla Analytics</title>
-    <script type="module" crossorigin src="/assets/index-9xs-ojDU.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-3OYM3Hiv.css">
+
+    <!-- Ensure dark mode is applied immediately to avoid white flash -->
+    <script>
+      (() => {
+        const savedTheme = localStorage.getItem("theme");
+        if (savedTheme) {
+          document.body.classList.add(savedTheme);
+        } else {
+          // Default to dark if no preference saved
+          document.body.classList.add("dark");
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-BjNIwChz.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-B5gwU8aZ.css">
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
