@@ -11,44 +11,29 @@ function App() {
   const [types, setTypes] = useState({});     // {"col": "numeric" | "categorical" | "datetime"}
   const [summary, setSummary] = useState({}); // numeric stats
 
-  // Sidebar + theme state
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Theme state (single source of truth)
   const [theme, setTheme] = useState("dark");
 
-  useEffect(() => {
-    // install prompt handling
-    let deferredPrompt;
-    window.addEventListener("beforeinstallprompt", (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-    });
-  }, []);
-
-  // Apply theme when toggled
   useEffect(() => {
     document.body.classList.remove("dark", "light");
     document.body.classList.add(theme);
   }, [theme]);
 
   return (
-    <div className="flex min-h-screen overflow-x-hidden relative bg-ink/90">
+    <div className="flex min-h-screen overflow-x-hidden relative">
       {/* Sidebar */}
       <Sidebar
-        open={sidebarOpen}
-        setOpen={setSidebarOpen}
         theme={theme}
         setTheme={setTheme}
         onReportChange={() => {}}
       />
 
       {/* Main content */}
-      <div
-        className={`flex-1 transition-all duration-300 ${
-          sidebarOpen ? "ml-0" : "ml-0"
-        }`}
-      >
+      <div className="flex-1 transition-all duration-300">
         {/* NAVBAR */}
-        <nav className="sticky top-0 z-20 backdrop-blur bg-ink/80 border-b border-white/5 shadow-soft">
+        <nav className="sticky top-0 z-20 backdrop-blur 
+          bg-white/80 border-b border-gray-200 shadow-sm
+          dark:bg-ink/80 dark:border-white/5 dark:shadow-soft">
           <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img
@@ -60,7 +45,7 @@ function App() {
                 <span className="font-display text-lg tracking-wide">
                   Syla <span className="text-neonBlue">Analytics</span>
                 </span>
-                <span className="text-xs text-slate-400 -mt-0.5">
+                <span className="text-xs text-gray-500 dark:text-slate-400 -mt-0.5">
                   Futuristic Data Intelligence
                 </span>
               </div>
@@ -69,26 +54,31 @@ function App() {
             <div className="hidden md:flex items-center gap-6">
               <a
                 href="#"
-                className="text-slate-300 hover:text-neonYellow transition"
+                className="text-gray-700 hover:text-neonYellow transition
+                dark:text-slate-300 dark:hover:text-neonYellow"
               >
                 Docs
               </a>
               <a
                 href="#"
-                className="text-slate-300 hover:text-neonYellow transition"
+                className="text-gray-700 hover:text-neonYellow transition
+                dark:text-slate-300 dark:hover:text-neonYellow"
               >
                 Templates
               </a>
               <a
                 href="#"
-                className="text-slate-300 hover:text-neonYellow transition"
+                className="text-gray-700 hover:text-neonYellow transition
+                dark:text-slate-300 dark:hover:text-neonYellow"
               >
                 Pricing
               </a>
             </div>
 
             <div className="flex items-center gap-3">
-              <button className="px-3 py-1.5 rounded-xl border border-white/10 text-slate-200 hover:text-white hover:border-neonBlue/60 transition">
+              <button className="px-3 py-1.5 rounded-xl border border-gray-300 text-gray-700 
+                hover:text-black hover:border-neonBlue/60 transition
+                dark:border-white/10 dark:text-slate-200 dark:hover:text-white">
                 Log in
               </button>
               <button className="px-4 py-1.5 rounded-xl bg-neonBlue text-white shadow-neon hover:animate-glow transition">
@@ -106,7 +96,7 @@ function App() {
               Upload. Clean.{" "}
               <span className="text-neonYellow">Visualize.</span>
             </h1>
-            <p className="text-slate-300 mt-2 max-w-2xl">
+            <p className="text-gray-600 mt-2 max-w-2xl dark:text-slate-300">
               A next-gen analytics studio. Drop your files, explore instant
               insights, and export visuals — all in an AI-tech, cyberpunk
               inspired interface.
@@ -116,10 +106,12 @@ function App() {
           {/* Panels */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Upload Panel */}
-            <section className="lg:col-span-1 rounded-2xl bg-ink/80 border border-white/5 shadow-soft neon-border">
+            <section className="lg:col-span-1 rounded-2xl 
+              bg-white border border-gray-200 shadow-sm
+              dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
               <div className="p-5">
                 <h2 className="font-display text-lg mb-1">Upload Data</h2>
-                <p className="text-slate-400 text-sm mb-4">
+                <p className="text-gray-500 text-sm mb-4 dark:text-slate-400">
                   CSV now. (PDF/ZIP coming next.) Preview & progress included.
                 </p>
                 <FileUpload
@@ -132,30 +124,27 @@ function App() {
             </section>
 
             {/* Chart Panel */}
-            <section className="lg:col-span-2 rounded-2xl bg-ink/80 border border-white/5 shadow-soft neon-border">
+            <section className="lg:col-span-2 rounded-2xl 
+              bg-white border border-gray-200 shadow-sm
+              dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
               <div className="p-5">
                 <div className="flex items-center justify-between">
                   <h2 className="font-display text-lg">Visualization</h2>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400">Chart:</span>
+                    <span className="text-xs text-gray-500 dark:text-slate-400">Chart:</span>
                     <div className="relative">
                       <select
-                        className="appearance-none bg-ink/80 border border-white/10 rounded-lg px-3 py-1.5 pr-8 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-neonBlue/50"
+                        className="appearance-none bg-gray-100 border border-gray-300 rounded-lg px-3 py-1.5 pr-8 text-sm text-gray-800
+                        dark:bg-ink/80 dark:border-white/10 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-neonBlue/50"
                         defaultValue="bar"
                         onChange={() => {}}
                       >
                         <option value="bar">Bar</option>
-                        <option value="line" disabled>
-                          Line (soon)
-                        </option>
-                        <option value="scatter" disabled>
-                          Scatter (soon)
-                        </option>
-                        <option value="map" disabled>
-                          Map (soon)
-                        </option>
+                        <option value="line" disabled>Line (soon)</option>
+                        <option value="scatter" disabled>Scatter (soon)</option>
+                        <option value="map" disabled>Map (soon)</option>
                       </select>
-                      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">
+                      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400">
                         ▾
                       </span>
                     </div>
@@ -169,10 +158,13 @@ function App() {
 
           {/* Summary Panel */}
           {Object.keys(summary).length > 0 && (
-            <section className="mt-6 rounded-2xl bg-ink/80 border border-white/5 shadow-soft neon-border">
+            <section className="mt-6 rounded-2xl 
+              bg-white border border-gray-200 shadow-sm
+              dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
               <div className="p-5">
                 <h2 className="font-display text-lg mb-2">Summary</h2>
-                <pre className="text-sm overflow-auto bg-black/30 p-3 rounded-xl">
+                <pre className="text-sm overflow-auto bg-gray-100 p-3 rounded-xl 
+                  dark:bg-black/30 dark:text-slate-200">
                   {JSON.stringify(summary, null, 2)}
                 </pre>
               </div>
