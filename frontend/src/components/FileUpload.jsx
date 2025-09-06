@@ -1,12 +1,25 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 
 function FileUpload({ onData, onColumns, onTypes, onSummary }) {
   const [file, setFile] = useState(null);
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const inputRef = useRef(null);
 
   const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setFile(f);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+    const f = e.dataTransfer.files?.[0];
+    if (!f) return;
+    setFile(f);
   };
 
   const handleUpload = () => {
@@ -61,29 +74,62 @@ function FileUpload({ onData, onColumns, onTypes, onSummary }) {
   };
 
   return (
-    <div className="p-4 max-w-md mx-auto">
-      <input
-        type="file"
-        accept=".csv"
-        onChange={handleFileChange}
-        className="mb-2 block w-full"
-      />
+    <div className="space-y-4">
+      {/* Drag & Drop Zone (no behavior change beyond selecting first file) */}
+      <div
+        className={`rounded-2xl border border-dashed p-6 text-center transition 
+          ${dragOver ? "border-neonYellow bg-white/5" : "border-white/10 bg-black/10"} neon-border`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+      >
+        <p className="text-slate-300 mb-2">Drag & drop your CSV here</p>
+        <p className="text-xs text-slate-400 mb-4">or select a file</p>
+
+        <div className="flex items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="px-4 py-2 rounded-xl border border-white/10 text-slate-200 hover:text-white hover:border-neonBlue/60 transition"
+          >
+            Choose File
+          </button>
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          {file && (
+            <span className="text-xs text-slate-300">
+              Selected: <span className="text-neonYellow">{file.name}</span>
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Upload button */}
       <button
         onClick={handleUpload}
-        className="px-4 py-2 bg-blue-800 text-white rounded-lg w-full"
+        className="w-full px-4 py-3 rounded-2xl bg-neonBlue text-white shadow-neon hover:animate-glow transition"
       >
         Upload
       </button>
 
+      {/* Progress */}
       {uploading && (
         <>
-          <div className="mt-4 w-full bg-gray-300 rounded-full h-4">
+          <div className="mt-2 w-full h-3 rounded-full bg-white/10 overflow-hidden">
             <div
-              className="bg-blue-800 h-4 rounded-full transition-all duration-200"
+              className="h-3 rounded-full bg-neonYellow animate-shimmer"
               style={{ width: `${progress}%` }}
-            ></div>
+            />
           </div>
-          <p className="mt-2 text-center text-sm text-gray-700">{progress}%</p>
+          <p className="mt-2 text-center text-sm text-slate-300">{progress}%</p>
         </>
       )}
     </div>
