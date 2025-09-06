@@ -1,5 +1,5 @@
 // frontend/src/components/Sidebar.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   FolderOpen,
@@ -13,19 +13,28 @@ import {
   UserPlus,
   ChevronLeft,
   ChevronRight,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 function Sidebar({ onReportChange }) {
   const [collapsed, setCollapsed] = useState(false);
   const [reportType, setReportType] = useState("Bar");
+  const [theme, setTheme] = useState("dark");
+
+  // apply theme class to body
+  useEffect(() => {
+    document.body.classList.remove("dark", "light");
+    document.body.classList.add(theme);
+  }, [theme]);
 
   return (
     <aside
       className={`${
         collapsed ? "w-16" : "w-64"
-      } bg-black/30 border-r border-white/10 text-slate-200 flex flex-col transition-all duration-300`}
+      } bg-black/30 border-r border-white/10 text-slate-200 flex flex-col transition-all duration-300 relative`}
     >
-      {/* Toggle button */}
+      {/* Collapse toggle */}
       <button
         onClick={() => setCollapsed(!collapsed)}
         className="absolute top-4 -right-3 z-10 p-1.5 rounded-full bg-black/50 border border-white/10 hover:bg-white/10 transition"
@@ -107,8 +116,27 @@ function Sidebar({ onReportChange }) {
         </div>
       </div>
 
-      {/* Footer buttons */}
+      {/* Footer */}
       <div className="px-3 py-4 border-t border-white/10 space-y-2">
+        {/* Theme toggle */}
+        <button
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          className="w-full flex items-center justify-center px-3 py-2 rounded-lg bg-black/40 hover:bg-white/5 text-sm text-slate-200 transition"
+        >
+          {theme === "dark" ? (
+            <>
+              <Sun className="w-4 h-4 mr-2 text-yellow-400" />
+              {!collapsed && "Light Mode"}
+            </>
+          ) : (
+            <>
+              <Moon className="w-4 h-4 mr-2 text-slate-700" />
+              {!collapsed && "Dark Mode"}
+            </>
+          )}
+        </button>
+
+        {/* Auth buttons */}
         <button className="w-full flex items-center justify-center px-3 py-2 rounded-lg bg-black/40 hover:bg-white/5 text-sm text-slate-200 transition">
           <LogIn className="w-4 h-4 mr-2" />
           {!collapsed && "Log in"}
