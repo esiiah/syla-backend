@@ -13,8 +13,9 @@ import { Bar } from "react-chartjs-2";
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 function ChartView({ data = [], columns = [], types = {} }) {
-  const { labels, yKey, limitedData } = useMemo(() => {
-    if (!data.length || !columns.length) return { labels: [], yKey: null, limitedData: [] };
+  const { labels, yKey, limitedData, labelKey } = useMemo(() => {
+    if (!data.length || !columns.length)
+      return { labels: [], yKey: null, limitedData: [], labelKey: null };
 
     const categoricalCols = columns.filter(
       (c) => (types[c] || "").startsWith("categorical")
@@ -22,22 +23,21 @@ function ChartView({ data = [], columns = [], types = {} }) {
     const numericCols = columns.filter((c) => types[c] === "numeric");
 
     const labelKey = categoricalCols[0] || columns[0];
-    const labels = data.map((row, i) =>
-      row[labelKey] ? String(row[labelKey]) : `Row ${i + 1}`
-    );
     const yKey = numericCols[0] || null;
-
-    // Limit dataset to avoid rendering performance issues
     const limitedData = data.slice(0, 100);
 
-    return { labels, yKey, limitedData };
+    const labels = limitedData.map((row, i) =>
+      row[labelKey] ? String(row[labelKey]) : `Row ${i + 1}`
+    );
+
+    return { labels, yKey, limitedData, labelKey };
   }, [data, columns, types]);
 
   if (!data.length || !labels.length || !yKey) {
     return (
-      <div style={{ maxWidth: "900px", margin: "2rem auto" }}>
-        <h2 className="text-lg font-semibold">Chart</h2>
-        <p className="text-gray-600">Upload a CSV to see charts.</p>
+      <div className="mt-4 p-6 rounded-xl bg-black/20 border border-white/10 text-slate-300">
+        <h2 className="font-display text-base mb-2">Chart</h2>
+        <p className="text-slate-400">Upload a CSV to see charts.</p>
       </div>
     );
   }
@@ -47,30 +47,46 @@ function ChartView({ data = [], columns = [], types = {} }) {
     return typeof v === "number" ? v : Number(v) || 0;
   });
 
-  const chartLabels = limitedData.map((row, i) =>
-    row[columns[0]] ? String(row[columns[0]]) : `Row ${i + 1}`
-  );
-
   const chartData = {
-    labels: chartLabels,
+    labels,
     datasets: [
       {
-        label: `${yKey} (showing first ${limitedData.length} rows)`,
+        label: `${yKey} (first ${limitedData.length})`,
         data: datasetValues,
-        backgroundColor: "rgba(75, 192, 192, 0.7)"
+        backgroundColor: "rgba(37, 99, 235, 0.7)", // neonBlue
+        borderWidth: 0,
       }
     ]
   };
 
+  const options = {
+    responsive: true,
+    plugins: {
+      legend: { labels: { color: "#e5e7eb" } },
+      title: { display: false }
+    },
+    scales: {
+      x: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(255,255,255,0.04)" } },
+      y: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(255,255,255,0.04)" } }
+    }
+  };
+
   return (
-    <div style={{ maxWidth: "900px", margin: "2rem auto" }}>
-      <h2 className="text-lg font-semibold mb-2">Chart</h2>
-      <Bar data={chartData} />
-      {data.length > 100 && (
-        <p className="text-sm text-gray-500 mt-2 text-center">
-          Showing first 100 rows only (out of {data.length})
-        </p>
-      )}
+    <div className="mt-4">
+      <div className="rounded-2xl bg-black/20 border border-white/10 p-4 shadow-soft">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-xs text-slate-400">
+            Label: <span className="text-slate-200">{labelKey}</span> • Value:{" "}
+            <span className="text-slate-200">{yKey}</span>
+          </div>
+          {data.length > 100 && (
+            <p className="text-xs text-slate-400">
+              Showing first 100 rows (of {data.length})
+            </p>
+          )}
+        </div>
+        <Bar data={chartData} options={options} />
+      </div>
     </div>
   );
 }
