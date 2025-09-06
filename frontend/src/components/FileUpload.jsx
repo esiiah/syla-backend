@@ -1,139 +1,145 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect } from "react";
+import FileUpload from "./components/FileUpload.jsx";
+import ChartView from "./components/ChartView.jsx";
+import Sidebar from "./components/Sidebar.jsx";
+import "./App.css";
 
-function FileUpload({ onData, onColumns, onTypes, onSummary }) {
-  const [file, setFile] = useState(null);
-  const [progress, setProgress] = useState(0);
-  const [uploading, setUploading] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const inputRef = useRef(null);
+function App() {
+  const [data, setData] = useState([]);       // cleaned rows
+  const [columns, setColumns] = useState([]); // column names
+  const [types, setTypes] = useState({});     // {"col": "numeric" | "categorical" | "datetime"}
+  const [summary, setSummary] = useState({}); // numeric stats
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const handleFileChange = (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setFile(f);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragOver(false);
-    const f = e.dataTransfer.files?.[0];
-    if (!f) return;
-    setFile(f);
-  };
-
-  const handleUpload = () => {
-    if (!file) return alert("Please select a file first.");
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/upload", true);
-
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const percent = Math.round((event.loaded / event.total) * 100);
-        setProgress(percent);
-      }
-    };
-
-    xhr.onloadstart = () => {
-      setUploading(true);
-      setProgress(0);
-    };
-
-    xhr.onload = () => {
-      setUploading(false);
-      if (xhr.status === 200) {
-        try {
-          const result = JSON.parse(xhr.responseText);
-          if (result.error) {
-            alert(result.error);
-            return;
-          }
-          onData(result.data || []);
-          onColumns(result.columns || []);
-          onTypes(result.types || {});
-          onSummary(result.summary || {});
-          alert(`Upload successful: ${result.filename} (${result.rows} rows)`);
-        } catch (e) {
-          alert("Upload succeeded but response was not JSON.");
-        }
-      } else {
-        alert("Upload failed");
-      }
-    };
-
-    xhr.onerror = () => {
-      setUploading(false);
-      alert("Upload failed due to network/CORS error");
-    };
-
-    xhr.send(formData);
-  };
+  useEffect(() => {
+    let deferredPrompt;
+    window.addEventListener("beforeinstallprompt", (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+    });
+    document.body.classList.add("dark");
+  }, []);
 
   return (
-    <div className="space-y-4">
-      {/* Drag & Drop Zone */}
-      <div
-        className={`rounded-2xl border border-dashed p-6 text-center transition 
-          ${dragOver ? "border-neonYellow bg-white/5" : "border-white/10 bg-black/10"} neon-border shadow-soft`}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={handleDrop}
-      >
-        <p className="text-slate-300 mb-2 font-medium">Drag & drop your CSV here</p>
-        <p className="text-xs text-slate-400 mb-4">or select a file from your computer</p>
+    <div className="min-h-screen flex relative overflow-x-hidden">
+      {/* Sidebar */}
+      <Sidebar open={sidebarOpen} />
 
-        <div className="flex items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            className="px-4 py-2 rounded-xl border border-white/10 text-slate-200 hover:text-white hover:border-neonBlue/60 transition shadow-neon hover:animate-glow"
-          >
-            Choose File
-          </button>
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".csv"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-          {file && (
-            <span className="text-xs text-slate-300 truncate max-w-[120px]">
-              Selected: <span className="text-neonYellow">{file.name}</span>
-            </span>
-          )}
-        </div>
-      </div>
+      {/* Main area */}
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? "ml-64" : "ml-16"}`}>
+        {/* Subtle grid background */}
+        <div className="pointer-events-none absolute inset-0 opacity-40 bg-grid-faint bg-grid" />
 
-      {/* Upload Button */}
-      <button
-        onClick={handleUpload}
-        className="w-full px-4 py-3 rounded-2xl bg-neonBlue text-white shadow-neon hover:animate-glow transition font-medium"
-      >
-        Upload
-      </button>
+        {/* NAVBAR */}
+        <nav className="sticky top-0 z-20 backdrop-blur supports-[backdrop-filter]:bg-ink/70 bg-ink/80 border-b border-white/5 shadow-soft">
+          <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {/* Toggle button */}
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="p-2 rounded-lg bg-ink/60 hover:bg-ink/80 border border-white/10 text-slate-300 hover:text-white transition"
+              >
+                ☰
+              </button>
+              <img src="/favicon.png" alt="Syla logo" className="w-8 h-8 animate-float" />
+              <div className="flex flex-col leading-none">
+                <span className="font-display text-lg tracking-wide">
+                  Syla <span className="text-neonBlue">Analytics</span>
+                </span>
+                <span className="text-xs text-slate-400 -mt-0.5">Futuristic Data Intelligence</span>
+              </div>
+            </div>
 
-      {/* Progress Bar */}
-      {uploading && (
-        <div className="mt-2">
-          <div className="w-full h-3 rounded-full bg-white/10 overflow-hidden shadow-inner">
-            <div
-              className="h-3 rounded-full bg-neonYellow animate-shimmer transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
+            <div className="hidden md:flex items-center gap-6">
+              <a href="#" className="text-slate-300 hover:text-neonYellow transition">Docs</a>
+              <a href="#" className="text-slate-300 hover:text-neonYellow transition">Templates</a>
+              <a href="#" className="text-slate-300 hover:text-neonYellow transition">Pricing</a>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button className="px-3 py-1.5 rounded-xl border border-white/10 text-slate-200 hover:text-white hover:border-neonBlue/60 transition">
+                Log in
+              </button>
+              <button className="px-4 py-1.5 rounded-xl bg-neonBlue text-white shadow-neon hover:animate-glow transition">
+                Sign up
+              </button>
+            </div>
           </div>
-          <p className="mt-2 text-center text-sm text-slate-300 font-mono">{progress}%</p>
-        </div>
-      )}
+        </nav>
+
+        {/* MAIN */}
+        <main className="mx-auto max-w-7xl px-4 pb-16 pt-8">
+          {/* Hero */}
+          <header className="mb-8">
+            <h1 className="font-display text-2xl md:text-3xl tracking-wide">
+              Upload. Clean. <span className="text-neonYellow">Visualize.</span>
+            </h1>
+            <p className="text-slate-300 mt-2 max-w-2xl">
+              A next-gen analytics studio. Drop your files, explore instant insights, and export visuals —
+              all in an AI-tech, cyberpunk inspired interface.
+            </p>
+          </header>
+
+          {/* Panels */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Upload Panel */}
+            <section className="lg:col-span-1 rounded-2xl bg-ink/80 border border-white/5 shadow-soft neon-border">
+              <div className="p-5">
+                <h2 className="font-display text-lg mb-1">Upload Data</h2>
+                <p className="text-slate-400 text-sm mb-4">
+                  CSV now. (PDF/ZIP coming next.) Preview & progress included.
+                </p>
+                <FileUpload
+                  onData={setData}
+                  onColumns={setColumns}
+                  onTypes={setTypes}
+                  onSummary={setSummary}
+                />
+              </div>
+            </section>
+
+            {/* Chart Panel */}
+            <section className="lg:col-span-2 rounded-2xl bg-ink/80 border border-white/5 shadow-soft neon-border">
+              <div className="p-5">
+                <div className="flex items-center justify-between">
+                  <h2 className="font-display text-lg">Visualization</h2>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-400">Chart:</span>
+                    <div className="relative">
+                      <select
+                        className="appearance-none bg-ink/80 border border-white/10 rounded-lg px-3 py-1.5 pr-8 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-neonBlue/50"
+                        defaultValue="bar"
+                        onChange={() => {}}
+                      >
+                        <option value="bar">Bar</option>
+                        <option value="line" disabled>Line (soon)</option>
+                        <option value="scatter" disabled>Scatter (soon)</option>
+                        <option value="map" disabled>Map (soon)</option>
+                      </select>
+                      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">▾</span>
+                    </div>
+                  </div>
+                </div>
+                <ChartView data={data} columns={columns} types={types} />
+              </div>
+            </section>
+          </div>
+
+          {/* Summary Panel */}
+          {Object.keys(summary).length > 0 && (
+            <section className="mt-6 rounded-2xl bg-ink/80 border border-white/5 shadow-soft neon-border">
+              <div className="p-5">
+                <h2 className="font-display text-lg mb-2">Summary</h2>
+                <pre className="text-sm overflow-auto bg-black/30 p-3 rounded-xl">
+                  {JSON.stringify(summary, null, 2)}
+                </pre>
+              </div>
+            </section>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
 
-export default FileUpload;
+export default App;
