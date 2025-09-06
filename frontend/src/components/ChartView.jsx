@@ -35,7 +35,7 @@ function ChartView({ data = [], columns = [], types = {} }) {
 
   if (!data.length || !labels.length || !yKey) {
     return (
-      <div className="mt-4 p-6 rounded-xl bg-black/20 border border-white/10 text-slate-300">
+      <div className="mt-4 p-6 rounded-2xl bg-black/20 border border-white/10 shadow-soft text-slate-300">
         <h2 className="font-display text-base mb-2">Chart</h2>
         <p className="text-slate-400">Upload a CSV to see charts.</p>
       </div>
@@ -54,7 +54,8 @@ function ChartView({ data = [], columns = [], types = {} }) {
         label: `${yKey} (first ${limitedData.length})`,
         data: datasetValues,
         backgroundColor: "rgba(37, 99, 235, 0.7)", // neonBlue
-        borderWidth: 0,
+        borderRadius: 6,
+        barPercentage: 0.6,
       }
     ]
   };
@@ -63,17 +64,28 @@ function ChartView({ data = [], columns = [], types = {} }) {
     responsive: true,
     plugins: {
       legend: { labels: { color: "#e5e7eb" } },
+      tooltip: {
+        backgroundColor: "rgba(37,99,235,0.85)",
+        titleColor: "#fff",
+        bodyColor: "#fff",
+        cornerRadius: 6,
+        padding: 8,
+      },
       title: { display: false }
     },
     scales: {
       x: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(255,255,255,0.04)" } },
       y: { ticks: { color: "#94a3b8" }, grid: { color: "rgba(255,255,255,0.04)" } }
+    },
+    animation: {
+      duration: 800,
+      easing: 'easeOutQuart',
     }
   };
 
   return (
     <div className="mt-4">
-      <div className="rounded-2xl bg-black/20 border border-white/10 p-4 shadow-soft">
+      <div className="rounded-2xl bg-black/20 border border-white/10 p-4 shadow-neon">
         <div className="flex items-center justify-between mb-3">
           <div className="text-xs text-slate-400">
             Label: <span className="text-slate-200">{labelKey}</span> • Value:{" "}
