@@ -1,5 +1,8 @@
 /* App.css - Syla Futuristic Theme */
 
+/* Import fonts MUST be at the very top */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Orbitron:wght@500;700&display=swap');
+
 /* Root App wrapper */
 .App {
   text-align: center;
@@ -58,4 +61,35 @@
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(250, 204, 21, 0.8);
+}
+
+/* Fonts usage */
+body, h1, h2, h3, h4, h5, h6, p, span {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Default to dark mode */
+body {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+/* Utility classes for layout */
+.flex {
+  display: flex;
+}
+.grid {
+  display: grid;
+}
+.relative {
+  position: relative;
+}
+.absolute {
+  position: absolute;
+}
+.rounded-2xl {
+  border-radius: 1rem;
+}
+.shadow-soft {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
 }
