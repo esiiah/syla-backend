@@ -22,9 +22,6 @@ function App() {
       e.preventDefault();
       deferredPrompt = e;
     });
-
-    // initial theme
-    document.body.classList.add("dark");
   }, []);
 
   // Apply theme when toggled
