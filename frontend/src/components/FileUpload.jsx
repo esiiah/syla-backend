@@ -75,10 +75,10 @@ function FileUpload({ onData, onColumns, onTypes, onSummary }) {
 
   return (
     <div className="space-y-4">
-      {/* Drag & Drop Zone (no behavior change beyond selecting first file) */}
+      {/* Drag & Drop Zone */}
       <div
         className={`rounded-2xl border border-dashed p-6 text-center transition 
-          ${dragOver ? "border-neonYellow bg-white/5" : "border-white/10 bg-black/10"} neon-border`}
+          ${dragOver ? "border-neonYellow bg-white/5" : "border-white/10 bg-black/10"} neon-border shadow-soft`}
         onDragOver={(e) => {
           e.preventDefault();
           setDragOver(true);
@@ -86,14 +86,14 @@ function FileUpload({ onData, onColumns, onTypes, onSummary }) {
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
       >
-        <p className="text-slate-300 mb-2">Drag & drop your CSV here</p>
-        <p className="text-xs text-slate-400 mb-4">or select a file</p>
+        <p className="text-slate-300 mb-2 font-medium">Drag & drop your CSV here</p>
+        <p className="text-xs text-slate-400 mb-4">or select a file from your computer</p>
 
         <div className="flex items-center justify-center gap-3">
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="px-4 py-2 rounded-xl border border-white/10 text-slate-200 hover:text-white hover:border-neonBlue/60 transition"
+            className="px-4 py-2 rounded-xl border border-white/10 text-slate-200 hover:text-white hover:border-neonBlue/60 transition shadow-neon hover:animate-glow"
           >
             Choose File
           </button>
@@ -105,32 +105,32 @@ function FileUpload({ onData, onColumns, onTypes, onSummary }) {
             className="hidden"
           />
           {file && (
-            <span className="text-xs text-slate-300">
+            <span className="text-xs text-slate-300 truncate max-w-[120px]">
               Selected: <span className="text-neonYellow">{file.name}</span>
             </span>
           )}
         </div>
       </div>
 
-      {/* Upload button */}
+      {/* Upload Button */}
       <button
         onClick={handleUpload}
-        className="w-full px-4 py-3 rounded-2xl bg-neonBlue text-white shadow-neon hover:animate-glow transition"
+        className="w-full px-4 py-3 rounded-2xl bg-neonBlue text-white shadow-neon hover:animate-glow transition font-medium"
       >
         Upload
       </button>
 
-      {/* Progress */}
+      {/* Progress Bar */}
       {uploading && (
-        <>
-          <div className="mt-2 w-full h-3 rounded-full bg-white/10 overflow-hidden">
+        <div className="mt-2">
+          <div className="w-full h-3 rounded-full bg-white/10 overflow-hidden shadow-inner">
             <div
-              className="h-3 rounded-full bg-neonYellow animate-shimmer"
+              className="h-3 rounded-full bg-neonYellow animate-shimmer transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="mt-2 text-center text-sm text-slate-300">{progress}%</p>
-        </>
+          <p className="mt-2 text-center text-sm text-slate-300 font-mono">{progress}%</p>
+        </div>
       )}
     </div>
   );
