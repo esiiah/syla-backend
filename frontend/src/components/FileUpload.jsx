@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import FileUpload from "./components/FileUpload.jsx";
 import ChartView from "./components/ChartView.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import "./App.css";
