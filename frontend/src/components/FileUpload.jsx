@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import ChartView from "./ChartView.jsx";   // fixed relative path
-import Sidebar from "./Sidebar.jsx";       // fixed relative path
-import "./App.css";
+import ChartView from "./ChartView.jsx";
+import Sidebar from "./Sidebar.jsx";
+import "../App.css";  // fixed path
 
 function App() {
   const [data, setData] = useState([]);       // cleaned rows
