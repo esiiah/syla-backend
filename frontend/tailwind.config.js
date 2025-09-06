@@ -1,14 +1,22 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
-  darkMode: "class", // we’ll default to dark via body class
+  // Scan all relevant files for Tailwind classes
+  content: [
+    "./index.html",
+    "./public/index.html",
+    "./src/**/*.{js,jsx,ts,tsx,html}",
+  ],
+
+  // Dark mode controlled by <body class="dark"> (set in App.jsx)
+  darkMode: "class",
+
   theme: {
     extend: {
       colors: {
-        midnight: "#0f172a",      // deep slate
-        ink: "#0b1220",           // darker panel bg
-        neonBlue: "#2563eb",      // primary blue
-        neonYellow: "#facc15",    // accent yellow
+        midnight: "#0f172a",  // deep slate
+        ink: "#0b1220",       // darker panel bg
+        neonBlue: "#2563eb",  // primary blue
+        neonYellow: "#facc15" // accent yellow
       },
       fontFamily: {
         display: ["Orbitron", "Inter", "system-ui"],
@@ -46,10 +54,13 @@ module.exports = {
       backgroundSize: {
         grid: "24px 24px",
       },
-      borderRadius: {
-        "2xl": "1rem",
-      },
+      // Keep Tailwind’s default radius scale intact
     },
   },
-  plugins: [],
+
+  plugins: [
+    require("@tailwindcss/forms"),   // Better styled forms
+    require("@tailwindcss/typography"), // For prose (docs, markdown, etc.)
+    require("@tailwindcss/aspect-ratio"), // Easy aspect ratios for charts, media
+  ],
 };
