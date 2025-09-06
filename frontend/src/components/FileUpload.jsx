@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import ChartView from "./components/ChartView.jsx";
-import Sidebar from "./components/Sidebar.jsx";
+import ChartView from "./ChartView.jsx";   // fixed relative path
+import Sidebar from "./Sidebar.jsx";       // fixed relative path
 import "./App.css";
 
 function App() {
