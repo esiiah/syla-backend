@@ -1,3 +1,39 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Orbitron:wght@500;700&display=swap');
+
+/* Default to dark mode */
+:root, html, body {
+  @apply bg-midnight text-slate-100;
+}
+
+/* Smooth rendering + selection */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  @apply font-body;
+}
+
+/* Utility helpers for neon borders + shimmer */
+.neon-border {
+  box-shadow:
+    0 0 0 1px rgba(37, 99, 235, 0.45),
+    0 0 18px rgba(37, 99, 235, 0.35),
+    inset 0 0 0 1px rgba(250, 204, 21, 0.1);
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(255,255,255,0.15) 37%,
+    rgba(255,255,255,0.04) 63%
+  );
+  background-size: 400% 100%;
+}
