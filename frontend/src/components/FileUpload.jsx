@@ -78,8 +78,10 @@ function FileUpload({ onData, onColumns, onTypes, onSummary }) {
     <div className="space-y-4">
       {/* Drag & Drop Zone */}
       <div
-        className={`rounded-2xl border border-dashed p-6 text-center transition
-          ${dragOver ? "border-neonYellow bg-white/5" : "border-white/10 bg-black/10"} neon-border shadow-soft`}
+        className={`rounded-2xl p-6 text-center transition
+          ${dragOver ? "border-neonYellow bg-white/5" : ""}
+          bg-white border border-gray-200 shadow-sm
+          dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border`}
         onDragOver={(e) => {
           e.preventDefault();
           setDragOver(true);
@@ -87,20 +89,33 @@ function FileUpload({ onData, onColumns, onTypes, onSummary }) {
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
       >
-        <p className="text-slate-300 mb-2 font-medium">Drag & drop your CSV here</p>
-        <p className="text-xs text-slate-400 mb-4">or select a file from your computer</p>
+        <p className="mb-2 font-medium text-gray-700 dark:text-slate-300">
+          Drag & drop your CSV here
+        </p>
+        <p className="text-xs mb-4 text-gray-500 dark:text-slate-400">
+          or select a file from your computer
+        </p>
 
         <div className="flex items-center justify-center gap-3">
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="px-4 py-2 rounded-xl border border-white/10 text-slate-200 hover:text-white hover:border-neonBlue/60 transition shadow-neon hover:animate-glow"
+            className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700
+              hover:text-black hover:border-neonBlue/60 transition
+              dark:border-white/10 dark:text-slate-200 dark:hover:text-white
+              shadow-neon hover:animate-glow"
           >
             Choose File
           </button>
-          <input ref={inputRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleFileChange}
+            className="hidden"
+          />
           {file && (
-            <span className="text-xs text-slate-300 truncate max-w-[120px]">
+            <span className="text-xs text-gray-700 dark:text-slate-300 truncate max-w-[140px]">
               Selected: <span className="text-neonYellow">{file.name}</span>
             </span>
           )}
@@ -118,13 +133,15 @@ function FileUpload({ onData, onColumns, onTypes, onSummary }) {
       {/* Progress Bar */}
       {uploading && (
         <div className="mt-2">
-          <div className="w-full h-3 rounded-full bg-white/10 overflow-hidden shadow-inner">
+          <div className="w-full h-3 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden shadow-inner">
             <div
               className="h-3 rounded-full bg-neonYellow animate-shimmer transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="mt-2 text-center text-sm text-slate-300 font-mono">{progress}%</p>
+          <p className="mt-2 text-center text-sm text-gray-700 dark:text-slate-300 font-mono">
+            {progress}%
+          </p>
         </div>
       )}
     </div>
