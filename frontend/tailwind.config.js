@@ -1,11 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   // Scan all relevant files for Tailwind classes
-  content: [
-    "./index.html",
-    "./public/index.html",
-    "./src/**/*.{js,jsx,ts,tsx,html}",
-  ],
+  content: ["./index.html", "./public/index.html", "./src/**/*.{js,jsx,ts,tsx,html}"],
 
   // Dark mode controlled by <body class="dark"> (set in App.jsx)
   darkMode: "class",
@@ -13,20 +9,18 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        midnight: "#0f172a",  // deep slate
-        ink: "#0b1220",       // darker panel bg
-        neonBlue: "#2563eb",  // primary blue
-        neonYellow: "#facc15" // accent yellow
+        midnight: "#0f172a", // deep slate
+        ink: "#0b1220", // darker panel bg
+        neonBlue: "#2563eb", // primary blue
+        neonYellow: "#facc15", // accent yellow
       },
       fontFamily: {
         display: ["Orbitron", "Inter", "system-ui"],
         body: ["Inter", "system-ui"],
       },
       boxShadow: {
-        neon:
-          "0 0 12px rgba(37, 99, 235, 0.45), 0 0 28px rgba(250, 204, 21, 0.25)",
-        soft:
-          "0 10px 25px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.02)",
+        neon: "0 0 12px rgba(37, 99, 235, 0.45), 0 0 28px rgba(250, 204, 21, 0.25)",
+        soft: "0 10px 25px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.02)",
       },
       keyframes: {
         glowPulse: {
@@ -58,9 +52,5 @@ module.exports = {
     },
   },
 
-  plugins: [
-    require("@tailwindcss/forms"),   // Better styled forms
-    require("@tailwindcss/typography"), // For prose (docs, markdown, etc.)
-    require("@tailwindcss/aspect-ratio"), // Easy aspect ratios for charts, media
-  ],
+  plugins: [require("@tailwindcss/forms"), require("@tailwindcss/typography"), require("@tailwindcss/aspect-ratio")],
 };
