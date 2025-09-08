@@ -8,9 +8,9 @@ import Footer from "./components/Footer.jsx";
 import "./App.css";
 
 function App() {
-  const [data, setData] = useState([]);       // cleaned rows
+  const [data, setData] = useState([]); // cleaned rows
   const [columns, setColumns] = useState([]); // column names
-  const [types, setTypes] = useState({});     // {"col": "numeric" | "categorical" | "datetime"}
+  const [types, setTypes] = useState({}); // {"col": "numeric" | "categorical" | "datetime"}
   const [summary, setSummary] = useState({}); // numeric stats
 
   // Theme state (single source of truth)
@@ -24,27 +24,19 @@ function App() {
   return (
     <div className="flex min-h-screen overflow-x-hidden relative">
       {/* Sidebar */}
-      <Sidebar
-        theme={theme}
-        setTheme={setTheme}
-        onReportChange={() => {}}
-      />
+      <Sidebar theme={theme} setTheme={setTheme} onReportChange={() => {}} />
 
       {/* Main content */}
       <div className="flex-1 transition-all duration-300">
         {/* NAVBAR */}
         <nav
-          className="sticky top-0 z-20 backdrop-blur 
+          className="sticky top-0 z-20 backdrop-blur
           bg-white/80 border-b border-gray-200 shadow-sm
           dark:bg-ink/80 dark:border-white/5 dark:shadow-soft"
         >
           <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img
-                src="/favicon.png"
-                alt="Syla logo"
-                className="w-8 h-8 animate-float"
-              />
+              <img src="/favicon.png" alt="Syla logo" className="w-8 h-8 animate-float" />
               <div className="flex flex-col leading-none">
                 <span className="font-display text-lg tracking-wide">
                   Syla <span className="text-neonBlue">Analytics</span>
@@ -81,15 +73,13 @@ function App() {
 
             <div className="flex items-center gap-3">
               <button
-                className="px-3 py-1.5 rounded-xl border border-gray-300 text-gray-700 
+                className="px-3 py-1.5 rounded-xl border border-gray-300 text-gray-700
                 hover:text-black hover:border-neonBlue/60 transition
                 dark:border-white/10 dark:text-slate-200 dark:hover:text-white"
               >
                 Log in
               </button>
-              <button
-                className="px-4 py-1.5 rounded-xl bg-neonBlue text-white shadow-neon hover:animate-glow transition"
-              >
+              <button className="px-4 py-1.5 rounded-xl bg-neonBlue text-white shadow-neon hover:animate-glow transition">
                 Sign up
               </button>
             </div>
@@ -101,24 +91,19 @@ function App() {
           {/* Hero */}
           <header className="mb-8">
             <h1 className="font-display text-2xl md:text-3xl tracking-wide">
-              Upload. Clean.{" "}
-              <span className="text-neonYellow">Visualize.</span>
+              Upload. Clean. <span className="text-neonYellow">Visualize.</span>
             </h1>
             <p className="text-gray-600 mt-2 max-w-2xl dark:text-slate-300">
-              A next-gen analytics studio. Drop your files, explore instant
-              insights, and export visuals — all in an AI-tech, cyberpunk
-              inspired interface.
+              A next-gen analytics studio. Drop your files, explore instant insights, and export
+              visuals — all in an AI-tech, cyberpunk inspired interface.
             </p>
           </header>
 
-          {/* Features Section */}
-          <Features />
-
-          {/* Panels */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-12">
+          {/* Panels (Upload + Visualization first as requested) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Upload Panel */}
             <section
-              className="lg:col-span-1 rounded-2xl 
+              className="lg:col-span-1 rounded-2xl
               bg-white border border-gray-200 shadow-sm
               dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border"
             >
@@ -138,7 +123,7 @@ function App() {
 
             {/* Chart Panel */}
             <section
-              className="lg:col-span-2 rounded-2xl 
+              className="lg:col-span-2 rounded-2xl
               bg-white border border-gray-200 shadow-sm
               dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border"
             >
@@ -146,9 +131,7 @@ function App() {
                 <div className="flex items-center justify-between">
                   <h2 className="font-display text-lg">Visualization</h2>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 dark:text-slate-400">
-                      Chart:
-                    </span>
+                    <span className="text-xs text-gray-500 dark:text-slate-400">Chart:</span>
                     <div className="relative">
                       <select
                         className="appearance-none bg-gray-100 border border-gray-300 rounded-lg px-3 py-1.5 pr-8 text-sm text-gray-800
@@ -181,17 +164,22 @@ function App() {
             </section>
           </div>
 
+          {/* Features (moved below panels) */}
+          <div className="mt-12">
+            <Features />
+          </div>
+
           {/* Summary Panel */}
           {Object.keys(summary).length > 0 && (
             <section
-              className="mt-6 rounded-2xl 
+              className="mt-6 rounded-2xl
               bg-white border border-gray-200 shadow-sm
               dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border"
             >
               <div className="p-5">
                 <h2 className="font-display text-lg mb-2">Summary</h2>
                 <pre
-                  className="text-sm overflow-auto bg-gray-100 p-3 rounded-xl 
+                  className="text-sm overflow-auto bg-gray-100 p-3 rounded-xl
                   dark:bg-black/30 dark:text-slate-200"
                 >
                   {JSON.stringify(summary, null, 2)}
