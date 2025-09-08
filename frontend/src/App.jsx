@@ -3,7 +3,8 @@ import React, { useState, useEffect } from "react";
 import FileUpload from "./components/FileUpload.jsx";
 import ChartView from "./components/ChartView.jsx";
 import Sidebar from "./components/Sidebar.jsx";
-import Features from "./components/Features.jsx"; // NEW
+import Features from "./components/Features.jsx";
+import Footer from "./components/Footer.jsx";
 import "./App.css";
 
 function App() {
@@ -12,15 +13,12 @@ function App() {
   const [types, setTypes] = useState({});     // {"col": "numeric" | "categorical" | "datetime"}
   const [summary, setSummary] = useState({}); // numeric stats
 
-  // Theme state (persisted in localStorage)
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem("theme") || "dark";
-  });
+  // Theme state (single source of truth)
+  const [theme, setTheme] = useState("dark");
 
   useEffect(() => {
     document.body.classList.remove("dark", "light");
     document.body.classList.add(theme);
-    localStorage.setItem("theme", theme);
   }, [theme]);
 
   return (
@@ -113,8 +111,11 @@ function App() {
             </p>
           </header>
 
+          {/* Features Section */}
+          <Features />
+
           {/* Panels */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-12">
             {/* Upload Panel */}
             <section
               className="lg:col-span-1 rounded-2xl 
@@ -156,11 +157,19 @@ function App() {
                         onChange={() => {}}
                       >
                         <option value="bar">Bar</option>
-                        <option value="line" disabled>Line (soon)</option>
-                        <option value="scatter" disabled>Scatter (soon)</option>
-                        <option value="map" disabled>Map (soon)</option>
+                        <option value="line" disabled>
+                          Line (soon)
+                        </option>
+                        <option value="scatter" disabled>
+                          Scatter (soon)
+                        </option>
+                        <option value="map" disabled>
+                          Map (soon)
+                        </option>
                       </select>
-                      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400">
+                      <span
+                        className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400"
+                      >
                         ▾
                       </span>
                     </div>
@@ -190,10 +199,10 @@ function App() {
               </div>
             </section>
           )}
-
-          {/* NEW: Features Section */}
-          <Features />
         </main>
+
+        {/* Footer */}
+        <Footer />
       </div>
     </div>
   );
