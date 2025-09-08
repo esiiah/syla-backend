@@ -5,6 +5,7 @@ import ChartView from "./components/ChartView.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import Features from "./components/Features.jsx";
 import Footer from "./components/Footer.jsx";
+import { Settings } from "lucide-react";
 import "./App.css";
 
 function App() {
@@ -15,6 +16,18 @@ function App() {
 
   // Theme state (single source of truth)
   const [theme, setTheme] = useState("dark");
+
+  // Chart customization state
+  const [chartOptions, setChartOptions] = useState({
+    type: "bar",
+    color: "#2563eb",
+    gradient: false,
+    showLabels: false,
+    trendline: false,
+    sort: "none",
+    logScale: false,
+  });
+  const [showOptions, setShowOptions] = useState(false);
 
   useEffect(() => {
     document.body.classList.remove("dark", "light");
@@ -128,38 +141,130 @@ function App() {
               dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border"
             >
               <div className="p-5">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-3">
                   <h2 className="font-display text-lg">Visualization</h2>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 dark:text-slate-400">Chart:</span>
-                    <div className="relative">
-                      <select
-                        className="appearance-none bg-gray-100 border border-gray-300 rounded-lg px-3 py-1.5 pr-8 text-sm text-gray-800
-                        dark:bg-ink/80 dark:border-white/10 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-neonBlue/50"
-                        defaultValue="bar"
-                        onChange={() => {}}
-                      >
-                        <option value="bar">Bar</option>
-                        <option value="line" disabled>
-                          Line (soon)
-                        </option>
-                        <option value="scatter" disabled>
-                          Scatter (soon)
-                        </option>
-                        <option value="map" disabled>
-                          Map (soon)
-                        </option>
-                      </select>
-                      <span
-                        className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 dark:text-slate-400"
-                      >
-                        ▾
-                      </span>
-                    </div>
-                  </div>
+                  <button
+                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-black/30 transition"
+                    onClick={() => setShowOptions((prev) => !prev)}
+                  >
+                    <Settings size={18} className="text-gray-600 dark:text-slate-400" />
+                  </button>
                 </div>
 
-                <ChartView data={data} columns={columns} types={types} />
+                {/* Options Panel */}
+                {showOptions && (
+                  <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    {/* Chart Type */}
+                    <div>
+                      <label className="block mb-1 text-gray-700 dark:text-slate-300">
+                        Chart Type
+                      </label>
+                      <select
+                        value={chartOptions.type}
+                        onChange={(e) =>
+                          setChartOptions((o) => ({ ...o, type: e.target.value }))
+                        }
+                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-1.5
+                        dark:bg-ink/80 dark:border-white/10 dark:text-slate-200"
+                      >
+                        <option value="bar">Bar</option>
+                        <option value="line">Line</option>
+                        <option value="scatter">Scatter</option>
+                        <option value="pie">Pie</option>
+                      </select>
+                    </div>
+
+                    {/* Color */}
+                    <div>
+                      <label className="block mb-1 text-gray-700 dark:text-slate-300">
+                        Color
+                      </label>
+                      <input
+                        type="color"
+                        value={chartOptions.color}
+                        onChange={(e) =>
+                          setChartOptions((o) => ({ ...o, color: e.target.value }))
+                        }
+                        className="w-full h-10 rounded-lg border border-gray-300
+                        dark:border-white/10"
+                      />
+                    </div>
+
+                    {/* Gradient Toggle */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={chartOptions.gradient}
+                        onChange={(e) =>
+                          setChartOptions((o) => ({ ...o, gradient: e.target.checked }))
+                        }
+                      />
+                      <span className="text-gray-700 dark:text-slate-300">Use Gradient</span>
+                    </div>
+
+                    {/* Show Labels */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={chartOptions.showLabels}
+                        onChange={(e) =>
+                          setChartOptions((o) => ({ ...o, showLabels: e.target.checked }))
+                        }
+                      />
+                      <span className="text-gray-700 dark:text-slate-300">Show Labels</span>
+                    </div>
+
+                    {/* Trendline */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={chartOptions.trendline}
+                        onChange={(e) =>
+                          setChartOptions((o) => ({ ...o, trendline: e.target.checked }))
+                        }
+                      />
+                      <span className="text-gray-700 dark:text-slate-300">Trendline</span>
+                    </div>
+
+                    {/* Sorting */}
+                    <div>
+                      <label className="block mb-1 text-gray-700 dark:text-slate-300">
+                        Sort
+                      </label>
+                      <select
+                        value={chartOptions.sort}
+                        onChange={(e) =>
+                          setChartOptions((o) => ({ ...o, sort: e.target.value }))
+                        }
+                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-1.5
+                        dark:bg-ink/80 dark:border-white/10 dark:text-slate-200"
+                      >
+                        <option value="none">None</option>
+                        <option value="asc">Ascending</option>
+                        <option value="desc">Descending</option>
+                      </select>
+                    </div>
+
+                    {/* Log Scale */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={chartOptions.logScale}
+                        onChange={(e) =>
+                          setChartOptions((o) => ({ ...o, logScale: e.target.checked }))
+                        }
+                      />
+                      <span className="text-gray-700 dark:text-slate-300">Log Scale</span>
+                    </div>
+                  </div>
+                )}
+
+                <ChartView
+                  data={data}
+                  columns={columns}
+                  types={types}
+                  options={chartOptions}
+                />
               </div>
             </section>
           </div>
