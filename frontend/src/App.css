@@ -1,4 +1,7 @@
-/* App.css - Syla Futuristic Theme */
+/* frontend/src/App.css - Syla Futuristic Theme */
+
+/* Import Google fonts for titles (display) and interface */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Orbitron:wght@400;700&display=swap');
 
 /* Root App wrapper */
 .App {
@@ -10,25 +13,43 @@
 /* Light mode */
 .light {
   background: #f9fafb; /* soft white */
-  color: #0f172a;      /* slate text */
+  color: #0f172a; /* slate text */
 }
 
 /* Dark mode */
 .dark {
   background: #0f172a; /* midnight */
-  color: #e2e8f0;      /* light gray text */
+  color: #e2e8f0; /* light gray text */
 }
 
 /* Fonts usage */
 body, p, span, li, input, button {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
 }
 
 h1, h2, h3, h4, h5, h6, .font-display {
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Orbitron', 'Inter', sans-serif;
+  letter-spacing: 0.2px;
 }
 
-/* Neon text effect for headings */
+/* Neon border helper (used across panels & cards) */
+.neon-border {
+  box-shadow: 0 1px 0 rgba(255,255,255,0.02), 0 8px 18px rgba(0,0,0,0.18);
+  position: relative;
+}
+
+/* Small accent outline for neon effect */
+.neon-border::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 18px rgba(37, 99, 235, 0.06), 0 0 28px rgba(250, 204, 21, 0.02);
+  z-index: -1;
+}
+
+/* Neon text effect for headings (occasional) */
 .neon-text {
   color: #facc15; /* neon yellow */
   text-shadow: 0 0 5px rgba(250, 204, 21, 0.6),
@@ -70,10 +91,12 @@ h1, h2, h3, h4, h5, h6, .font-display {
   background: rgba(250, 204, 21, 0.8);
 }
 
-/* Default to dark mode */
+/* Default to dark mode visual defaults */
 body {
   background-color: #0f172a;
   color: #e2e8f0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Utility */
@@ -94,4 +117,30 @@ body {
 }
 .shadow-soft {
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* Small helper visibility improvements for light/dark */
+.text-contrast-light {
+  color: #0b1220; /* stronger in light backgrounds */
+}
+.text-contrast-dark {
+  color: #e6eef8; /* strong in dark backgrounds */
+}
+
+/* Make .font-display headings visually stronger for both modes */
+.font-display.text-lg,
+.font-display.text-3xl,
+.font-display.text-2xl {
+  color: #0b1220;
+}
+body.dark .font-display.text-lg,
+body.dark .font-display.text-3xl,
+body.dark .font-display.text-2xl {
+  color: #e6eef8;
+}
+
+/* Keep small form items accessible */
+select, input, textarea {
+  outline: none;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
