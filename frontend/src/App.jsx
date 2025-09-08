@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import FileUpload from "./components/FileUpload.jsx";
 import ChartView from "./components/ChartView.jsx";
 import Sidebar from "./components/Sidebar.jsx";
+import Features from "./components/Features.jsx"; // NEW
 import "./App.css";
 
 function App() {
@@ -11,12 +12,15 @@ function App() {
   const [types, setTypes] = useState({});     // {"col": "numeric" | "categorical" | "datetime"}
   const [summary, setSummary] = useState({}); // numeric stats
 
-  // Theme state (single source of truth)
-  const [theme, setTheme] = useState("dark");
+  // Theme state (persisted in localStorage)
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem("theme") || "dark";
+  });
 
   useEffect(() => {
     document.body.classList.remove("dark", "light");
     document.body.classList.add(theme);
+    localStorage.setItem("theme", theme);
   }, [theme]);
 
   return (
@@ -31,9 +35,11 @@ function App() {
       {/* Main content */}
       <div className="flex-1 transition-all duration-300">
         {/* NAVBAR */}
-        <nav className="sticky top-0 z-20 backdrop-blur 
+        <nav
+          className="sticky top-0 z-20 backdrop-blur 
           bg-white/80 border-b border-gray-200 shadow-sm
-          dark:bg-ink/80 dark:border-white/5 dark:shadow-soft">
+          dark:bg-ink/80 dark:border-white/5 dark:shadow-soft"
+        >
           <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img
@@ -76,12 +82,16 @@ function App() {
             </div>
 
             <div className="flex items-center gap-3">
-              <button className="px-3 py-1.5 rounded-xl border border-gray-300 text-gray-700 
+              <button
+                className="px-3 py-1.5 rounded-xl border border-gray-300 text-gray-700 
                 hover:text-black hover:border-neonBlue/60 transition
-                dark:border-white/10 dark:text-slate-200 dark:hover:text-white">
+                dark:border-white/10 dark:text-slate-200 dark:hover:text-white"
+              >
                 Log in
               </button>
-              <button className="px-4 py-1.5 rounded-xl bg-neonBlue text-white shadow-neon hover:animate-glow transition">
+              <button
+                className="px-4 py-1.5 rounded-xl bg-neonBlue text-white shadow-neon hover:animate-glow transition"
+              >
                 Sign up
               </button>
             </div>
@@ -106,9 +116,11 @@ function App() {
           {/* Panels */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Upload Panel */}
-            <section className="lg:col-span-1 rounded-2xl 
+            <section
+              className="lg:col-span-1 rounded-2xl 
               bg-white border border-gray-200 shadow-sm
-              dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
+              dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border"
+            >
               <div className="p-5">
                 <h2 className="font-display text-lg mb-1">Upload Data</h2>
                 <p className="text-gray-500 text-sm mb-4 dark:text-slate-400">
@@ -124,14 +136,18 @@ function App() {
             </section>
 
             {/* Chart Panel */}
-            <section className="lg:col-span-2 rounded-2xl 
+            <section
+              className="lg:col-span-2 rounded-2xl 
               bg-white border border-gray-200 shadow-sm
-              dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
+              dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border"
+            >
               <div className="p-5">
                 <div className="flex items-center justify-between">
                   <h2 className="font-display text-lg">Visualization</h2>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500 dark:text-slate-400">Chart:</span>
+                    <span className="text-xs text-gray-500 dark:text-slate-400">
+                      Chart:
+                    </span>
                     <div className="relative">
                       <select
                         className="appearance-none bg-gray-100 border border-gray-300 rounded-lg px-3 py-1.5 pr-8 text-sm text-gray-800
@@ -158,18 +174,25 @@ function App() {
 
           {/* Summary Panel */}
           {Object.keys(summary).length > 0 && (
-            <section className="mt-6 rounded-2xl 
+            <section
+              className="mt-6 rounded-2xl 
               bg-white border border-gray-200 shadow-sm
-              dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
+              dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border"
+            >
               <div className="p-5">
                 <h2 className="font-display text-lg mb-2">Summary</h2>
-                <pre className="text-sm overflow-auto bg-gray-100 p-3 rounded-xl 
-                  dark:bg-black/30 dark:text-slate-200">
+                <pre
+                  className="text-sm overflow-auto bg-gray-100 p-3 rounded-xl 
+                  dark:bg-black/30 dark:text-slate-200"
+                >
                   {JSON.stringify(summary, null, 2)}
                 </pre>
               </div>
             </section>
           )}
+
+          {/* NEW: Features Section */}
+          <Features />
         </main>
       </div>
     </div>
