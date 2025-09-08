@@ -1,3 +1,4 @@
+// frontend/src/components/FileUpload.jsx
 import React, { useState, useRef } from "react";
 
 function FileUpload({ onData, onColumns, onTypes, onSummary }) {
@@ -77,7 +78,7 @@ function FileUpload({ onData, onColumns, onTypes, onSummary }) {
     <div className="space-y-4">
       {/* Drag & Drop Zone */}
       <div
-        className={`rounded-2xl border border-dashed p-6 text-center transition 
+        className={`rounded-2xl border border-dashed p-6 text-center transition
           ${dragOver ? "border-neonYellow bg-white/5" : "border-white/10 bg-black/10"} neon-border shadow-soft`}
         onDragOver={(e) => {
           e.preventDefault();
@@ -97,13 +98,7 @@ function FileUpload({ onData, onColumns, onTypes, onSummary }) {
           >
             Choose File
           </button>
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".csv"
-            onChange={handleFileChange}
-            className="hidden"
-          />
+          <input ref={inputRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
           {file && (
             <span className="text-xs text-slate-300 truncate max-w-[120px]">
               Selected: <span className="text-neonYellow">{file.name}</span>
