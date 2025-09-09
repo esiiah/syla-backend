@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/favicon.png" /> 
+    <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Syla Analytics</title>
 
@@ -15,12 +15,15 @@
     <!-- Ensure dark mode is applied immediately to avoid white flash -->
     <script>
       (() => {
-        const savedTheme = localStorage.getItem("theme");
-        if (savedTheme) {
-          document.body.classList.add(savedTheme);
+        const applyTheme = () => {
+          const savedTheme = localStorage.getItem("theme");
+          const theme = savedTheme || "dark";
+          document.body.classList.add(theme);
+        };
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", applyTheme);
         } else {
-          // Default to dark if no preference saved
-          document.body.classList.add("dark");
+          applyTheme();
         }
       })();
     </script>
