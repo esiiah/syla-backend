@@ -1,4 +1,3 @@
-// frontend/src/App.jsx
 import React, { useState, useEffect } from "react";
 import FileUpload from "./components/FileUpload.jsx";
 import ChartView from "./components/ChartView.jsx";
@@ -29,12 +28,13 @@ function App() {
   });
   const [showOptions, setShowOptions] = useState(false);
 
-useEffect(() => {
-  if (typeof document !== "undefined" && document.body) {
-    document.body.classList.remove("dark", "light");
-    document.body.classList.add(theme);
-  }
-}, [theme]);
+  useEffect(() => {
+    // only toggle theme classes, do not wipe other classes on body
+    if (typeof document !== "undefined" && document.body) {
+      document.body.classList.remove("dark", "light");
+      document.body.classList.add(theme === "light" ? "light" : "dark");
+    }
+  }, [theme]);
 
   return (
     <div className="flex min-h-screen overflow-x-hidden relative">
