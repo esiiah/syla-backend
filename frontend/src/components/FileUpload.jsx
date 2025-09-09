@@ -57,7 +57,10 @@ function FileUpload({ onData, onColumns, onTypes, onSummary }) {
           onColumns(result.columns || []);
           onTypes(result.types || {});
           onSummary(result.summary || {});
-          alert(`Upload successful: ${result.filename} (${result.rows} rows)`);
+          // clear selected file after successful upload (optional)
+          setFile(null);
+          if (inputRef.current) inputRef.current.value = "";
+          alert(`Upload successful: ${result.filename || "file"} (${result.rows || "-" } rows)`);
         } catch (e) {
           alert("Upload succeeded but response was not JSON.");
         }
@@ -74,19 +77,34 @@ function FileUpload({ onData, onColumns, onTypes, onSummary }) {
     xhr.send(formData);
   };
 
+  // Inline style fallback for drag highlight (works even without custom Tailwind classes)
+  const dragStyle = dragOver
+    ? {
+        borderColor: "#FACC15", // neon yellow fallback
+        backgroundColor: "rgba(250, 204, 21, 0.03)",
+        boxShadow: "0 0 0 6px rgba(250,204,21,0.05)",
+      }
+    : {};
+
   return (
     <div className="space-y-4">
       {/* Drag & Drop Zone */}
       <div
-        className={`rounded-2xl p-6 text-center transition
-          ${dragOver ? "border-neonYellow bg-white/5" : ""}
-          bg-white border border-gray-200 shadow-sm
-          dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border`}
+        className={`rounded-2xl p-6 text-center transition bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border`}
+        style={dragStyle}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
         onDragOver={(e) => {
           e.preventDefault();
           setDragOver(true);
         }}
-        onDragLeave={() => setDragOver(false)}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          // best-effort: clear highlight when leaving the target
+          setDragOver(false);
+        }}
         onDrop={handleDrop}
       >
         <p className="mb-2 font-medium text-gray-700 dark:text-slate-300">
@@ -126,8 +144,9 @@ function FileUpload({ onData, onColumns, onTypes, onSummary }) {
       <button
         onClick={handleUpload}
         className="w-full px-4 py-3 rounded-2xl bg-neonBlue text-white shadow-neon hover:animate-glow transition font-medium"
+        disabled={uploading}
       >
-        Upload
+        {uploading ? `Uploading ${progress}%` : "Upload"}
       </button>
 
       {/* Progress Bar */}
