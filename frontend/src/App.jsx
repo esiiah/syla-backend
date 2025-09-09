@@ -29,10 +29,12 @@ function App() {
   });
   const [showOptions, setShowOptions] = useState(false);
 
-  useEffect(() => {
+useEffect(() => {
+  if (typeof document !== "undefined" && document.body) {
     document.body.classList.remove("dark", "light");
     document.body.classList.add(theme);
-  }, [theme]);
+  }
+}, [theme]);
 
   return (
     <div className="flex min-h-screen overflow-x-hidden relative">
