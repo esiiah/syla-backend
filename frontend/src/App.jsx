@@ -114,7 +114,7 @@ function App() {
             </p>
           </header>
 
-          {/* Panels (Upload + Visualization first as requested) */}
+          {/* Panels (Upload + Visualization) */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Upload Panel */}
             <section
@@ -297,24 +297,39 @@ function App() {
                             {col}
                           </td>
                           <td className="px-4 py-2 text-sm text-gray-600 dark:text-slate-300">
-                            {typeof details === "object" ? (
-                              <table className="min-w-[200px] border border-gray-200 dark:border-white/10 rounded-lg overflow-hidden">
-                                <tbody>
-                                  {Object.entries(details).map(([k, v], j) => (
-                                    <tr key={j} className="odd:bg-gray-100 dark:odd:bg-black/30">
-                                      <td className="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-slate-200 border-r border-gray-200 dark:border-white/10">
-                                        {k}
-                                      </td>
-                                      <td className="px-3 py-1.5 text-xs text-gray-600 dark:text-slate-300">
-                                        {String(v)}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            ) : (
-                              String(details)
-                            )}
+                            {(() => {
+                              if (details && typeof details === "object" && !Array.isArray(details)) {
+                                // Plain object → mini table
+                                return (
+                                  <table className="min-w-[200px] border border-gray-200 dark:border-white/10 rounded-lg overflow-hidden">
+                                    <tbody>
+                                      {Object.entries(details).map(([k, v], j) => (
+                                        <tr key={j} className="odd:bg-gray-100 dark:odd:bg-black/30">
+                                          <td className="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-slate-200 border-r border-gray-200 dark:border-white/10">
+                                            {k}
+                                          </td>
+                                          <td className="px-3 py-1.5 text-xs text-gray-600 dark:text-slate-300">
+                                            {typeof v === "object" ? JSON.stringify(v) : String(v)}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                );
+                              } else if (Array.isArray(details)) {
+                                // Array → bullet list
+                                return (
+                                  <ul className="list-disc pl-5">
+                                    {details.map((v, j) => (
+                                      <li key={j}>{typeof v === "object" ? JSON.stringify(v) : String(v)}</li>
+                                    ))}
+                                  </ul>
+                                );
+                              } else {
+                                // Primitive / null
+                                return String(details ?? "");
+                              }
+                            })()}
                           </td>
                         </tr>
                       ))}
