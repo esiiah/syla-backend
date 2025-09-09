@@ -1,3 +1,4 @@
+// frontend/src/App.jsx
 import React, { useState, useEffect } from "react";
 import FileUpload from "./components/FileUpload.jsx";
 import ChartView from "./components/ChartView.jsx";
@@ -8,10 +9,10 @@ import { Settings } from "lucide-react";
 import "./App.css";
 
 function App() {
-  const [data, setData] = useState([]); // all rows
-  const [columns, setColumns] = useState([]); // column names
-  const [types, setTypes] = useState({}); // {"col": "numeric" | "categorical"}
-  const [summary, setSummary] = useState({}); // numeric/categorical summary
+  const [data, setData] = useState([]);
+  const [columns, setColumns] = useState([]);
+  const [types, setTypes] = useState({});
+  const [summary, setSummary] = useState({});
   const [chartTitle, setChartTitle] = useState("");
   const [xAxis, setXAxis] = useState("");
   const [yAxis, setYAxis] = useState("");
@@ -101,6 +102,21 @@ function App() {
                   onXAxis={setXAxis}
                   onYAxis={setYAxis}
                 />
+
+                {/* Mini Chart Preview in Upload Panel */}
+                {data.length > 0 && xAxis && yAxis && (
+                  <div className="mt-4">
+                    <ChartView
+                      data={data}
+                      columns={columns}
+                      types={types}
+                      options={chartOptions}
+                      chartTitle="Preview"
+                      xAxis={xAxis}
+                      yAxis={yAxis}
+                    />
+                  </div>
+                )}
               </div>
             </section>
 
@@ -116,7 +132,50 @@ function App() {
 
                 {showOptions && (
                   <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    {/* Chart options here... */}
+                    {/* Chart Options */}
+                    <label className="flex flex-col">
+                      Chart Type
+                      <select value={chartOptions.type} onChange={e => setChartOptions({...chartOptions, type: e.target.value})} className="mt-1 border rounded px-2 py-1">
+                        <option value="bar">Bar</option>
+                        <option value="line">Line</option>
+                        <option value="pie">Pie</option>
+                        <option value="scatter">Scatter</option>
+                      </select>
+                    </label>
+
+                    <label className="flex flex-col">
+                      Color
+                      <input type="color" value={chartOptions.color} onChange={e => setChartOptions({...chartOptions, color: e.target.value})} className="mt-1 w-full h-8" />
+                    </label>
+
+                    <label className="flex items-center gap-2 mt-2">
+                      <input type="checkbox" checked={chartOptions.gradient} onChange={e => setChartOptions({...chartOptions, gradient: e.target.checked})} />
+                      Gradient
+                    </label>
+
+                    <label className="flex items-center gap-2 mt-2">
+                      <input type="checkbox" checked={chartOptions.showLabels} onChange={e => setChartOptions({...chartOptions, showLabels: e.target.checked})} />
+                      Show Labels
+                    </label>
+
+                    <label className="flex items-center gap-2 mt-2">
+                      <input type="checkbox" checked={chartOptions.trendline} onChange={e => setChartOptions({...chartOptions, trendline: e.target.checked})} />
+                      Trendline
+                    </label>
+
+                    <label className="flex flex-col mt-2">
+                      Sort
+                      <select value={chartOptions.sort} onChange={e => setChartOptions({...chartOptions, sort: e.target.value})} className="mt-1 border rounded px-2 py-1">
+                        <option value="none">None</option>
+                        <option value="asc">Ascending</option>
+                        <option value="desc">Descending</option>
+                      </select>
+                    </label>
+
+                    <label className="flex items-center gap-2 mt-2">
+                      <input type="checkbox" checked={chartOptions.logScale} onChange={e => setChartOptions({...chartOptions, logScale: e.target.checked})} />
+                      Log Scale
+                    </label>
                   </div>
                 )}
 
