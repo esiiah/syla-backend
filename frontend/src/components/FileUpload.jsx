@@ -1,3 +1,4 @@
+// frontend/src/components/FileUpload.jsx
 import React, { useState, useRef } from "react";
 
 function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAxis, onYAxis }) {
@@ -52,15 +53,20 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
             alert(result.error);
             return;
           }
+
+          // Update all frontend states
           onData(result.data || []);
           onColumns(result.columns || []);
           onTypes(result.types || {});
           onSummary(result.summary || {});
-          onChartTitle(result.chart_title || result.filename || "Chart");
-          onXAxis(result.x_axis || (result.columns ? result.columns[0] : ""));
-          onYAxis(result.y_axis || (result.columns ? result.columns[1] || result.columns[0] : ""));
+          onChartTitle(result.chart_title || "");
+          onXAxis(result.x_axis || "");
+          onYAxis(result.y_axis || "");
+
+          // Reset file input
           setFile(null);
           if (inputRef.current) inputRef.current.value = "";
+
           alert(`Upload successful: ${result.filename || "file"} (${result.rows || "-" } rows)`);
         } catch (e) {
           alert("Upload succeeded but response was not JSON.");
@@ -79,11 +85,16 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
   };
 
   const dragStyle = dragOver
-    ? { borderColor: "#FACC15", backgroundColor: "rgba(250,204,21,0.03)", boxShadow: "0 0 0 6px rgba(250,204,21,0.05)" }
+    ? {
+        borderColor: "#FACC15",
+        backgroundColor: "rgba(250, 204, 21, 0.03)",
+        boxShadow: "0 0 0 6px rgba(250,204,21,0.05)",
+      }
     : {};
 
   return (
     <div className="space-y-4">
+      {/* Drag & Drop Zone */}
       <div
         className={`rounded-2xl p-6 text-center transition bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border`}
         style={dragStyle}
@@ -98,7 +109,6 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
         <p className="text-xs mb-4 text-gray-500 dark:text-slate-400">
           or select a file from your computer
         </p>
-
         <div className="flex items-center justify-center gap-3">
           <button
             type="button"
@@ -110,13 +120,7 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
           >
             Choose File
           </button>
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".csv"
-            onChange={handleFileChange}
-            className="hidden"
-          />
+          <input ref={inputRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
           {file && (
             <span className="text-xs text-gray-700 dark:text-slate-300 truncate max-w-[140px]">
               Selected: <span className="text-neonYellow">{file.name}</span>
@@ -125,6 +129,7 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
         </div>
       </div>
 
+      {/* Upload Button */}
       <button
         onClick={handleUpload}
         className="w-full px-4 py-3 rounded-2xl bg-neonBlue text-white shadow-neon hover:animate-glow transition font-medium"
@@ -133,6 +138,7 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
         {uploading ? `Uploading ${progress}%` : "Upload"}
       </button>
 
+      {/* Progress Bar */}
       {uploading && (
         <div className="mt-2">
           <div className="w-full h-3 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden shadow-inner">
