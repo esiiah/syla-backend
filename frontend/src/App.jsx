@@ -1,4 +1,3 @@
-// frontend/src/App.jsx
 import React, { useState, useEffect } from "react";
 import FileUpload from "./components/FileUpload.jsx";
 import ChartView from "./components/ChartView.jsx";
@@ -9,9 +8,14 @@ import { Settings } from "lucide-react";
 import "./App.css";
 
 function App() {
-  const [data, setData] = useState([]);
-  const [columns, setColumns] = useState([]);
-  const [summary, setSummary] = useState({});
+  const [data, setData] = useState([]); // all rows
+  const [columns, setColumns] = useState([]); // column names
+  const [types, setTypes] = useState({}); // {"col": "numeric" | "categorical"}
+  const [summary, setSummary] = useState({}); // numeric/categorical summary
+  const [chartTitle, setChartTitle] = useState("");
+  const [xAxis, setXAxis] = useState("");
+  const [yAxis, setYAxis] = useState("");
+
   const [theme, setTheme] = useState("dark");
   const [chartOptions, setChartOptions] = useState({
     type: "bar",
@@ -25,7 +29,7 @@ function App() {
   const [showOptions, setShowOptions] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && document?.body) {
+    if (typeof window !== "undefined" && document && document.body) {
       document.body.classList.remove("dark", "light");
       document.body.classList.add(theme === "light" ? "light" : "dark");
     }
@@ -36,9 +40,8 @@ function App() {
       <Sidebar theme={theme} setTheme={setTheme} onReportChange={() => {}} />
 
       <div className="flex-1 transition-all duration-300">
-        <nav className="sticky top-0 z-20 backdrop-blur
-          bg-white/80 border-b border-gray-200 shadow-sm
-          dark:bg-ink/80 dark:border-white/5 dark:shadow-soft">
+        {/* Navbar */}
+        <nav className="sticky top-0 z-20 backdrop-blur bg-white/80 border-b border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft">
           <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <img src="/favicon.png" alt="Syla logo" className="w-8 h-8 animate-float" />
@@ -51,22 +54,39 @@ function App() {
                 </span>
               </div>
             </div>
+
+            <div className="hidden md:flex items-center gap-6">
+              <a href="#" className="text-gray-700 hover:text-neonYellow dark:text-slate-300 dark:hover:text-neonYellow">Docs</a>
+              <a href="#" className="text-gray-700 hover:text-neonYellow dark:text-slate-300 dark:hover:text-neonYellow">Templates</a>
+              <a href="#" className="text-gray-700 hover:text-neonYellow dark:text-slate-300 dark:hover:text-neonYellow">Pricing</a>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button className="px-3 py-1.5 rounded-xl border border-gray-300 text-gray-700 hover:text-black hover:border-neonBlue/60 dark:border-white/10 dark:text-slate-200 dark:hover:text-white">
+                Log in
+              </button>
+              <button className="px-4 py-1.5 rounded-xl bg-neonBlue text-white shadow-neon hover:animate-glow transition">
+                Sign up
+              </button>
+            </div>
           </div>
         </nav>
 
+        {/* Main Content */}
         <main className="mx-auto max-w-7xl px-4 pb-16 pt-8">
           <header className="mb-8">
             <h1 className="font-display text-2xl md:text-3xl tracking-wide">
               Upload. Clean. <span className="text-neonYellow">Visualize.</span>
             </h1>
             <p className="text-gray-600 mt-2 max-w-2xl dark:text-slate-300">
-              Drop your files, explore instant insights, and export visuals.
+              A next-gen analytics studio. Drop your files, explore instant insights, and export
+              visuals — all in an AI-tech, cyberpunk inspired interface.
             </p>
           </header>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <section className="lg:col-span-1 rounded-2xl bg-white border border-gray-200 shadow-sm
-              dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
+            {/* Upload Panel */}
+            <section className="lg:col-span-1 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
               <div className="p-5">
                 <h2 className="font-display text-lg mb-1">Upload Data</h2>
                 <p className="text-gray-500 text-sm mb-4 dark:text-slate-400">
@@ -75,111 +95,47 @@ function App() {
                 <FileUpload
                   onData={setData}
                   onColumns={setColumns}
+                  onTypes={setTypes}
                   onSummary={setSummary}
+                  onChartTitle={setChartTitle}
+                  onXAxis={setXAxis}
+                  onYAxis={setYAxis}
                 />
               </div>
             </section>
 
-            <section className="lg:col-span-2 rounded-2xl bg-white border border-gray-200 shadow-sm
-              dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
+            {/* Chart Panel */}
+            <section className="lg:col-span-2 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
               <div className="p-5">
                 <div className="flex items-center justify-between mb-3">
                   <h2 className="font-display text-lg">Visualization</h2>
-                  <button
-                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-black/30 transition"
-                    onClick={() => setShowOptions((prev) => !prev)}
-                  >
+                  <button className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-black/30 transition" onClick={() => setShowOptions(prev => !prev)}>
                     <Settings size={18} className="text-gray-600 dark:text-slate-400" />
                   </button>
                 </div>
 
                 {showOptions && (
                   <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <label className="block mb-1 text-gray-700 dark:text-slate-300">Chart Type</label>
-                      <select
-                        value={chartOptions.type}
-                        onChange={(e) => setChartOptions(o => ({ ...o, type: e.target.value }))}
-                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-1.5
-                          dark:bg-ink/80 dark:border-white/10 dark:text-slate-200"
-                      >
-                        <option value="bar">Bar</option>
-                        <option value="line">Line</option>
-                        <option value="scatter">Scatter</option>
-                        <option value="pie">Pie</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block mb-1 text-gray-700 dark:text-slate-300">Color</label>
-                      <input
-                        type="color"
-                        value={chartOptions.color}
-                        onChange={(e) => setChartOptions(o => ({ ...o, color: e.target.value }))}
-                        className="w-full h-10 rounded-lg border border-gray-300 dark:border-white/10"
-                      />
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={chartOptions.gradient}
-                        onChange={(e) => setChartOptions(o => ({ ...o, gradient: e.target.checked }))}
-                      />
-                      <span className="text-gray-700 dark:text-slate-300">Use Gradient</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={chartOptions.showLabels}
-                        onChange={(e) => setChartOptions(o => ({ ...o, showLabels: e.target.checked }))}
-                      />
-                      <span className="text-gray-700 dark:text-slate-300">Show Labels</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={chartOptions.trendline}
-                        onChange={(e) => setChartOptions(o => ({ ...o, trendline: e.target.checked }))}
-                      />
-                      <span className="text-gray-700 dark:text-slate-300">Trendline</span>
-                    </div>
-
-                    <div>
-                      <label className="block mb-1 text-gray-700 dark:text-slate-300">Sort</label>
-                      <select
-                        value={chartOptions.sort}
-                        onChange={(e) => setChartOptions(o => ({ ...o, sort: e.target.value }))}
-                        className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-1.5
-                          dark:bg-ink/80 dark:border-white/10 dark:text-slate-200"
-                      >
-                        <option value="none">None</option>
-                        <option value="asc">Ascending</option>
-                        <option value="desc">Descending</option>
-                      </select>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={chartOptions.logScale}
-                        onChange={(e) => setChartOptions(o => ({ ...o, logScale: e.target.checked }))}
-                      />
-                      <span className="text-gray-700 dark:text-slate-300">Log Scale</span>
-                    </div>
+                    {/* Chart options here... */}
                   </div>
                 )}
 
-                <ChartView data={data} columns={columns} options={chartOptions} />
+                <ChartView
+                  data={data}
+                  columns={columns}
+                  types={types}
+                  options={chartOptions}
+                  chartTitle={chartTitle}
+                  xAxis={xAxis}
+                  yAxis={yAxis}
+                />
               </div>
             </section>
           </div>
 
+          {/* Summary Panel */}
           {Object.keys(summary).length > 0 && (
-            <section className="mt-6 rounded-2xl bg-white border border-gray-200 shadow-sm
-              dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
+            <section className="mt-6 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
               <div className="p-5">
                 <h2 className="font-display text-lg mb-4">Summary</h2>
                 <div className="overflow-x-auto">
@@ -195,21 +151,19 @@ function App() {
                         <tr key={i} className="odd:bg-gray-50 dark:odd:bg-black/20 border-b border-gray-200 dark:border-white/5 align-top">
                           <td className="px-4 py-2 text-sm font-medium text-gray-800 dark:text-slate-200">{col}</td>
                           <td className="px-4 py-2 text-sm text-gray-600 dark:text-slate-300">
-                            {details && typeof details === "object" && !Array.isArray(details) ? (
+                            {details && typeof details === "object" ? (
                               <table className="min-w-[200px] border border-gray-200 dark:border-white/10 rounded-lg overflow-hidden">
                                 <tbody>
                                   {Object.entries(details).map(([k, v], j) => (
                                     <tr key={j} className="odd:bg-gray-100 dark:odd:bg-black/30">
                                       <td className="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-slate-200 border-r border-gray-200 dark:border-white/10">{k}</td>
-                                      <td className="px-3 py-1.5 text-xs text-gray-600 dark:text-slate-300">{typeof v === "object" ? JSON.stringify(v) : String(v)}</td>
+                                      <td className="px-3 py-1.5 text-xs text-gray-600 dark:text-slate-300">{String(v)}</td>
                                     </tr>
                                   ))}
                                 </tbody>
                               </table>
-                            ) : Array.isArray(details) ? (
-                              <ul className="list-disc pl-5">{details.map((v, j) => <li key={j}>{typeof v === "object" ? JSON.stringify(v) : String(v)}</li>)}</ul>
                             ) : (
-                              String(details ?? "")
+                              String(details)
                             )}
                           </td>
                         </tr>
@@ -221,7 +175,9 @@ function App() {
             </section>
           )}
 
-          <div className="mt-12"><Features /></div>
+          <div className="mt-12">
+            <Features />
+          </div>
         </main>
 
         <Footer />
