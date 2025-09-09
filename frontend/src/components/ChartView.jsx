@@ -33,110 +33,55 @@ ChartJS.register(
   ChartDataLabels
 );
 
-function ChartView({
-  data = [],
-  columns = [],
-  types = {},
-  options = {
-    type: "bar",
-    color: "#2563eb",
-    gradient: false,
-    showLabels: false,
-    trendline: false,
-    sort: "none",
-    logScale: false,
-  },
-}) {
+function ChartView({ data = [], columns = [], types = {}, options = {} }) {
   const chartRef = useRef(null);
   const [perBarColors, setPerBarColors] = useState({});
 
   const safeData = Array.isArray(data) ? data : [];
   const safeColumns = Array.isArray(columns) ? columns : [];
 
-  // Stable column detection
-  const { labelKey, yKey, limitedData } = useMemo(() => {
-    if (!safeData.length || !safeColumns.length) {
-      return { labelKey: null, yKey: null, limitedData: [] };
-    }
-
-    const categoricalCols = safeColumns.filter((c) => {
-      const t = (types && types[c]) || "";
-      return String(t).toLowerCase().startsWith("categorical");
-    });
-
-    const numericCols = safeColumns.filter((c) => {
-      const t = (types && types[c]) || "";
-      if (String(t).toLowerCase() === "numeric") return true;
-      for (let i = 0; i < Math.min(safeData.length, 10); i++) {
-        const v = safeData[i][c];
-        if (v === null || v === undefined || v === "") continue;
-        if (typeof v === "number" && !isNaN(v)) return true;
-        if (!isNaN(Number(v))) return true;
-      }
-      return false;
-    });
-
-    const chosenLabel = categoricalCols[0] || safeColumns[0];
-    const chosenY =
-      numericCols[0] ||
-      safeColumns.find((c) =>
-        safeData.slice(0, 20).some((r) => {
-          const v = r[c];
-          return v !== null && v !== undefined && v !== "" && !isNaN(Number(v));
-        })
-      ) ||
-      null;
-
-    return {
-      labelKey: chosenLabel || null,
-      yKey: chosenY || null,
-      limitedData: safeData.slice(0, 100),
-    };
-  }, [safeData, safeColumns, types]);
+  // --- Auto-detect X/Y columns: now assumption-free, just picks first two if not provided
+  const { labelKey, yKey } = useMemo(() => {
+    if (!safeColumns.length) return { labelKey: null, yKey: null };
+    return { labelKey: safeColumns[0], yKey: safeColumns[1] || safeColumns[0] };
+  }, [safeColumns]);
 
   if (!safeData.length || !labelKey || !yKey) {
     return (
-      <div className="mt-4 p-6 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
+      <div className="mt-4 p-6 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 neon-border">
         <h2 className="font-display text-base mb-2 text-gray-700 dark:text-slate-200">
           Chart
         </h2>
         <p className="text-gray-500 dark:text-slate-400">
-          Upload a CSV with at least one categorical-like column and one numeric-like column to see
-          charts.
+          Upload a dataset to see charts. Any column types are supported.
         </p>
       </div>
     );
   }
 
-  const labelsRaw = limitedData.map((row, i) =>
-    row[labelKey] !== undefined && row[labelKey] !== null && row[labelKey] !== ""
-      ? String(row[labelKey])
-      : `Row ${i + 1}`
-  );
-
-  const datasetValuesRaw = limitedData.map((row) => {
-    const v = row[yKey];
-    if (typeof v === "number" && !isNaN(v)) return v;
-    const n = Number(v);
-    return isNaN(n) ? 0 : n;
+  // --- Prepare labels and values
+  const labels = safeData.map((row, i) => {
+    const val = row[labelKey];
+    if (val === null || val === undefined || typeof val === "object") return `Row ${i + 1}`;
+    return String(val);
   });
 
-  // Keep labels/data aligned
-  let paired = labelsRaw.map((lab, i) => ({
-    label: lab,
-    value: datasetValuesRaw[i],
-    row: limitedData[i],
-    index: i,
-  }));
+  const datasetValues = safeData.map((row) => {
+    const v = row[yKey];
+    if (typeof v === "number") return v;
+    const n = Number(v);
+    return isNaN(n) ? null : n; // leave nulls instead of 0
+  });
 
-  if (options.sort === "asc") paired.sort((a, b) => a.value - b.value);
-  if (options.sort === "desc") paired.sort((a, b) => b.value - a.value);
+  // --- Apply sorting
+  let paired = labels.map((lab, i) => ({ label: lab, value: datasetValues[i], index: i }));
+  if (options.sort === "asc") paired.sort((a, b) => (a.value ?? 0) - (b.value ?? 0));
+  if (options.sort === "desc") paired.sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 
-  const labels = paired.map((p) => p.label);
-  const datasetValues = paired.map((p) => p.value);
-  const limitedDataSorted = paired.map((p) => p.row);
+  const finalLabels = paired.map((p) => p.label);
+  const finalValues = paired.map((p) => p.value);
 
-  // Color utils
+  // --- Color utilities
   const baseColor = options.color || "#2563eb";
   const hexToRgba = (hex, alpha = 1) => {
     if (!hex || typeof hex !== "string") return `rgba(37,99,235,${alpha})`;
@@ -155,21 +100,20 @@ function ChartView({
         const g = ctx.createLinearGradient(0, 0, 0, height || 200);
         g.addColorStop(0, hexToRgba(baseColor, 1));
         g.addColorStop(1, hexToRgba(baseColor, 0.25));
-        return new Array(datasetValues.length).fill(g);
+        return new Array(finalValues.length).fill(g);
       } catch {
         // fallback
       }
     }
-    return datasetValues.map((_, i) => perBarColors[i] || baseColor);
+    return finalValues.map((_, i) => perBarColors[i] || baseColor);
   };
 
-  // Trendline
+  // --- Trendline
   const trendDataset = useMemo(() => {
     if (!options.trendline) return null;
-    const n = datasetValues.length;
-    if (n < 2) return null;
-    const x = datasetValues.map((_, i) => i);
-    const y = datasetValues;
+    const n = finalValues.length;
+    const y = finalValues.map((v) => v ?? 0);
+    const x = Array.from({ length: n }, (_, i) => i);
     const xAvg = x.reduce((s, v) => s + v, 0) / n;
     const yAvg = y.reduce((s, v) => s + v, 0) / n;
     let num = 0,
@@ -191,19 +135,20 @@ function ChartView({
       order: 1,
       yAxisID: "y",
     };
-  }, [datasetValues, options.trendline, baseColor]);
+  }, [finalValues, options.trendline, baseColor]);
 
+  // --- Chart data function
   const getChartData = (canvas) => {
     const ctx = canvas?.getContext?.("2d") || null;
     const backgroundArray = buildBackgroundArray(ctx, canvas?.height);
 
     if (options.type === "pie") {
-      return { labels, datasets: [{ data: datasetValues, backgroundColor: backgroundArray }] };
+      return { labels: finalLabels, datasets: [{ data: finalValues.map((v) => v ?? 0), backgroundColor: backgroundArray }] };
     }
 
     const primary = {
-      label: `${yKey} (first ${limitedDataSorted.length})`,
-      data: datasetValues,
+      label: `${yKey} (all rows)`,
+      data: finalValues.map((v) => v ?? 0),
       backgroundColor: backgroundArray,
       borderRadius: 6,
       barPercentage: 0.6,
@@ -214,16 +159,10 @@ function ChartView({
       yAxisID: "y",
     };
 
-    if (
-      Array.isArray(primary.backgroundColor) &&
-      primary.backgroundColor.length !== datasetValues.length
-    ) {
-      primary.backgroundColor = datasetValues.map((_, i) => perBarColors[i] || baseColor);
-    }
-
-    return { labels, datasets: trendDataset ? [primary, trendDataset] : [primary] };
+    return { labels: finalLabels, datasets: trendDataset ? [primary, trendDataset] : [primary] };
   };
 
+  // --- Chart options
   const chartOptions = useMemo(() => {
     const base = {
       responsive: true,
@@ -245,8 +184,8 @@ function ChartView({
           font: { weight: "600", size: 10 },
           formatter: (value) => {
             if (options.type === "pie") {
-              const total = datasetValues.reduce((s, v) => s + (Number(v) || 0), 0) || 1;
-              return `${(((Number(value) || 0) / total) * 100).toFixed(1)}%`;
+              const total = finalValues.reduce((s, v) => s + (v ?? 0), 0) || 1;
+              return `${(((value ?? 0) / total) * 100).toFixed(1)}%`;
             }
             return value;
           },
@@ -257,13 +196,7 @@ function ChartView({
     if (options.type === "pie") base.scales = {};
     else if (options.type === "scatter") {
       base.scales = {
-        x: {
-          type: "linear",
-          ticks: {
-            callback: (val) => labels[Number(val) - 1] || val,
-            color: "#374151",
-          },
-        },
+        x: { type: "linear", ticks: { color: "#374151" } },
         y: { type: options.logScale ? "logarithmic" : "linear", beginAtZero: !options.logScale },
       };
     } else {
@@ -273,9 +206,9 @@ function ChartView({
       };
     }
     return base;
-  }, [options, datasetValues, labels, baseColor]);
+  }, [options, finalValues, baseColor]);
 
-  // Context menu for per-bar colors
+  // --- Context menu per-bar colors
   useEffect(() => {
     const chart = chartRef.current;
     const canvas = chart?.canvas;
@@ -284,11 +217,9 @@ function ChartView({
     const onContext = (e) => {
       e.preventDefault();
       try {
-        // chart.getElementsAtEventForMode is Chart.js API
-        const els =
-          typeof chart.getElementsAtEventForMode === "function"
-            ? chart.getElementsAtEventForMode(e, "nearest", { intersect: true }, false)
-            : [];
+        const els = typeof chart.getElementsAtEventForMode === "function"
+          ? chart.getElementsAtEventForMode(e, "nearest", { intersect: true }, false)
+          : [];
         if (!els?.length) return;
         const index = els[0].index;
         if (index == null) return;
@@ -300,16 +231,12 @@ function ChartView({
         input.style.left = `${e.pageX}px`;
         input.style.top = `${e.pageY}px`;
         input.style.zIndex = 99999;
-        input.oninput = (ev) =>
-          setPerBarColors((prev) => ({ ...prev, [index]: ev.target.value }));
+        input.oninput = (ev) => setPerBarColors((prev) => ({ ...prev, [index]: ev.target.value }));
         input.onblur = () => input.remove();
         document.body.appendChild(input);
         input.focus();
         input.click();
-      } catch (err) {
-        // swallow
-        // console.error(err);
-      }
+      } catch {}
     };
 
     canvas.addEventListener("contextmenu", onContext);
@@ -318,30 +245,17 @@ function ChartView({
 
   const ChartContainer = ({ type }) => {
     const style = { minHeight: 320 };
-    if (type === "pie")
-      return <Pie ref={chartRef} data={getChartData} options={chartOptions} style={style} />;
-    if (type === "line")
-      return <Line ref={chartRef} data={getChartData} options={chartOptions} style={style} />;
+    if (type === "pie") return <Pie ref={chartRef} data={getChartData} options={chartOptions} style={style} />;
+    if (type === "line") return <Line ref={chartRef} data={getChartData} options={chartOptions} style={style} />;
     if (type === "scatter") {
-      const points = datasetValues.map((v, i) => ({ x: i + 1, y: v }));
+      const points = finalValues.map((v, i) => ({ x: i + 1, y: v ?? 0 }));
       return (
         <Scatter
           ref={chartRef}
           data={{
             datasets: [
-              {
-                label: yKey,
-                data: points,
-                backgroundColor: datasetValues.map((_, i) => perBarColors[i] || baseColor),
-              },
-              ...(trendDataset
-                ? [
-                    {
-                      ...trendDataset,
-                      data: trendDataset.data.map((v, i) => ({ x: i + 1, y: v })),
-                    },
-                  ]
-                : []),
+              { label: yKey, data: points, backgroundColor: finalValues.map((_, i) => perBarColors[i] || baseColor) },
+              ...(trendDataset ? [{ ...trendDataset, data: trendDataset.data.map((v, i) => ({ x: i + 1, y: v })) }] : []),
             ],
           }}
           options={chartOptions}
@@ -354,17 +268,13 @@ function ChartView({
 
   return (
     <div className="mt-4">
-      <div
-        className="rounded-2xl p-4 bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border"
-        style={{ minHeight: 360 }}
-      >
+      <div className="rounded-2xl p-4 bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 neon-border" style={{ minHeight: 360 }}>
         <div className="flex items-center justify-between mb-3">
           <div className="text-xs text-gray-600 dark:text-slate-400">
-            Label: <span className="text-gray-800 dark:text-slate-200">{labelKey}</span> • Value:{" "}
-            <span className="text-gray-800 dark:text-slate-200">{yKey}</span>
+            Label: <span className="text-gray-800 dark:text-slate-200">{labelKey}</span> • Value: <span className="text-gray-800 dark:text-slate-200">{yKey}</span>
           </div>
           <div className="text-xs text-gray-500 dark:text-slate-400">
-            {safeData.length > 100 ? `Showing first 100 rows (of ${safeData.length})` : null}
+            {safeData.length > 500 ? `Showing ${safeData.length} rows` : null}
           </div>
         </div>
         <div className="w-full h-[320px]">
