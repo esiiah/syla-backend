@@ -53,7 +53,7 @@ function ChartView({
   const safeData = Array.isArray(data) ? data : [];
   const safeColumns = Array.isArray(columns) ? columns : [];
 
-  // 🔑 Stable column detection
+  // Stable column detection
   const { labelKey, yKey, limitedData } = useMemo(() => {
     if (!safeData.length || !safeColumns.length) {
       return { labelKey: null, yKey: null, limitedData: [] };
@@ -61,18 +61,17 @@ function ChartView({
 
     const categoricalCols = safeColumns.filter((c) => {
       const t = (types && types[c]) || "";
-      return t.toLowerCase().startsWith("categorical");
+      return String(t).toLowerCase().startsWith("categorical");
     });
 
     const numericCols = safeColumns.filter((c) => {
       const t = (types && types[c]) || "";
-      if (t.toLowerCase() === "numeric") return true;
+      if (String(t).toLowerCase() === "numeric") return true;
       for (let i = 0; i < Math.min(safeData.length, 10); i++) {
         const v = safeData[i][c];
         if (v === null || v === undefined || v === "") continue;
         if (typeof v === "number" && !isNaN(v)) return true;
         if (!isNaN(Number(v))) return true;
-        return false;
       }
       return false;
     });
@@ -115,14 +114,14 @@ function ChartView({
       : `Row ${i + 1}`
   );
 
-  let datasetValuesRaw = limitedData.map((row) => {
+  const datasetValuesRaw = limitedData.map((row) => {
     const v = row[yKey];
     if (typeof v === "number" && !isNaN(v)) return v;
     const n = Number(v);
     return isNaN(n) ? 0 : n;
   });
 
-  // 🔑 Keep labels/data aligned
+  // Keep labels/data aligned
   let paired = labelsRaw.map((lab, i) => ({
     label: lab,
     value: datasetValuesRaw[i],
@@ -157,7 +156,9 @@ function ChartView({
         g.addColorStop(0, hexToRgba(baseColor, 1));
         g.addColorStop(1, hexToRgba(baseColor, 0.25));
         return new Array(datasetValues.length).fill(g);
-      } catch {}
+      } catch {
+        // fallback
+      }
     }
     return datasetValues.map((_, i) => perBarColors[i] || baseColor);
   };
@@ -167,7 +168,7 @@ function ChartView({
     if (!options.trendline) return null;
     const n = datasetValues.length;
     if (n < 2) return null;
-    const x = Array.from({ length: n }, (_, i) => i);
+    const x = datasetValues.map((_, i) => i);
     const y = datasetValues;
     const xAvg = x.reduce((s, v) => s + v, 0) / n;
     const yAvg = y.reduce((s, v) => s + v, 0) / n;
@@ -244,9 +245,8 @@ function ChartView({
           font: { weight: "600", size: 10 },
           formatter: (value) => {
             if (options.type === "pie") {
-              const total =
-                datasetValues.reduce((s, v) => s + (Number(v) || 0), 0) || 1;
-              return `${((Number(value) || 0) / total * 100).toFixed(1)}%`;
+              const total = datasetValues.reduce((s, v) => s + (Number(v) || 0), 0) || 1;
+              return `${(((Number(value) || 0) / total) * 100).toFixed(1)}%`;
             }
             return value;
           },
@@ -279,28 +279,37 @@ function ChartView({
   useEffect(() => {
     const chart = chartRef.current;
     const canvas = chart?.canvas;
-    if (!canvas) return;
+    if (!canvas || !chart) return;
 
     const onContext = (e) => {
       e.preventDefault();
-      const els = chart.getElementsAtEventForMode(e, "nearest", { intersect: true }, false);
-      if (!els?.length) return;
-      const index = els[0].index;
-      if (index == null) return;
+      try {
+        // chart.getElementsAtEventForMode is Chart.js API
+        const els =
+          typeof chart.getElementsAtEventForMode === "function"
+            ? chart.getElementsAtEventForMode(e, "nearest", { intersect: true }, false)
+            : [];
+        if (!els?.length) return;
+        const index = els[0].index;
+        if (index == null) return;
 
-      const input = document.createElement("input");
-      input.type = "color";
-      input.value = perBarColors[index] || baseColor;
-      input.style.position = "fixed";
-      input.style.left = `${e.pageX}px`;
-      input.style.top = `${e.pageY}px`;
-      input.style.zIndex = 99999;
-      input.oninput = (ev) =>
-        setPerBarColors((prev) => ({ ...prev, [index]: ev.target.value }));
-      input.onblur = () => input.remove();
-      document.body.appendChild(input);
-      input.focus();
-      input.click();
+        const input = document.createElement("input");
+        input.type = "color";
+        input.value = perBarColors[index] || baseColor;
+        input.style.position = "fixed";
+        input.style.left = `${e.pageX}px`;
+        input.style.top = `${e.pageY}px`;
+        input.style.zIndex = 99999;
+        input.oninput = (ev) =>
+          setPerBarColors((prev) => ({ ...prev, [index]: ev.target.value }));
+        input.onblur = () => input.remove();
+        document.body.appendChild(input);
+        input.focus();
+        input.click();
+      } catch (err) {
+        // swallow
+        // console.error(err);
+      }
     };
 
     canvas.addEventListener("contextmenu", onContext);
@@ -309,8 +318,10 @@ function ChartView({
 
   const ChartContainer = ({ type }) => {
     const style = { minHeight: 320 };
-    if (type === "pie") return <Pie ref={chartRef} data={getChartData} options={chartOptions} style={style} />;
-    if (type === "line") return <Line ref={chartRef} data={getChartData} options={chartOptions} style={style} />;
+    if (type === "pie")
+      return <Pie ref={chartRef} data={getChartData} options={chartOptions} style={style} />;
+    if (type === "line")
+      return <Line ref={chartRef} data={getChartData} options={chartOptions} style={style} />;
     if (type === "scatter") {
       const points = datasetValues.map((v, i) => ({ x: i + 1, y: v }));
       return (
@@ -318,9 +329,18 @@ function ChartView({
           ref={chartRef}
           data={{
             datasets: [
-              { label: yKey, data: points, backgroundColor: datasetValues.map((_, i) => perBarColors[i] || baseColor) },
+              {
+                label: yKey,
+                data: points,
+                backgroundColor: datasetValues.map((_, i) => perBarColors[i] || baseColor),
+              },
               ...(trendDataset
-                ? [{ ...trendDataset, data: trendDataset.data.map((v, i) => ({ x: i + 1, y: v })) }]
+                ? [
+                    {
+                      ...trendDataset,
+                      data: trendDataset.data.map((v, i) => ({ x: i + 1, y: v })),
+                    },
+                  ]
                 : []),
             ],
           }}
@@ -334,7 +354,10 @@ function ChartView({
 
   return (
     <div className="mt-4">
-      <div className="rounded-2xl p-4 bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border" style={{ minHeight: 360 }}>
+      <div
+        className="rounded-2xl p-4 bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border"
+        style={{ minHeight: 360 }}
+      >
         <div className="flex items-center justify-between mb-3">
           <div className="text-xs text-gray-600 dark:text-slate-400">
             Label: <span className="text-gray-800 dark:text-slate-200">{labelKey}</span> • Value:{" "}
