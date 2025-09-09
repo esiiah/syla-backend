@@ -1,4 +1,3 @@
-// frontend/src/App.jsx
 import React, { useState, useEffect } from "react";
 import FileUpload from "./components/FileUpload.jsx";
 import ChartView from "./components/ChartView.jsx";
@@ -22,7 +21,7 @@ function App() {
     type: "bar",
     color: "#2563eb",
     gradient: false,
-    showLabels: false,
+    showLabels: true,
     trendline: false,
     sort: "none",
     logScale: false,
@@ -39,7 +38,6 @@ function App() {
   return (
     <div className="flex min-h-screen overflow-x-hidden relative">
       <Sidebar theme={theme} setTheme={setTheme} onReportChange={() => {}} />
-
       <div className="flex-1 transition-all duration-300">
         {/* Navbar */}
         <nav className="sticky top-0 z-20 backdrop-blur bg-white/80 border-b border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft">
@@ -102,21 +100,6 @@ function App() {
                   onXAxis={setXAxis}
                   onYAxis={setYAxis}
                 />
-
-                {/* Mini Chart Preview in Upload Panel */}
-                {data.length > 0 && xAxis && yAxis && (
-                  <div className="mt-4">
-                    <ChartView
-                      data={data}
-                      columns={columns}
-                      types={types}
-                      options={chartOptions}
-                      chartTitle="Preview"
-                      xAxis={xAxis}
-                      yAxis={yAxis}
-                    />
-                  </div>
-                )}
               </div>
             </section>
 
@@ -132,50 +115,58 @@ function App() {
 
                 {showOptions && (
                   <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    {/* Chart Options */}
-                    <label className="flex flex-col">
-                      Chart Type
-                      <select value={chartOptions.type} onChange={e => setChartOptions({...chartOptions, type: e.target.value})} className="mt-1 border rounded px-2 py-1">
+                    {/* Full chart options */}
+                    <div>
+                      <label className="block mb-1 font-medium">Chart Type</label>
+                      <select value={chartOptions.type} onChange={(e) => setChartOptions({...chartOptions, type: e.target.value})} className="w-full border rounded px-2 py-1">
                         <option value="bar">Bar</option>
                         <option value="line">Line</option>
                         <option value="pie">Pie</option>
                         <option value="scatter">Scatter</option>
                       </select>
-                    </label>
+                    </div>
 
-                    <label className="flex flex-col">
-                      Color
-                      <input type="color" value={chartOptions.color} onChange={e => setChartOptions({...chartOptions, color: e.target.value})} className="mt-1 w-full h-8" />
-                    </label>
+                    <div>
+                      <label className="block mb-1 font-medium">Color</label>
+                      <input type="color" value={chartOptions.color} onChange={(e) => setChartOptions({...chartOptions, color: e.target.value})} className="w-full h-8 p-0 border rounded"/>
+                    </div>
 
-                    <label className="flex items-center gap-2 mt-2">
-                      <input type="checkbox" checked={chartOptions.gradient} onChange={e => setChartOptions({...chartOptions, gradient: e.target.checked})} />
-                      Gradient
-                    </label>
+                    <div>
+                      <label className="block mb-1 font-medium">
+                        <input type="checkbox" checked={chartOptions.gradient} onChange={(e) => setChartOptions({...chartOptions, gradient: e.target.checked})} className="mr-2"/>
+                        Gradient
+                      </label>
+                    </div>
 
-                    <label className="flex items-center gap-2 mt-2">
-                      <input type="checkbox" checked={chartOptions.showLabels} onChange={e => setChartOptions({...chartOptions, showLabels: e.target.checked})} />
-                      Show Labels
-                    </label>
+                    <div>
+                      <label className="block mb-1 font-medium">
+                        <input type="checkbox" checked={chartOptions.showLabels} onChange={(e) => setChartOptions({...chartOptions, showLabels: e.target.checked})} className="mr-2"/>
+                        Show Labels
+                      </label>
+                    </div>
 
-                    <label className="flex items-center gap-2 mt-2">
-                      <input type="checkbox" checked={chartOptions.trendline} onChange={e => setChartOptions({...chartOptions, trendline: e.target.checked})} />
-                      Trendline
-                    </label>
+                    <div>
+                      <label className="block mb-1 font-medium">
+                        <input type="checkbox" checked={chartOptions.trendline} onChange={(e) => setChartOptions({...chartOptions, trendline: e.target.checked})} className="mr-2"/>
+                        Trendline
+                      </label>
+                    </div>
 
-                    <label className="flex flex-col mt-2">
-                      Sort
-                      <select value={chartOptions.sort} onChange={e => setChartOptions({...chartOptions, sort: e.target.value})} className="mt-1 border rounded px-2 py-1">
+                    <div>
+                      <label className="block mb-1 font-medium">Sort</label>
+                      <select value={chartOptions.sort} onChange={(e) => setChartOptions({...chartOptions, sort: e.target.value})} className="w-full border rounded px-2 py-1">
                         <option value="none">None</option>
                         <option value="asc">Ascending</option>
                         <option value="desc">Descending</option>
                       </select>
-                    </label>
+                    </div>
 
-                    <label className="flex items-center gap-2 mt-2">
-                      <input type="checkbox" checked={chartOptions.logScale} onChange={e => setChartOptions({...chartOptions, logScale: e.target.checked})} />
-                      Log Scale
-                    </label>
+                    <div>
+                      <label className="block mb-1 font-medium">
+                        <input type="checkbox" checked={chartOptions.logScale} onChange={(e) => setChartOptions({...chartOptions, logScale: e.target.checked})} className="mr-2"/>
+                        Log Scale
+                      </label>
+                    </div>
                   </div>
                 )}
 
