@@ -6,11 +6,9 @@ import {
   LineChart,
   Type,
   SortAsc,
-  SortDesc,
   Ruler,
   Download,
   BarChart,
-  Eye,
   TrendingUp,
 } from "lucide-react";
 
