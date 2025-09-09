@@ -29,8 +29,7 @@ function App() {
   const [showOptions, setShowOptions] = useState(false);
 
   useEffect(() => {
-    // only toggle theme classes, do not wipe other classes on body
-    if (typeof document !== "undefined" && document.body) {
+    if (typeof window !== "undefined" && document?.body) {
       document.body.classList.remove("dark", "light");
       document.body.classList.add(theme === "light" ? "light" : "dark");
     }
