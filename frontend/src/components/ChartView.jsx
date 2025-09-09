@@ -69,8 +69,9 @@ function ChartView({
 
   // Derive labelKey, yKey and limitedData
   const { labels, yKey, limitedData, labelKey } = useMemo(() => {
-    if (!data.length || !columns.length)
+    if (!Array.isArray(data) || data.length === 0 || !Array.isArray(columns) || columns.length === 0) {
       return { labels: [], yKey: null, limitedData: [], labelKey: null };
+    }
 
     const categoricalCols = columns.filter(
       (c) => (types[c] || "").startsWith("categorical")
@@ -198,7 +199,15 @@ function ChartView({
       /* ignore */
     }
 
-    const backgroundArray = buildBackgroundArray(ctx?.createLinearGradient ? ctx : (chartRef.current?.ctx || null), chartAreaH);
+    // Bail out if no values
+    if (!Array.isArray(datasetValues) || datasetValues.length === 0) {
+      return { labels: [], datasets: [] };
+    }
+
+    const backgroundArray = buildBackgroundArray(
+      ctx?.createLinearGradient ? ctx : (chartRef.current?.ctx || null),
+      chartAreaH
+    );
 
     // If pie chart, we pass single dataset with background array
     if (options.type === "pie") {
@@ -213,6 +222,7 @@ function ChartView({
         ],
       };
     }
+
 
     // For bar/line/scatter: primary dataset
     const primary = {
