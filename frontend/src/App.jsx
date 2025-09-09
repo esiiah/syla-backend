@@ -1,3 +1,4 @@
+// frontend/src/App.jsx
 import React, { useState, useEffect } from "react";
 import FileUpload from "./components/FileUpload.jsx";
 import ChartView from "./components/ChartView.jsx";
@@ -29,7 +30,7 @@ function App() {
   const [showOptions, setShowOptions] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && document?.body) {
+    if (typeof window !== "undefined" && document && document.body) {
       document.body.classList.remove("dark", "light");
       document.body.classList.add(theme === "light" ? "light" : "dark");
     }
@@ -260,12 +261,7 @@ function App() {
                   </div>
                 )}
 
-                <ChartView
-                  data={data}
-                  columns={columns}
-                  types={types}
-                  options={chartOptions}
-                />
+                <ChartView data={data} columns={columns} types={types} options={chartOptions} />
               </div>
             </section>
           </div>
@@ -305,10 +301,7 @@ function App() {
                               <table className="min-w-[200px] border border-gray-200 dark:border-white/10 rounded-lg overflow-hidden">
                                 <tbody>
                                   {Object.entries(details).map(([k, v], j) => (
-                                    <tr
-                                      key={j}
-                                      className="odd:bg-gray-100 dark:odd:bg-black/30"
-                                    >
+                                    <tr key={j} className="odd:bg-gray-100 dark:odd:bg-black/30">
                                       <td className="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-slate-200 border-r border-gray-200 dark:border-white/10">
                                         {k}
                                       </td>
