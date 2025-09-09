@@ -65,32 +65,58 @@ function ChartView({
   },
 }) {
   const chartRef = useRef(null);
-  const [perBarColors, setPerBarColors] = useState({});
+  const [perBarColors, setPerBarColors] = useState({}); // { index: color }
 
-  // Derive labelKey, yKey and limitedData
-  const { labels, yKey, limitedData, labelKey } = useMemo(() => {
-    if (!Array.isArray(data) || data.length === 0 || !Array.isArray(columns) || columns.length === 0) {
-      return { labels: [], yKey: null, limitedData: [], labelKey: null };
+  // Defensive: ensure arrays
+  const safeData = Array.isArray(data) ? data : [];
+  const safeColumns = Array.isArray(columns) ? columns : [];
+
+  // Derive which columns to use (labelKey, yKey) and limitedData
+  const { labelKey, yKey, limitedData } = useMemo(() => {
+    if (!safeData.length || !safeColumns.length) {
+      return { labelKey: null, yKey: null, limitedData: [] };
     }
 
-    const categoricalCols = columns.filter(
-      (c) => (types[c] || "").startsWith("categorical")
-    );
-    const numericCols = columns.filter((c) => types[c] === "numeric");
+    // Identify categorical and numeric candidates.
+    const categoricalCols = safeColumns.filter((c) => {
+      const t = (types && types[c]) || "";
+      return t && t.toLowerCase().startsWith("categorical");
+    });
 
-    const labelKey = categoricalCols[0] || columns[0];
-    const yKey = numericCols[0] || null;
-    const limitedData = data.slice(0, 100);
+    // numeric detection: explicit type 'numeric' OR try to coerce values
+    const numericCols = safeColumns.filter((c) => {
+      const t = (types && types[c]) || "";
+      if (t && t.toLowerCase() === "numeric") return true;
+      // try quick coercion check on first non-empty rows
+      for (let i = 0; i < Math.min(safeData.length, 10); i++) {
+        const v = safeData[i][c];
+        if (v === null || v === undefined || v === "") continue;
+        // if number or numeric-string
+        if (typeof v === "number" && !isNaN(v)) return true;
+        if (!isNaN(Number(v))) return true;
+        // otherwise not numeric
+        return false;
+      }
+      return false;
+    });
 
-    const labels = limitedData.map((row, i) =>
-      row[labelKey] ? String(row[labelKey]) : `Row ${i + 1}`
-    );
+    // fallback strategies
+    const chosenLabel = categoricalCols[0] || safeColumns[0];
+    const chosenY = numericCols[0] || safeColumns.find((c) =>
+      // second fallback: see if most rows coerce to numbers
+      safeData.slice(0, 20).filter((r) => {
+        const v = r[c];
+        return v !== null && v !== undefined && v !== "" && !isNaN(Number(v));
+      }).length > 0
+    ) || null;
 
-    return { labels, yKey, limitedData, labelKey };
-  }, [data, columns, types]);
+    const limitedData = safeData.slice(0, 100);
+
+    return { labelKey: chosenLabel || null, yKey: chosenY || null, limitedData };
+  }, [safeData, safeColumns, types]);
 
   // If not enough data to build a chart
-  if (!data.length || !labels.length || !yKey) {
+  if (!safeData.length || !labelKey || !yKey) {
     return (
       <div
         className="mt-4 p-6 rounded-2xl
@@ -100,68 +126,85 @@ function ChartView({
         <h2 className="font-display text-base mb-2 text-gray-700 dark:text-slate-200">
           Chart
         </h2>
-        <p className="text-gray-500 dark:text-slate-400">Upload a CSV to see charts.</p>
+        <p className="text-gray-500 dark:text-slate-400">
+          Upload a CSV with at least one categorical-like column and one numeric-like column to
+          see charts.
+        </p>
       </div>
     );
   }
 
-  // Build numeric dataset values
-  let datasetValues = limitedData.map((row) => {
+  // Build label array and numeric dataset values (coerce where needed)
+  const labelsRaw = limitedData.map((row, i) =>
+    row[labelKey] !== undefined && row[labelKey] !== null && row[labelKey] !== ""
+      ? String(row[labelKey])
+      : `Row ${i + 1}`
+  );
+
+  let datasetValuesRaw = limitedData.map((row) => {
     const v = row[yKey];
-    return typeof v === "number" ? v : Number(v) || 0;
+    if (typeof v === "number" && !isNaN(v)) return v;
+    const n = Number(v);
+    return isNaN(n) ? 0 : n;
   });
 
-  // Apply sorting if requested (sort by values, keep paired labels)
+  // Sorting: produce paired array containing corresponding row so everything stays aligned
+  let paired = labelsRaw.map((lab, i) => ({
+    label: lab,
+    value: datasetValuesRaw[i],
+    row: limitedData[i],
+    index: i,
+  }));
+
   if (options.sort && options.sort !== "none") {
-    const paired = labels.map((lab, idx) => ({ lab, val: datasetValues[idx] }));
-    if (options.sort === "asc") paired.sort((a, b) => a.val - b.val);
-    if (options.sort === "desc") paired.sort((a, b) => b.val - a.val);
-    datasetValues = paired.map((p) => p.val);
-    // reorder labels to match
-    var sortedLabels = paired.map((p) => p.lab);
-  } else {
-    var sortedLabels = labels;
+    if (options.sort === "asc") {
+      paired.sort((a, b) => a.value - b.value);
+    } else if (options.sort === "desc") {
+      paired.sort((a, b) => b.value - a.value);
+    }
   }
 
-  // Build base backgroundColor array (per-bar colors or global)
+  const labels = paired.map((p) => p.label);
+  const datasetValues = paired.map((p) => p.value);
+  const limitedDataSorted = paired.map((p) => p.row);
+
+  // Base color and hex->rgba util
   const baseColor = options.color || "#2563eb";
-  const buildBackgroundArray = (ctx, chartAreaH) => {
-    // If gradient requested and chart context available create gradient
-    if (options.gradient && ctx && chartAreaH) {
-      try {
-        const g = ctx.createLinearGradient(0, 0, 0, chartAreaH);
-        // gradient: stronger intensity at top -> lighter at bottom
-        g.addColorStop(0, baseColor);
-        // lighten the base color for the bottom stop; simple approach: use rgba with lower alpha
-        g.addColorStop(1, hexToRgba(baseColor, 0.25));
-        // Use gradient per-bar
-        return new Array(datasetValues.length).fill(g);
-      } catch (e) {
-        // fallback
-      }
-    }
-
-    // Default -> per bar pick override or base color
-    return datasetValues.map((_, idx) => perBarColors[idx] || baseColor);
-  };
-
-  // Utility: convert hex to rgba string with alpha
   function hexToRgba(hex, alpha = 1) {
-    if (!hex) return `rgba(37,99,235,${alpha})`;
+    if (!hex || typeof hex !== "string") return `rgba(37,99,235,${alpha})`;
     const h = hex.replace("#", "");
-    const bigint = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
+    const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+    const bigint = parseInt(full, 16);
     const r = (bigint >> 16) & 255;
     const g = (bigint >> 8) & 255;
     const b = bigint & 255;
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 
-  // Trendline: compute linear regression across datasetValues
+  // Build background color array (handles perBarColors and gradient)
+  const buildBackgroundArray = (canvasCtx, canvasHeight) => {
+    // gradient requested and we have a real 2D context
+    if (options.gradient && canvasCtx && typeof canvasCtx.createLinearGradient === "function") {
+      try {
+        const g = canvasCtx.createLinearGradient(0, 0, 0, canvasHeight || 200);
+        g.addColorStop(0, hexToRgba(baseColor, 1));
+        g.addColorStop(1, hexToRgba(baseColor, 0.25));
+        return new Array(datasetValues.length).fill(g);
+      } catch (e) {
+        // fallback to solid colors below
+      }
+    }
+
+    // otherwise per-bar overrides or base color for each bar
+    return datasetValues.map((_, idx) => perBarColors[idx] || baseColor);
+  };
+
+  // Trendline calculation (linear regression) — returns dataset config for a line overlay
   const trendDataset = useMemo(() => {
     if (!options.trendline) return null;
     const n = datasetValues.length;
     if (n < 2) return null;
-    const x = [...Array(n).keys()];
+    const x = Array.from({ length: n }, (_, i) => i);
     const y = datasetValues;
     const xAvg = x.reduce((s, v) => s + v, 0) / n;
     const yAvg = y.reduce((s, v) => s + v, 0) / n;
@@ -173,7 +216,6 @@ function ChartView({
     }
     const m = den === 0 ? 0 : num / den;
     const b = yAvg - m * xAvg;
-    // Build line points for same label indices (so it overlays nicely)
     const linePoints = x.map((xi) => m * xi + b);
     return {
       label: "Trendline",
@@ -185,34 +227,23 @@ function ChartView({
       fill: false,
       type: "line",
       order: 1,
+      yAxisID: "y",
+      parsing: false, // using raw numbers array
     };
   }, [datasetValues, options.trendline, baseColor]);
 
-  // Chart data factory (we need to use canvas ctx for gradients)
-  const getChartData = (ctx) => {
-    // chart area height for gradient
-    let chartAreaH = null;
-    try {
-      const chart = ctx?.chart || ctx;
-      chartAreaH = chart?.height || (chart?.canvas && chart.canvas.height);
-    } catch (e) {
-      /* ignore */
-    }
+  // Chart data factory: called with canvas (when react-chartjs-2 passes canvas argument)
+  const getChartData = (canvas) => {
+    // obtain 2d context & canvas height
+    const ctx = canvas && canvas.getContext ? canvas.getContext("2d") : null;
+    const canvasHeight = canvas && canvas.height ? canvas.height : 200;
 
-    // Bail out if no values
-    if (!Array.isArray(datasetValues) || datasetValues.length === 0) {
-      return { labels: [], datasets: [] };
-    }
+    // background colors
+    const backgroundArray = buildBackgroundArray(ctx, canvasHeight);
 
-    const backgroundArray = buildBackgroundArray(
-      ctx?.createLinearGradient ? ctx : (chartRef.current?.ctx || null),
-      chartAreaH
-    );
-
-    // If pie chart, we pass single dataset with background array
     if (options.type === "pie") {
       return {
-        labels: sortedLabels,
+        labels,
         datasets: [
           {
             data: datasetValues,
@@ -223,10 +254,9 @@ function ChartView({
       };
     }
 
-
-    // For bar/line/scatter: primary dataset
+    // primary dataset for bar/line
     const primary = {
-      label: `${yKey} (first ${limitedData.length})`,
+      label: `${yKey} (first ${limitedDataSorted.length})`,
       data: datasetValues,
       backgroundColor: backgroundArray,
       borderRadius: 6,
@@ -235,186 +265,243 @@ function ChartView({
       borderWidth: 0,
       type: options.type === "line" ? "line" : "bar",
       order: 0,
+      yAxisID: "y",
+      parsing: false, // we already provide arrays
     };
 
-    // If user applied per-bar color overrides, ensure array aligns with dataset length
+    // ensure backgroundColor array length matches dataset
     if (Array.isArray(primary.backgroundColor) && primary.backgroundColor.length !== datasetValues.length) {
       primary.backgroundColor = datasetValues.map((_, i) => perBarColors[i] || baseColor);
     }
 
     const datasets = [primary];
-    if (trendDataset) {
-      datasets.push(trendDataset);
-    }
+    if (trendDataset) datasets.push(trendDataset);
 
     return {
-      labels: sortedLabels,
+      labels,
       datasets,
     };
   };
 
-  // Chart options factory
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        labels: {
-          color: options.type === "pie" ? "#0f172a" : "#0f172a",
-        },
-      },
-      tooltip: {
-        enabled: true,
-        backgroundColor: hexToRgba(baseColor, 0.95),
-        titleColor: "#fff",
-        bodyColor: "#fff",
-        cornerRadius: 6,
-        padding: 8,
-      },
-      datalabels: {
-        display: !!options.showLabels,
-        color: "#0b1220",
-        anchor: "end",
-        align: "end",
-        font: { weight: "600", size: 10 },
-        formatter: (value) => {
-          // For pies show percentages
-          if (options.type === "pie") {
-            const total = datasetValues.reduce((s, v) => s + (Number(v) || 0), 0) || 1;
-            const pct = ((Number(value) || 0) / total) * 100;
-            return `${pct.toFixed(1)}%`;
-          }
-          return value;
-        },
-      },
-    },
-    scales: options.type === "pie"
-      ? {}
-      : {
-          x: {
-            ticks: {
-              color: "#374151",
-            },
-            grid: { color: "rgba(0,0,0,0.04)" },
-          },
-          y: {
-            type: options.logScale ? "logarithmic" : "linear",
-            ticks: {
-              color: "#374151",
-              callback: function (val) {
-                // keep readability on log scale
-                return val;
-              },
-            },
-            grid: { color: "rgba(0,0,0,0.04)" },
-            beginAtZero: !options.logScale,
+  // Chart options factory (scales, plugins)
+  const chartOptions = useMemo(() => {
+    // For scatter we show x as linear indices but map ticks to labels
+    const base = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: {
+            color: "#0f172a",
           },
         },
-    onClick: (evt, elements, chart) => {
-      // left click behavior can be added by parent via ref if needed
-    },
-    animation: { duration: 700, easing: "easeOutQuart" },
+        tooltip: {
+          enabled: true,
+          backgroundColor: hexToRgba(baseColor, 0.95),
+          titleColor: "#fff",
+          bodyColor: "#fff",
+          cornerRadius: 6,
+          padding: 8,
+        },
+        datalabels: {
+          display: !!options.showLabels,
+          color: "#0b1220",
+          anchor: "end",
+          align: "end",
+          font: { weight: "600", size: 10 },
+          formatter: (value) => {
+            if (options.type === "pie") {
+              const total = datasetValues.reduce((s, v) => s + (Number(v) || 0), 0) || 1;
+              const pct = ((Number(value) || 0) / total) * 100;
+              return `${pct.toFixed(1)}%`;
+            }
+            return value;
+          },
+        },
+      },
+      animation: { duration: 700, easing: "easeOutQuart" },
+    };
+
+    // scales
+    if (options.type === "pie") {
+      base.scales = {};
+    } else if (options.type === "scatter") {
+      // scatter uses linear x but we'll show category labels via tick callback
+      base.scales = {
+        x: {
+          type: "linear",
+          ticks: {
+            callback: function (val, index) {
+              // val is numeric coordinate; this callback receives index for ticks, but we map to label if available
+              // attempt to map index-1 to label (we used x = idx+1 for points)
+              const i = Number(val) - 1;
+              return labels[i] !== undefined ? labels[i] : val;
+            },
+            color: "#374151",
+          },
+          grid: { color: "rgba(0,0,0,0.04)" },
+        },
+        y: {
+          type: options.logScale ? "logarithmic" : "linear",
+          ticks: {
+            color: "#374151",
+          },
+          grid: { color: "rgba(0,0,0,0.04)" },
+          beginAtZero: !options.logScale,
+        },
+      };
+    } else {
+      base.scales = {
+        x: {
+          ticks: { color: "#374151" },
+          grid: { color: "rgba(0,0,0,0.04)" },
+        },
+        y: {
+          type: options.logScale ? "logarithmic" : "linear",
+          ticks: {
+            color: "#374151",
+          },
+          grid: { color: "rgba(0,0,0,0.04)" },
+          beginAtZero: !options.logScale,
+        },
+      };
+    }
+
+    return base;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options.type, options.showLabels, options.logScale, options.color, datasetValues, labels, baseColor]);
+
+  // Export current chart as PNG (if available)
+  const exportPng = () => {
+    try {
+      const chartInstance = chartRef.current;
+      if (chartInstance && typeof chartInstance.toBase64Image === "function") {
+        const img = chartInstance.toBase64Image();
+        const link = document.createElement("a");
+        link.href = img;
+        link.download = "chart.png";
+        link.click();
+      }
+    } catch (e) {
+      // ignore silently
+    }
   };
 
-  // Handle right-click (contextmenu) on canvas to recolor individual bars
+  // Context menu handler: allow per-bar recolor via <input type="color"> anchored to page
   useEffect(() => {
-    const canvas = chartRef.current?.canvas;
-    if (!canvas) return;
+    const chartInstance = chartRef.current;
+    const canvas = chartInstance && chartInstance.canvas ? chartInstance.canvas : null;
+    if (!canvas || !chartInstance) return;
 
-    const handleContext = (e) => {
-      // prevent default browser menu
+    let activeInput = null;
+
+    const onContext = (e) => {
       e.preventDefault();
-      // Chart.js helper to get element at event
       try {
-        const chart = chartRef.current;
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        // Get elements at position
-        const elements = chart.getElementsAtEventForMode(e, "nearest", { intersect: true }, false);
-        if (!elements || !elements.length) return;
+        // Chart.js method to get elements at event for mode
+        // Pass native event to Chart.js instance method
+        const elements = chartInstance.getElementsAtEventForMode(e.native ? e.native : e, "nearest", { intersect: true }, false);
+        // Some environments don't attach native property; fallback:
+        const found =
+          (elements && elements.length && elements) ||
+          (chartInstance && typeof chartInstance.getElementsAtEventForMode === "function"
+            ? chartInstance.getElementsAtEventForMode(e, "nearest", { intersect: true }, false)
+            : []);
 
-        const el = elements[0];
-        const datasetIndex = el.datasetIndex;
-        const index = el.index;
+        if (!found || !found.length) return;
 
-        // Open a tiny color prompt: create an input[type=color] dynamically
+        const el = found[0];
+        const index = el.index !== undefined ? el.index : (el.element && el.element.index) || null;
+        if (index === null) return;
+
+        // remove any previous input
+        if (activeInput) {
+          activeInput.remove();
+          activeInput = null;
+        }
+
         const input = document.createElement("input");
         input.type = "color";
         input.value = perBarColors[index] || baseColor;
         input.style.position = "fixed";
         input.style.left = `${e.pageX}px`;
         input.style.top = `${e.pageY}px`;
-        input.style.zIndex = 9999;
+        input.style.zIndex = 999999;
+        input.style.width = "36px";
+        input.style.height = "36px";
+        input.style.border = "0";
+        input.style.padding = "0";
         input.addEventListener("input", (ev) => {
           const newColor = ev.target.value;
           setPerBarColors((prev) => ({ ...prev, [index]: newColor }));
         });
-        // remove input when color chosen or blurred
-        input.addEventListener("change", () => {
-          input.remove();
-        });
-        input.addEventListener("blur", () => {
-          input.remove();
-        });
+        // cleanup on blur/change
+        const removeInput = () => {
+          if (input && input.parentNode) input.parentNode.removeChild(input);
+          activeInput = null;
+        };
+        input.addEventListener("change", removeInput);
+        input.addEventListener("blur", removeInput);
+
         document.body.appendChild(input);
+        activeInput = input;
         input.focus();
         input.click();
       } catch (err) {
-        // ignore if anything unexpected happens
+        // ignore
       }
     };
 
-    canvas.addEventListener("contextmenu", handleContext);
-    return () => canvas.removeEventListener("contextmenu", handleContext);
-  }, [chartRef.current, perBarColors, options.color, baseColor]);
+    canvas.addEventListener("contextmenu", onContext);
+    return () => {
+      canvas.removeEventListener("contextmenu", onContext);
+      if (activeInput && activeInput.parentNode) activeInput.parentNode.removeChild(activeInput);
+      activeInput = null;
+    };
+  }, [chartRef, perBarColors, baseColor]);
 
-  // Allow parent to request image export via chartRef.current.toBase64Image()
-  // expose a small helper
-  const exportPng = () => {
-    try {
-      const img = chartRef.current.toBase64Image();
-      const link = document.createElement("a");
-      link.href = img;
-      link.download = "chart.png";
-      link.click();
-    } catch (e) {
-      // ignore
-    }
-  };
-
-  // Choose which react-chart component to render and create data dynamically using ctx param where possible
+  // Render Chart container depending on type
   const ChartContainer = ({ type }) => {
     const style = { minHeight: 320 };
+
     if (type === "pie") {
-      const dataFn = (canvas) => getChartData(canvas && canvas.getContext("2d"));
+      const dataFn = (canvas) => getChartData(canvas);
       return <Pie ref={chartRef} data={dataFn} options={chartOptions} style={style} />;
     }
 
     if (type === "line") {
-      const dataFn = (canvas) => getChartData(canvas && canvas.getContext("2d"));
+      const dataFn = (canvas) => getChartData(canvas);
       return <Line ref={chartRef} data={dataFn} options={chartOptions} style={style} />;
     }
 
     if (type === "scatter") {
-      // scatter expects {x,y} points; map categories to numeric x (index)
-      const scatterPoints = datasetValues.map((v, i) => ({ x: i + 1, y: v }));
+      // scatter expects points {x, y}. Map category labels to x indices (1..N) so x ticks show labels
+      const points = datasetValues.map((v, i) => ({ x: i + 1, y: v }));
       const scatterData = {
         datasets: [
           {
             label: yKey,
-            data: scatterPoints,
-            backgroundColor: perBarColors[0] || baseColor,
+            data: points,
+            backgroundColor: datasetValues.map((_, i) => perBarColors[i] || baseColor),
             pointRadius: 4,
           },
-          ...(trendDataset ? [{ ...trendDataset, data: trendDataset.data.map((val, i) => ({ x: i + 1, y: val })) }] : []),
+          ...(trendDataset
+            ? [
+                {
+                  ...trendDataset,
+                  // transform trend data into {x,y} pairs for scatter overlay
+                  data: trendDataset.data.map((val, i) => ({ x: i + 1, y: val })),
+                  parsing: false,
+                },
+              ]
+            : []),
         ],
       };
       return <Scatter ref={chartRef} data={scatterData} options={chartOptions} style={style} />;
     }
 
-    // default / bar
-    const dataFn = (canvas) => getChartData(canvas && canvas.getContext("2d"));
+    // default to bar
+    const dataFn = (canvas) => getChartData(canvas);
     return <Bar ref={chartRef} data={dataFn} options={chartOptions} style={style} />;
   };
 
@@ -439,7 +526,7 @@ function ChartView({
               Export PNG
             </button>
             <div className="text-xs text-gray-500 dark:text-slate-400">
-              {data.length > 100 ? `Showing first 100 rows (of ${data.length})` : null}
+              {safeData.length > 100 ? `Showing first 100 rows (of ${safeData.length})` : null}
             </div>
           </div>
         </div>
