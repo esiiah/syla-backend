@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
-from utils import clean_dataframe, detect_column_types, summarize_numeric
+from .utils import clean_dataframe, detect_column_types, summarize_numeric
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("syla-backend")
