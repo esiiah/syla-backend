@@ -30,6 +30,8 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
     formData.append("file", file);
 
     const xhr = new XMLHttpRequest();
+
+    // POST to same origin /api/upload (if you host backend elsewhere change URL)
     xhr.open("POST", "/api/upload", true);
 
     xhr.upload.onprogress = (event) => {
@@ -46,7 +48,7 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
 
     xhr.onload = () => {
       setUploading(false);
-      if (xhr.status === 200) {
+      if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const result = JSON.parse(xhr.responseText);
           if (result.error) {
@@ -54,7 +56,6 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
             return;
           }
 
-          // Update all frontend states
           onData(result.data || []);
           onColumns(result.columns || []);
           onTypes(result.types || {});
@@ -63,16 +64,21 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
           onXAxis(result.x_axis || "");
           onYAxis(result.y_axis || "");
 
-          // Reset file input
           setFile(null);
           if (inputRef.current) inputRef.current.value = "";
 
-          alert(`Upload successful: ${result.filename || "file"} (${result.rows || "-" } rows)`);
+          alert(`Upload successful: ${result.filename || "file"} (${result.rows || "-"} rows)`);
         } catch (e) {
           alert("Upload succeeded but response was not JSON.");
         }
       } else {
-        alert("Upload failed");
+        // try parse JSON error from server
+        let msg = `Upload failed (status ${xhr.status})`;
+        try {
+          const r = JSON.parse(xhr.responseText);
+          if (r && (r.detail || r.error)) msg = r.detail || r.error;
+        } catch (e) {}
+        alert(msg);
       }
     };
 
@@ -104,7 +110,7 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
         onDrop={handleDrop}
       >
         <p className="mb-2 font-medium text-gray-700 dark:text-slate-300">
-          Drag & drop your CSV here
+          Drag & drop your CSV / Excel here
         </p>
         <p className="text-xs mb-4 text-gray-500 dark:text-slate-400">
           or select a file from your computer
@@ -120,7 +126,13 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
           >
             Choose File
           </button>
-          <input ref={inputRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".csv,.tsv,.xls,.xlsx"
+            onChange={handleFileChange}
+            className="hidden"
+          />
           {file && (
             <span className="text-xs text-gray-700 dark:text-slate-300 truncate max-w-[140px]">
               Selected: <span className="text-neonYellow">{file.name}</span>
