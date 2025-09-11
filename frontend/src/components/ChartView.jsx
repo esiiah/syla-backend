@@ -42,25 +42,31 @@ export default function ChartView({
   yAxis = "",
 }) {
   if (!data.length || !xAxis || !yAxis) {
-    return <div className="text-gray-500 dark:text-slate-400">Upload a CSV with valid X and Y columns to see chart.</div>;
+    return (
+      <div className="rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border p-5">
+        <h3 className="font-display text-sm mb-2">{chartTitle || "Visualization"}</h3>
+        <div className="rounded-xl p-6 bg-gradient-to-b from-white to-gray-50 border border-gray-100 shadow-inner dark:from-black/30 dark:to-black/10 dark:border-white/10 min-h-[280px] flex items-center justify-center text-gray-500 dark:text-slate-400">
+          Upload a CSV with valid X and Y columns to see chart.
+        </div>
+      </div>
+    );
   }
 
-  // labels and values
   const labels = data.map((row, i) => {
     const v = row[xAxis];
-    return (v === null || typeof v === "undefined") ? `Row ${i + 1}` : String(v);
+    return v === null || typeof v === "undefined" ? `Row ${i + 1}` : String(v);
   });
 
   const datasetValues = data.map((row) => {
     const val = row[yAxis];
-    // tolerate numbers stored as strings
     if (typeof val === "number") return val;
     const n = Number(val);
     return Number.isFinite(n) ? n : 0;
   });
 
   const baseColor = options.color || "#2563eb";
-  const getBackgroundColor = () => (options.gradient ? baseColor : labels.map(() => baseColor));
+  const getBackgroundColor = () =>
+    options.gradient ? baseColor : labels.map(() => baseColor);
 
   const chartData = {
     labels,
@@ -116,7 +122,6 @@ export default function ChartView({
       ? Scatter
       : Bar;
 
-  // scatter expects {x,y}
   const scatterData =
     options.type === "scatter"
       ? {
@@ -130,15 +135,16 @@ export default function ChartView({
         }
       : chartData;
 
-  // Chart chamber (visual box) restored
   return (
-    <div className="mt-4 p-4 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border" style={{ minHeight: 360 }}>
-      <h3 className="font-display text-sm mb-2">{chartTitle || "Chart"}</h3>
-
-      {/* Inner chamber: the visual container that was removed earlier */}
-      <div className="rounded-xl p-3 bg-gradient-to-b from-white to-gray-50 border border-gray-100 shadow-inner" style={{ minHeight: 320 }}>
+    <div className="rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border p-5">
+      <h3 className="font-display text-sm mb-2">{chartTitle || "Visualization"}</h3>
+      {/* Inner sub-chamber just like the Upload box */}
+      <div className="rounded-xl p-3 bg-gradient-to-b from-white to-gray-50 border border-gray-100 shadow-inner dark:from-black/30 dark:to-black/10 dark:border-white/10 min-h-[320px]">
         <div className="w-full h-[320px]">
-          <ChartComponent data={options.type === "scatter" ? scatterData : chartData} options={chartOpts} />
+          <ChartComponent
+            data={options.type === "scatter" ? scatterData : chartData}
+            options={chartOpts}
+          />
         </div>
       </div>
     </div>
