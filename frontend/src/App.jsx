@@ -1,3 +1,4 @@
+// frontend/src/App.jsx
 import React, { useState, useEffect } from "react";
 import FileUpload from "./components/FileUpload.jsx";
 import ChartView from "./components/ChartView.jsx";
@@ -89,7 +90,7 @@ function App() {
               <div className="p-5">
                 <h2 className="font-display text-lg mb-1">Upload Data</h2>
                 <p className="text-gray-500 text-sm mb-4 dark:text-slate-400">
-                  CSV only. Preview & progress included.
+                  CSV / Excel only. Preview & progress included.
                 </p>
                 <FileUpload
                   onData={setData}
@@ -115,7 +116,7 @@ function App() {
 
                 {showOptions && (
                   <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    {/* Full chart options */}
+                    {/* Options */}
                     <div>
                       <label className="block mb-1 font-medium">Chart Type</label>
                       <select value={chartOptions.type} onChange={(e) => setChartOptions({...chartOptions, type: e.target.value})} className="w-full border rounded px-2 py-1">
