@@ -1,4 +1,4 @@
-# backend/utils.py
+# app/utils.py
 import re
 import pandas as pd
 import numpy as np
@@ -7,7 +7,6 @@ CURRENCY_SIGNS = r"[₹$€£¥]"
 THOUSAND_SEP = r","
 PERCENT = r"%"
 
-# Map approximate header names to canonical names (optional)
 HEADER_MAP = {
     r"^\s*amount\s*spent.*$": "Amount Spent",
     r"^\s*spend.*$": "Amount Spent",
@@ -37,14 +36,10 @@ def _normalize_header_name(name: str) -> str:
 
 
 def _to_numeric_series(s: pd.Series) -> pd.Series:
-    """
-    Try to coerce a series to numeric by removing currency symbols, commas, percent sign.
-    If coercion fails, return original series.
-    """
+    """Try to coerce a series to numeric by stripping currency/commas/percent."""
     if s is None or s.empty:
         return s
 
-    # Already numeric
     if pd.api.types.is_numeric_dtype(s):
         return s
 
@@ -53,45 +48,48 @@ def _to_numeric_series(s: pd.Series) -> pd.Series:
     s2 = s2.str.replace(CURRENCY_SIGNS, "", regex=True)
     s2 = s2.str.replace(THOUSAND_SEP, "", regex=True)
     s2 = s2.str.replace(PERCENT, "", regex=True)
-    # convert commas used as decimals (rare) not handled here
     return pd.to_numeric(s2, errors="coerce")
 
 
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
-    - Normalize headers (mapping) but keep them unique (main.main handles duplicate numbering).
-    - Try to coerce columns to numeric where possible.
-    - Try to detect datetimes and coerce if majority parse.
-    - Drop columns fully empty and fill NaNs (numbers -> 0, categorical -> '')
+    - Normalize headers
+    - Try numeric coercion
+    - Try datetime coercion
+    - Fallback to string
     """
-    # normalize header names (mapping common names)
     df = df.copy()
     df.columns = [_normalize_header_name(c) for c in df.columns]
 
-    # Drop empty-all columns early
+    # Drop fully empty cols
     df = df.dropna(axis=1, how="all")
 
-    # Coerce numeric candidates
     for col in df.columns:
-        # try numeric conversion
-        numeric = _to_numeric_series(df[col])
-        if numeric.notna().sum() >= max(1, int(0.3 * len(df))):  # at least 30% parseable
-            df[col] = numeric
-        else:
-            # try datetime if many parse
-            try:
-                dt = pd.to_datetime(df[col], errors="coerce", infer_datetime_format=True)
-                if dt.notna().sum() >= max(1, int(0.7 * len(df))):  # 70% datetime parse
-                    df[col] = dt
-                else:
-                    # leave as string/ categorical
-                    df[col] = df[col].astype(str).fillna("")
-            except Exception:
-                df[col] = df[col].astype(str).fillna("")
+        col_data = df[col]
 
-    # After type conversions, fill numeric columns with 0 and categorical with ""
+        # Ensure we are working with a Series
+        if not isinstance(col_data, pd.Series):
+            col_data = pd.Series(col_data)
+
+        # Try numeric
+        numeric = _to_numeric_series(col_data)
+        if numeric.notna().sum() >= max(1, int(0.3 * len(df))):
+            df[col] = numeric
+            continue
+
+        # Try datetime
+        dt = pd.to_datetime(col_data, errors="coerce", infer_datetime_format=True)
+        if dt.notna().sum() >= max(1, int(0.7 * len(df))):
+            df[col] = dt
+            continue
+
+        # Fallback string
+        df[col] = col_data.astype(str).fillna("")
+
+    # Fill NaNs
     for col in df.select_dtypes(include=[np.number]).columns:
         df[col] = df[col].fillna(0)
+
     for col in df.columns.difference(df.select_dtypes(include=[np.number]).columns):
         df[col] = df[col].fillna("")
 
@@ -111,10 +109,6 @@ def detect_column_types(df: pd.DataFrame) -> dict:
 
 
 def summarize_numeric(df: pd.DataFrame) -> dict:
-    """
-    Return a summary for each column. For numeric columns: count,min,max,mean,sum.
-    For non-numeric: unique count and top values.
-    """
     result = {}
     for col in df.columns:
         if pd.api.types.is_numeric_dtype(df[col]):
@@ -127,7 +121,6 @@ def summarize_numeric(df: pd.DataFrame) -> dict:
                 "sum": float(s.sum()) if not s.empty else None,
             }
         else:
-            # categorical summary
             top = df[col].astype(str).value_counts().head(5).to_dict()
             result[col] = {"unique": int(df[col].nunique()), "top_values": top}
     return result
