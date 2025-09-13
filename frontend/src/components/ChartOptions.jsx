@@ -1,26 +1,39 @@
 // frontend/src/components/ChartOptions.jsx
-import React, { useState } from "react";
-import {
-  Settings,
-  Palette,
-  BarChart,
-  SortAsc,
-  Ruler,
-  Download,
-  TrendingUp,
-  Type,
-} from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Settings, Palette, BarChart, TrendingUp, SortAsc, Ruler, Download } from "lucide-react";
 
-export default function ChartOptions({ options, setOptions, columns = [] }) {
-  const [gradientCount, setGradientCount] = useState(options.gradientColors?.length || 2);
+/**
+ * ChartOptions component expects:
+ * - options (object) and setOptions (setter).
+ * - columns: array of available columns (for compare field)
+ */
+function ChartOptions({ options = {}, setOptions = () => {}, columns = [] }) {
+  // local state mirrors options for easier inputs (committed to parent on change)
+  const [local, setLocal] = useState({ ...options });
 
-  const toggle = (key) => setOptions(prev => ({ ...prev, [key]: !prev[key] }));
-  const update = (key, value) => setOptions(prev => ({ ...prev, [key]: value }));
+  useEffect(() => setLocal({ ...options }), [options]);
 
-  const handleGradientColorChange = (index, color) => {
-    const newColors = options.gradientColors ? [...options.gradientColors] : Array(gradientCount).fill("#2563eb");
-    newColors[index] = color;
-    update("gradientColors", newColors);
+  const commit = (patch) => {
+    const updated = { ...local, ...patch };
+    setLocal(updated);
+    setOptions(prev => ({ ...prev, ...patch }));
+  };
+
+  // gradient stops editing helpers
+  const addStop = () => {
+    if (!local.gradientStops || local.gradientStops.length >= 5) return;
+    const arr = [...(local.gradientStops || []), '#ffffff'];
+    commit({ gradientStops: arr, gradient: true });
+  };
+  const removeStop = () => {
+    if (!local.gradientStops || local.gradientStops.length <= 2) return;
+    const arr = local.gradientStops.slice(0, -1);
+    commit({ gradientStops: arr });
+  };
+  const updateStop = (idx, val) => {
+    const arr = [...(local.gradientStops || [])];
+    arr[idx] = val;
+    commit({ gradientStops: arr, gradient: true });
   };
 
   return (
@@ -32,17 +45,12 @@ export default function ChartOptions({ options, setOptions, columns = [] }) {
       </div>
 
       <div className="p-4 space-y-4 text-sm text-gray-700 dark:text-slate-300">
-
         {/* Chart Type */}
         <div>
           <label className="flex items-center gap-2 font-medium mb-1">
             <BarChart size={14} /> Chart Type
           </label>
-          <select
-            value={options.type}
-            onChange={(e) => update("type", e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm dark:bg-black/40 dark:border-white/10 dark:text-slate-200"
-          >
+          <select value={local.type} onChange={(e) => commit({ type: e.target.value })} className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
             <option value="bar">Bar</option>
             <option value="line">Line</option>
             <option value="scatter">Scatter</option>
@@ -50,113 +58,47 @@ export default function ChartOptions({ options, setOptions, columns = [] }) {
           </select>
         </div>
 
-        {/* Axis selection */}
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <label className="block mb-1 font-medium">X-Axis</label>
-            <select
-              value={options.xAxis || ""}
-              onChange={(e) => update("xAxis", e.target.value)}
-              className="w-full border rounded px-2 py-1 text-sm dark:bg-black/40 dark:border-white/10 dark:text-slate-200"
-            >
-              <option value="">Select X</option>
-              {columns.map((col, i) => <option key={i} value={col}>{col}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block mb-1 font-medium">Y-Axis</label>
-            <select
-              value={options.yAxis || ""}
-              onChange={(e) => update("yAxis", e.target.value)}
-              className="w-full border rounded px-2 py-1 text-sm dark:bg-black/40 dark:border-white/10 dark:text-slate-200"
-            >
-              <option value="">Select Y</option>
-              {columns.map((col, i) => <option key={i} value={col}>{col}</option>)}
-            </select>
-          </div>
-        </div>
-
-        {/* Base color */}
+        {/* Color + gradient */}
         <div>
           <label className="flex items-center gap-2 font-medium mb-1">
-            <Palette size={14} /> Base Color
+            <Palette size={14} /> Chart Color
           </label>
-          <input
-            type="color"
-            value={options.color || "#2563eb"}
-            onChange={(e) => update("color", e.target.value)}
-            className="w-16 h-8 border rounded cursor-pointer"
-          />
-        </div>
+          <div className="flex items-center gap-2">
+            <input type="color" value={local.color || "#2563eb"} onChange={(e) => commit({ color: e.target.value })} className="w-12 h-8 p-0 border rounded" />
+            <label className="ml-2 text-xs inline-flex items-center">
+              <input type="checkbox" checked={!!local.gradient} onChange={(e) => commit({ gradient: e.target.checked })} className="mr-1" />
+              Gradient
+            </label>
+          </div>
 
-        {/* Gradient */}
-        <div>
-          <label className="flex items-center gap-2 font-medium mb-1">
-            <input
-              type="checkbox"
-              checked={options.gradient || false}
-              onChange={() => toggle("gradient")}
-              className="mr-2"
-            />
-            Gradient Fill
-          </label>
-
-          {options.gradient && (
-            <div className="mt-2 space-y-1">
-              <div className="flex items-center gap-2 mb-1">
-                <label className="text-xs">Number of colors:</label>
-                <input
-                  type="number"
-                  min={2}
-                  max={5}
-                  value={gradientCount}
-                  onChange={(e) => {
-                    const val = Math.max(2, Math.min(5, Number(e.target.value)));
-                    setGradientCount(val);
-                    const newColors = Array(val).fill("#2563eb");
-                    update("gradientColors", newColors);
-                  }}
-                  className="w-12 border rounded px-1 text-xs dark:bg-black/40 dark:border-white/10 dark:text-slate-200"
-                />
-              </div>
-              <div className="grid grid-cols-5 gap-2">
-                {Array.from({ length: gradientCount }).map((_, i) => (
-                  <input
-                    key={i}
-                    type="color"
-                    value={options.gradientColors?.[i] || "#2563eb"}
-                    onChange={(e) => handleGradientColorChange(i, e.target.value)}
-                    className="w-10 h-8 border rounded cursor-pointer"
-                  />
+          {local.gradient && (
+            <div className="mt-2">
+              <div className="text-xs mb-1">Gradient stops (2–5)</div>
+              <div className="flex gap-2 items-center">
+                {(local.gradientStops || ['#2563eb', '#ff6b6b']).map((col, i) => (
+                  <input key={i} type="color" value={col} onChange={(e) => updateStop(i, e.target.value)} />
                 ))}
+                <button onClick={addStop} className="px-2 py-1 border rounded text-xs">+ stop</button>
+                <button onClick={removeStop} className="px-2 py-1 border rounded text-xs">- stop</button>
               </div>
             </div>
           )}
         </div>
 
-        {/* Show Labels */}
+        {/* Labels */}
         <div>
           <label className="flex items-center gap-2 font-medium">
-            <Type size={14} /> Show Labels
-            <input
-              type="checkbox"
-              checked={options.showLabels || false}
-              onChange={() => toggle("showLabels")}
-              className="ml-auto"
-            />
+            Show Data Labels
+            <input type="checkbox" checked={!!local.showLabels} onChange={(e) => commit({ showLabels: e.target.checked })} className="ml-auto" />
           </label>
+          <div className="text-xs text-gray-500 mt-1">Data labels appear on bars/pie slices only when enabled. Axis labels remain visible by default.</div>
         </div>
 
         {/* Trendline */}
         <div>
           <label className="flex items-center gap-2 font-medium">
-            <TrendingUp size={14} /> Show Trendline
-            <input
-              type="checkbox"
-              checked={options.trendline || false}
-              onChange={() => toggle("trendline")}
-              className="ml-auto"
-            />
+            <TrendingUp size={14} /> Trendline
+            <input type="checkbox" checked={!!local.trendline} onChange={(e) => commit({ trendline: e.target.checked })} className="ml-auto" />
           </label>
         </div>
 
@@ -165,11 +107,7 @@ export default function ChartOptions({ options, setOptions, columns = [] }) {
           <label className="flex items-center gap-2 font-medium mb-1">
             <SortAsc size={14} /> Sorting
           </label>
-          <select
-            value={options.sort || "none"}
-            onChange={(e) => update("sort", e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm dark:bg-black/40 dark:border-white/10 dark:text-slate-200"
-          >
+          <select value={local.sort} onChange={(e) => commit({ sort: e.target.value })} className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
             <option value="none">None</option>
             <option value="asc">Ascending</option>
             <option value="desc">Descending</option>
@@ -180,37 +118,52 @@ export default function ChartOptions({ options, setOptions, columns = [] }) {
         <div>
           <label className="flex items-center gap-2 font-medium">
             <Ruler size={14} /> Log Scale
-            <input
-              type="checkbox"
-              checked={options.logScale || false}
-              onChange={() => toggle("logScale")}
-              className="ml-auto"
-            />
+            <input type="checkbox" checked={!!local.logScale} onChange={(e) => commit({ logScale: e.target.checked })} className="ml-auto" />
           </label>
+          {local.logScale && (
+            <div className="mt-2 text-xs">
+              <label className="flex items-center gap-2">
+                Min for log (optional)
+                <input type="number" value={local.logMin || ''} onChange={(e) => commit({ logMin: e.target.value })} className="ml-2 border rounded px-2 py-1 w-28 text-xs" placeholder="auto" />
+              </label>
+              <div className="text-xs text-gray-500 mt-1">Chart will replace zeros/negatives with a small positive fallback for plotting (originals shown in tooltips).</div>
+            </div>
+          )}
         </div>
 
-        {/* Export */}
+        {/* Compare field */}
+        <div>
+          <label className="flex items-center gap-2 font-medium mb-1">
+            Compare (second metric)
+          </label>
+          <select value={local.compareField || ""} onChange={(e) => commit({ compareField: e.target.value || "" })} className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
+            <option value="">None</option>
+            {columns.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <div className="text-xs text-gray-500 mt-1">When set, a second dataset is rendered for quick comparison (placed on a secondary axis).</div>
+        </div>
+
+        {/* Exports */}
         <div>
           <label className="flex items-center gap-2 font-medium">
-            <Download size={14} /> Export Chart
+            <Download size={14} /> Quick Export (Client-side)
           </label>
           <div className="mt-2 flex gap-2">
-            <button
-              onClick={() => alert("Export PNG coming soon")}
-              className="px-2 py-1 rounded-lg border text-xs hover:bg-gray-100 dark:hover:bg-white/10"
-            >
-              PNG
-            </button>
-            <button
-              onClick={() => alert("Export CSV coming soon")}
-              className="px-2 py-1 rounded-lg border text-xs hover:bg-gray-100 dark:hover:bg-white/10"
-            >
-              CSV
-            </button>
+            <button onClick={() => {
+              // parent ChartView handles actual export; we dispatch custom event to trigger it.
+              window.dispatchEvent(new CustomEvent('exportChart', { detail: { format: 'png' } }));
+            }} className="px-2 py-1 rounded-lg border text-xs hover:bg-gray-100 dark:hover:bg-white/10">PNG</button>
+
+            <button onClick={() => window.dispatchEvent(new CustomEvent('exportChart', { detail: { format: 'jpeg' } }))} className="px-2 py-1 rounded-lg border text-xs hover:bg-gray-100 dark:hover:bg-white/10">JPEG</button>
+
+            <button onClick={() => window.dispatchEvent(new CustomEvent('exportData', { detail: { format: 'csv' } }))} className="px-2 py-1 rounded-lg border text-xs hover:bg-gray-100 dark:hover:bg-white/10">CSV</button>
+
+            <button onClick={() => window.dispatchEvent(new CustomEvent('exportData', { detail: { format: 'json' } }))} className="px-2 py-1 rounded-lg border text-xs hover:bg-gray-100 dark:hover:bg-white/10">JSON</button>
           </div>
         </div>
-
       </div>
     </div>
   );
 }
+
+export default ChartOptions;
