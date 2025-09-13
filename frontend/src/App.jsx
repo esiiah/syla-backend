@@ -2,32 +2,38 @@
 import React, { useState, useEffect } from "react";
 import FileUpload from "./components/FileUpload.jsx";
 import ChartView from "./components/ChartView.jsx";
-import ChartOptions from "./components/ChartOptions.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import Features from "./components/Features.jsx";
 import Footer from "./components/Footer.jsx";
+import ChartOptions from "./components/ChartOptions.jsx";
 import { Settings } from "lucide-react";
 import "./App.css";
 
 function App() {
-  const [data, setData] = useState([]);
-  const [columns, setColumns] = useState([]);
-  const [types, setTypes] = useState({});
-  const [summary, setSummary] = useState({});
+  const [data, setData] = useState([]);            // array of objects (CSV rows)
+  const [columns, setColumns] = useState([]);      // array of column names
+  const [types, setTypes] = useState({});          // inferred types
+  const [summary, setSummary] = useState({});      // summary object
   const [chartTitle, setChartTitle] = useState("");
   const [xAxis, setXAxis] = useState("");
   const [yAxis, setYAxis] = useState("");
 
   const [theme, setTheme] = useState("dark");
+
+  // central chart options state (passed to ChartView and ChartOptions)
   const [chartOptions, setChartOptions] = useState({
     type: "bar",
     color: "#2563eb",
     gradient: false,
-    showLabels: true,
+    gradientStops: ["#2563eb", "#ff6b6b"], // default 2 stops
+    showLabels: false,   // default: no data labels
     trendline: false,
     sort: "none",
     logScale: false,
+    logMin: 1,
+    compareField: "",    // second metric for comparison
   });
+
   const [showOptions, setShowOptions] = useState(false);
 
   useEffect(() => {
@@ -80,8 +86,7 @@ function App() {
               Upload. Clean. <span className="text-neonYellow">Visualize.</span>
             </h1>
             <p className="text-gray-600 mt-2 max-w-2xl dark:text-slate-300">
-              A next-gen analytics studio. Drop your files, explore instant insights, and export
-              visuals — all in an AI-tech, cyberpunk inspired interface.
+              A next-gen analytics studio. Drop your files, explore instant insights, and export visuals — all in an AI-tech, cyberpunk inspired interface.
             </p>
           </header>
 
@@ -94,13 +99,13 @@ function App() {
                   CSV / Excel only. Preview & progress included.
                 </p>
                 <FileUpload
-                  onData={setData}
-                  onColumns={setColumns}
-                  onTypes={setTypes}
-                  onSummary={setSummary}
-                  onChartTitle={setChartTitle}
-                  onXAxis={setXAxis}
-                  onYAxis={setYAxis}
+                  onData={(d) => { setData(d); }}
+                  onColumns={(cols) => { setColumns(cols); }}
+                  onTypes={(t) => setTypes(t)}
+                  onSummary={(s) => setSummary(s)}
+                  onChartTitle={(t) => setChartTitle(t)}
+                  onXAxis={(x) => setXAxis(x)}
+                  onYAxis={(y) => setYAxis(y)}
                 />
               </div>
             </section>
@@ -116,11 +121,9 @@ function App() {
                 </div>
 
                 {showOptions && (
-                  <ChartOptions
-                    options={chartOptions}
-                    setOptions={setChartOptions}
-                    columns={columns} // pass available columns for parameter selection
-                  />
+                  <div className="mb-4">
+                    <ChartOptions options={chartOptions} setOptions={setChartOptions} columns={columns} />
+                  </div>
                 )}
 
                 <ChartView
@@ -131,6 +134,8 @@ function App() {
                   chartTitle={chartTitle}
                   xAxis={xAxis}
                   yAxis={yAxis}
+                  setXAxis={setXAxis}
+                  setYAxis={setYAxis}
                 />
               </div>
             </section>
