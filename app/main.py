@@ -80,6 +80,23 @@ async def upload_file(file: UploadFile = File(...)):
         if df is None or df.empty:
             raise HTTPException(status_code=400, detail="No data found in the uploaded file")
 
+        # >>> ADD THIS BLOCK <<<
+        def force_unique(cols):
+            seen = {}
+            out = []
+            for c in cols:
+                c = str(c).strip() if c is not None else "column"
+                if c in seen:
+                    seen[c] += 1
+                    out.append(f"{c}_{seen[c]}")
+                else:
+                    seen[c] = 0
+                    out.append(c)
+            return out
+
+        df.columns = force_unique(df.columns)
+        # >>> END OF ADDED BLOCK <<<
+
         df = df.reset_index(drop=True)
 
         # --- enforce unique columns immediately
