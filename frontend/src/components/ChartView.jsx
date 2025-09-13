@@ -1,6 +1,19 @@
 // frontend/src/components/ChartView.jsx
 import React, { useMemo, useRef, useState, useEffect } from "react";
-import { Chart as ChartJS, CategoryScale, LinearScale, LogarithmicScale, BarElement, PointElement, LineElement, ArcElement, Title, Tooltip, Legend, Filler } from "chart.js";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  LogarithmicScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from "chart.js";
 import { Bar, Line, Pie, Scatter } from "react-chartjs-2";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 
@@ -19,7 +32,7 @@ ChartJS.register(
   ChartDataLabels
 );
 
-// helper to compute simple least squares trendline
+// ---------- Helpers ----------
 function computeTrendline(values) {
   const n = values.length;
   if (n < 2) return values.map(() => null);
@@ -37,7 +50,6 @@ function computeTrendline(values) {
   return xs.map(x => slope * x + intercept);
 }
 
-// safe numeric parse
 const parseNumeric = (v) => {
   if (typeof v === 'number') return v;
   if (v === null || v === undefined || String(v).trim() === '') return 0;
@@ -45,6 +57,60 @@ const parseNumeric = (v) => {
   return Number.isFinite(n) ? n : 0;
 };
 
+// hex <-> rgb and interpolation
+function hexToRgb(hex) {
+  if (!hex) return null;
+  const h = hex.replace('#', '');
+  const bigint = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+  return { r: (bigint >> 16) & 255, g: (bigint >> 8) & 255, b: bigint & 255 };
+}
+function rgbToHex({ r, g, b }) {
+  return '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('');
+}
+function lerp(a, b, t) { return a + (b - a) * t; }
+// interpolate across multiple stops
+function interpolateStops(stops, t) {
+  if (!stops || stops.length === 0) return '#999';
+  if (stops.length === 1) return stops[0];
+  const seg = (stops.length - 1) * t;
+  const idx = Math.min(Math.floor(seg), stops.length - 2);
+  const localT = seg - idx;
+  const c1 = hexToRgb(stops[idx]);
+  const c2 = hexToRgb(stops[idx + 1]);
+  if (!c1 || !c2) return stops[idx] || stops[stops.length - 1];
+  return rgbToHex({
+    r: Math.round(lerp(c1.r, c2.r, localT)),
+    g: Math.round(lerp(c1.g, c2.g, localT)),
+    b: Math.round(lerp(c1.b, c2.b, localT))
+  });
+}
+
+// adjust hex by amount (used for fallback)
+function adjustHex(hex, amt) {
+  try {
+    const h = hex.replace('#', '');
+    const num = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16);
+    let r = (num >> 16) + amt;
+    let g = ((num >> 8) & 0xff) + amt;
+    let b = (num & 0xff) + amt;
+    r = Math.max(0, Math.min(255, r));
+    g = Math.max(0, Math.min(255, g));
+    b = Math.max(0, Math.min(255, b));
+    return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+  } catch (e) {
+    return hex || '#777';
+  }
+}
+
+// read theme-based text color (never tie to chart color)
+function getThemeTextColor() {
+  if (typeof document !== "undefined" && document.body) {
+    return document.body.classList.contains('dark') ? '#E6EEF8' : '#0f172a';
+  }
+  return '#0f172a';
+}
+
+// ---------- Component ----------
 export default function ChartView({
   data = [],
   columns = [],
@@ -58,37 +124,37 @@ export default function ChartView({
 }) {
   const chartRef = useRef(null);
 
-  // per-segment colors (user can set via clicking)
+  // per-segment colors
   const [perSegmentColors, setPerSegmentColors] = useState([]);
-  const [editingSegment, setEditingSegment] = useState(null); // {index, x,y, datasetIndex}
+  const [editingSegment, setEditingSegment] = useState(null); // { index }
 
-  // ensure columns exist; if xAxis/yAxis not set, auto select sensible defaults
+  // set sensible defaults and reset per-segment on data length change
   useEffect(() => {
-    if (!xAxis && columns.length > 0) {
-      setXAxis(columns[0]);
-    }
-    if (!yAxis && columns.length > 1) {
-      setYAxis(columns[1]);
-    }
-    // reset per-segment colors when data length changes
+    if (!xAxis && columns.length > 0) setXAxis(columns[0]);
+    if (!yAxis && columns.length > 1) setYAxis(columns[1]);
     setPerSegmentColors(new Array(data.length).fill(null));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [columns, data.length]);
 
-  // labels & numeric arrays based on current axes and options.sort
+  // labels & values
   const rawLabels = useMemo(() => data.map((r, i) => (r && r[xAxis] != null ? String(r[xAxis]) : `Row ${i + 1}`)), [data, xAxis]);
   const rawValues = useMemo(() => data.map(r => parseNumeric(r && r[yAxis])), [data, yAxis]);
 
-  // optional compare field
   const compareValues = useMemo(() => {
     const cf = options.compareField || "";
     if (!cf.trim()) return null;
     return data.map(r => parseNumeric(r && r[cf]));
   }, [data, options.compareField]);
 
-  // Prepare pairs and sort if requested
+  // pairs + sort
   const pairs = useMemo(() => {
-    const arr = rawLabels.map((lbl, i) => ({ lbl, val: rawValues[i], raw: data[i], index: i, compare: compareValues ? compareValues[i] : null }));
+    const arr = rawLabels.map((lbl, i) => ({
+      lbl,
+      val: rawValues[i],
+      raw: data[i],
+      index: i,
+      compare: compareValues ? compareValues[i] : null
+    }));
     if (options.sort === 'asc') arr.sort((a,b) => a.val - b.val);
     if (options.sort === 'desc') arr.sort((a,b) => b.val - a.val);
     return arr;
@@ -97,9 +163,9 @@ export default function ChartView({
   const labels = pairs.map(p => p.lbl);
   const datasetValues = pairs.map(p => p.val);
   const compareDatasetValues = compareValues ? pairs.map(p => p.compare) : null;
-  const originalIndexMap = pairs.map(p => p.index); // to map back to perSegmentColors
+  const originalIndexMap = pairs.map(p => p.index); // maps display index -> original index
 
-  // handle safe log scale: find min positive
+  // min positive for log safety
   const minPositive = useMemo(() => {
     const positives = datasetValues.filter(v => v > 0);
     if (compareDatasetValues) positives.push(...compareDatasetValues.filter(v => v > 0));
@@ -109,7 +175,6 @@ export default function ChartView({
 
   const plottedValues = useMemo(() => {
     if (!options.logScale) return datasetValues;
-    // replace <=0 with small positive fraction (doesn't mutate original datasetValues)
     const replacement = Math.max(minPositive * 0.01, 1e-6);
     return datasetValues.map(v => (v > 0 ? v : replacement));
   }, [datasetValues, options.logScale, minPositive]);
@@ -121,73 +186,113 @@ export default function ChartView({
     return compareDatasetValues.map(v => (v > 0 ? v : replacement));
   }, [compareDatasetValues, options.logScale, minPositive]);
 
-  // gradient creation helper for dataset-level gradient using chartArea
-  const createGradient = (ctx, chartArea, stops) => {
-    if (!ctx || !chartArea) return null;
-    const g = ctx.createLinearGradient(chartArea.left, chartArea.top, chartArea.left, chartArea.bottom);
-    stops.forEach((col, i) => g.addColorStop(i / (stops.length - 1), col));
-    return g;
-  };
-
-  // build datasets array for Chart.js
-  const datasets = useMemo(() => {
+  // ---------- Chart data building with safe modes ----------
+  const chartData = useMemo(() => {
     const baseColor = options.color || '#2563eb';
-    const gradientStops = options.gradientStops && options.gradientStops.length ? options.gradientStops : [baseColor, baseColor];
-    const coreDataset = {
+    const stops = (options.gradientStops && options.gradientStops.length) ? options.gradientStops : [baseColor, baseColor];
+    const N = labels.length || 1;
+
+    // PIE SAFE MODE: only one dataset allowed; ignore compare/trend/log
+    if (options.type === 'pie') {
+      const values = datasetValues;
+      const bg = values.map((_, i) => {
+        const origIdx = originalIndexMap[i];
+        if (perSegmentColors && perSegmentColors[origIdx]) return perSegmentColors[origIdx];
+        if (options.gradient) {
+          // across-slices gradient
+          const t = N === 1 ? 0 : i / (N - 1);
+          return interpolateStops(stops, t);
+        }
+        return baseColor;
+      });
+      return {
+        labels,
+        datasets: [{
+          label: yAxis || 'Value',
+          data: values,
+          backgroundColor: bg,
+          borderColor: '#fff',
+          borderWidth: 1
+        }]
+      };
+    }
+
+    // SCATTER: build {x,y} points (x=index) and single dataset; ignore compare (not supported)
+    if (options.type === 'scatter') {
+      // require numeric y; if x is numeric (i.e., xAxis column numeric) we could use that but
+      // fallback: map x to index and show original label in tooltip
+      const points = plottedValues.map((v, i) => ({ x: i, y: v }));
+      const bg = points.map((_, i) => {
+        const origIdx = originalIndexMap[i];
+        if (perSegmentColors && perSegmentColors[origIdx]) return perSegmentColors[origIdx];
+        if (options.gradient) {
+          const t = N === 1 ? 0 : i / (N - 1);
+          return interpolateStops(stops, t);
+        }
+        return baseColor;
+      });
+      return {
+        labels, // used for tooltip label mapping
+        datasets: [{
+          label: yAxis || 'Value',
+          data: points,
+          backgroundColor: bg,
+          borderColor: adjustHex(baseColor, -20),
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          showLine: false
+        }]
+      };
+    }
+
+    // BAR / LINE: support compare and trendline and gradient across bars
+    // Create per-bar colors array when gradient enabled
+    const perBarColors = datasetValues.map((_, i) => {
+      const origIdx = originalIndexMap[i];
+      if (perSegmentColors && perSegmentColors[origIdx]) return perSegmentColors[origIdx];
+      if (options.gradient) {
+        const t = N === 1 ? 0 : i / (N - 1);
+        return interpolateStops(stops, t);
+      }
+      return baseColor;
+    });
+
+    const core = {
       label: yAxis || 'Value',
       type: options.type === 'line' ? 'line' : 'bar',
       data: plottedValues,
-      originalData: datasetValues, // store original for tooltip
-      backgroundColor: (ctx) => {
-        // ctx contains chart/chartArea etc — create gradient dynamically if requested
-        const chart = ctx.chart;
-        const index = ctx.dataIndex;
-        const origIndex = originalIndexMap[index]; // map to original index
-        if (perSegmentColors && perSegmentColors[origIndex]) return perSegmentColors[origIndex]; // per-segment override
-        if (options.gradient) {
-          const g = createGradient(chart.ctx, chart.chartArea, gradientStops);
-          return g || baseColor;
-        }
-        // fallback: single color
-        return baseColor;
-      },
+      originalData: datasetValues,
+      backgroundColor: perBarColors,
       borderColor: baseColor,
       borderWidth: 1,
-      datalabels: {
-        display: (ctx) => {
-          // only show on bars and only if user requested showLabels
-          if (ctx.dataset.type === 'line') return false;
-          return !!options.showLabels;
-        }
-      }
+      datalabels: { display: !!options.showLabels }
     };
 
-    const ds = [coreDataset];
+    const ds = [core];
 
     if (compareDatasetValues) {
+      const compareColors = compareDatasetValues.map((_, i) => {
+        const origIdx = originalIndexMap[i];
+        if (perSegmentColors && perSegmentColors[origIdx]) return perSegmentColors[origIdx];
+        if (options.gradient) {
+          // slightly shift t so compare colors differ subtly (or use same stops)
+          const t = N === 1 ? 0 : i / (N - 1);
+          return interpolateStops(stops, Math.min(1, t + 0.02));
+        }
+        return adjustHex(baseColor, -40);
+      });
       ds.push({
         label: options.compareField,
         type: options.type === 'line' ? 'line' : 'bar',
         data: plottedCompareValues,
         originalData: compareDatasetValues,
-        backgroundColor: (ctx) => {
-          const chart = ctx.chart;
-          const i = ctx.dataIndex;
-          const origIndex = originalIndexMap[i];
-          if (perSegmentColors && perSegmentColors[origIndex]) return perSegmentColors[origIndex];
-          if (options.gradient) {
-            const g = createGradient(chart.ctx, chart.chartArea, options.gradientStops || [options.color, options.color]);
-            return g || options.color;
-          }
-          return adjustHex(options.color || '#2563eb', -40);
-        },
+        backgroundColor: compareColors,
         borderWidth: 1,
-        yAxisID: 'y1', // show on secondary axis by default for clarity
+        yAxisID: 'y1',
         datalabels: { display: !!options.showLabels }
       });
     }
 
-    // trendline: always a line dataset and must NOT show datalabels
     if (options.trendline) {
       const trend = computeTrendline(plottedValues);
       ds.push({
@@ -204,49 +309,46 @@ export default function ChartView({
       });
     }
 
-    return ds;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plottedValues, options, perSegmentColors, datasetValues, plottedCompareValues, compareDatasetValues, originalIndexMap, yAxis]);
+    return { labels, datasets: ds };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    options.type,
+    labels,
+    datasetValues,
+    plottedValues,
+    perSegmentColors,
+    options.gradient,
+    options.gradientStops,
+    options.color,
+    options.compareField,
+    compareDatasetValues,
+    options.trendline,
+    options.showLabels,
+    originalIndexMap,
+    yAxis
+  ]);
 
-  // small hex adjust helper used for fallback colors
-  function adjustHex(hex, amt) {
-    try {
-      const h = hex.replace('#', '');
-      const num = parseInt(h, 16);
-      let r = (num >> 16) + amt;
-      let g = ((num >> 8) & 0xff) + amt;
-      let b = (num & 0xff) + amt;
-      r = Math.max(0, Math.min(255, r));
-      g = Math.max(0, Math.min(255, g));
-      b = Math.max(0, Math.min(255, b));
-      return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
-    } catch (e) {
-      return hex;
-    }
-  }
-
-  // chart options object (passed to Chart components)
+  // ---------- Chart options ----------
   const chartJSOptions = useMemo(() => {
-    const textColor =
-      typeof document !== "undefined" && document.body && document.body.classList.contains("dark")
-        ? "#E6EEF8"
-        : "#0f172a";
-
+    const textColor = getThemeTextColor();
     const yScaleType = options.logScale ? 'logarithmic' : 'linear';
     const minForLog = options.logMin && Number(options.logMin) > 0 ? Number(options.logMin) : minPositive * 0.01;
 
     const opts = {
       maintainAspectRatio: false,
       responsive: true,
-      interaction: { mode: 'index', intersect: false },
+      interaction: { mode: 'nearest', intersect: true },
       plugins: {
         legend: { labels: { color: textColor } },
         title: { display: false },
         datalabels: {
           color: textColor,
           display: (ctx) => {
-            // fallback: if dataset datalabels.display is defined, that will override
-            return !!options.showLabels && ctx.dataset.type !== 'line';
+            // dataset-level datalabels override is used for finer control
+            if (ctx.dataset && typeof ctx.dataset.datalabels?.display === 'boolean') {
+              return ctx.dataset.datalabels.display;
+            }
+            return !!options.showLabels;
           }
         },
         tooltip: {
@@ -254,10 +356,16 @@ export default function ChartView({
             label: function(context) {
               const ds = context.dataset;
               const idx = context.dataIndex;
-              if (ds.originalData && ds.originalData[idx] != null) {
+              // prefer originalData
+              if (ds && ds.originalData && ds.originalData[idx] != null) {
                 return `${ds.label}: ${ds.originalData[idx]}`;
               }
-              return `${ds.label}: ${context.formattedValue}`;
+              // scatter: map x index to label if possible
+              if (options.type === 'scatter') {
+                const displayLabel = (labels && labels[idx]) ? labels[idx] : `#${idx+1}`;
+                return `${displayLabel}: ${context.parsed.y}`;
+              }
+              return `${context.dataset.label}: ${context.formattedValue}`;
             }
           }
         }
@@ -272,18 +380,15 @@ export default function ChartView({
             if (Math.abs(v) >= 1e6) return (v/1e6)+'M';
             if (Math.abs(v) >= 1000) return (v/1000)+'k';
             return v;
-          }},
+          } }
         }
       },
       onClick: (evt, elements) => {
-        // clicking a bar/pie slice triggers per-segment color edit
         if (!elements || elements.length === 0) return;
         const el = elements[0];
-        const index = el.index;
-        const datasetIndex = el.datasetIndex;
-        // map displayed index -> original data index
-        const originalIndex = originalIndexMap[index];
-        setEditingSegment({ index: originalIndex, displayIndex: index, datasetIndex, evt });
+        const displayIndex = el.index;
+        const origIndex = originalIndexMap[displayIndex];
+        setEditingSegment({ index: origIndex });
       }
     };
 
@@ -291,8 +396,7 @@ export default function ChartView({
       opts.scales.y.min = Math.max(minForLog, 1e-9);
     }
 
-    // if there is a compare dataset, add secondary axis y1
-    if (options.compareField) {
+    if (options.compareField && options.type !== 'pie' && options.type !== 'scatter') {
       opts.scales.y1 = {
         position: 'right',
         grid: { drawOnChartArea: false },
@@ -300,40 +404,52 @@ export default function ChartView({
       };
     }
 
+    // scatter-specific: show integer ticks with labels mapped
+    if (options.type === 'scatter') {
+      opts.scales.x = {
+        type: 'linear',
+        ticks: {
+          color: textColor,
+          callback: (v) => {
+            // v is numeric; if it's integer and within labels range show label
+            if (Number.isInteger(v) && labels[v] !== undefined) return labels[v];
+            return '';
+          },
+          stepSize: 1
+        },
+        min: -0.5,
+        max: Math.max(0, labels.length - 0.5)
+      };
+    }
+
+    // pie: use category x (no axes)
+    if (options.type === 'pie') {
+      delete opts.scales;
+    }
+
     return opts;
-  }, [options, minPositive, originalIndexMap]);
+  }, [options, labels, minPositive, originalIndexMap, yAxis]);
 
-  // final data object for Chart.js
-  const chartData = useMemo(() => {
-    return {
-      labels,
-      datasets
-    };
-  }, [labels, datasets]);
-
-  // chosen Chart component
+  // choose appropriate React component
   const ChartComponent = (options.type === 'line') ? Line : (options.type === 'pie') ? Pie : (options.type === 'scatter') ? Scatter : Bar;
 
-  // handle per-segment color chosen by user
+  // ---------- segment color editing ----------
   const applySegmentColor = (color) => {
-    if (!editingSegment) return;
+    if (editingSegment == null) return;
     const copy = perSegmentColors.slice();
     copy[editingSegment.index] = color;
     setPerSegmentColors(copy);
     setEditingSegment(null);
   };
-
-  // reset per-segment color
   const resetSegmentColor = (idx) => {
     const copy = perSegmentColors.slice();
     copy[idx] = null;
     setPerSegmentColors(copy);
   };
 
-  // download/export helpers
+  // ---------- exports ----------
   const downloadAsImage = (format = 'png') => {
-    const chart = chartRef.current && chartRef.current.chartInstance ? chartRef.current.chartInstance : (chartRef.current && chartRef.current);
-    // react-chartjs-2 v4 stores instance directly at chartRef.current
+    const chart = chartRef.current && chartRef.current.chartInstance ? chartRef.current.chartInstance : chartRef.current;
     const instance = chartRef.current?.chartInstance || chartRef.current;
     if (!instance || !instance.toBase64Image) return alert('Chart not ready for export');
     const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png';
@@ -343,7 +459,6 @@ export default function ChartView({
     a.download = `chart-${(yAxis||'metric')}.${format === 'png' ? 'png' : 'jpg'}`;
     a.click();
   };
-
   const downloadCSV = () => {
     if (!data.length) return;
     const keys = Object.keys(data[0]);
@@ -355,7 +470,6 @@ export default function ChartView({
     a.download = `data-${yAxis||'data'}.csv`;
     a.click();
   };
-
   const downloadJSON = () => {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
@@ -364,13 +478,15 @@ export default function ChartView({
     a.click();
   };
 
+  // ---------- Render ----------
   return (
     <div className="rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border p-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="font-display text-sm mb-2">{chartTitle || "Visualization"}</h3>
-          <div className="flex gap-2 items-center text-sm">
-            {/* Axis selectors for quick switching */}
+
+          {/* wrapped controls to avoid overflow */}
+          <div className="flex flex-wrap gap-2 items-center text-sm">
             <label className="flex items-center gap-2">
               X:
               <select value={xAxis} onChange={e => setXAxis(e.target.value)} className="ml-1 border rounded px-2 py-1">
@@ -388,12 +504,8 @@ export default function ChartView({
             <label className="flex items-center gap-2">
               Compare:
               <select value={options.compareField || ""} onChange={e => {
-                const val = e.target.value || "";
-                // update options (need to mutate parent state). A simple way: dispatch a CustomEvent expected by ChartOptions,
-                // but in this component we don't have setter - we expect App to pass setOptions. To keep component self-contained,
-                // we rely on options.compareField being managed in App via ChartOptions. For now show selection but do not set here.
-                // If you want this select to update parent, pass setChartOptions down or create a callback prop.
-                alert("To change compare field, open Chart Options panel (top-right) and set Compare Field there.");
+                // compare field is controlled by ChartOptions in parent App; just hint user if they change from here
+                alert("Set Compare field in Chart Options (top-right) to enable compare. Pie and Scatter ignore compare.");
               }} className="ml-1 border rounded px-2 py-1">
                 <option value="">None</option>
                 {columns.map(c => <option key={c} value={c}>{c}</option>)}
@@ -417,7 +529,6 @@ export default function ChartView({
         </div>
       </div>
 
-      {/* Inline color editor for clicked segment */}
       {editingSegment && (
         <div className="mt-3 p-3 border rounded bg-white dark:bg-black/40">
           <div className="flex items-center gap-4">
