@@ -41,6 +41,17 @@ export default function ChartView({
   xAxis = "",
   yAxis = "",
 }) {
+  // ✅ define chartOpts so it's always available
+  let chartOpts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {},
+    scales: {
+      x: { ticks: {} },
+      y: { ticks: {} },
+    },
+  };
+
   if (!data.length || !xAxis || !yAxis) {
     return (
       <div className="rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border p-5">
