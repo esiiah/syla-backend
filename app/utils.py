@@ -26,26 +26,65 @@ def _normalize_header_name(name: str) -> str:
         return ""
     n = str(name).strip()
     for pattern, target in HEADER_MAP.items():
-        if re.match(pattern, n, flags=re.IGNORECASE):
-            return target
+        try:
+            if re.match(pattern, n, flags=re.IGNORECASE):
+                return target
+        except re.error:
+            continue
     return n
 
 
-def _to_numeric_series(s: pd.Series) -> pd.Series:
+def _ensure_unique_columns(cols):
     """
-    Robust numeric coercion.  Forces Series to string first,
-    so .str methods never hit a DataFrame or numeric dtype.
+    Make columns unique after any normalization.
+    Produces: name, name_1, name_2, ...
     """
-    if s is None or s.empty:
+    out = []
+    counts = {}
+    for c in cols:
+        base = "" if c is None else str(c).strip()
+        if base == "":
+            base = "column"
+        if base in counts:
+            counts[base] += 1
+            out.append(f"{base}_{counts[base]}")
+        else:
+            counts[base] = 0
+            out.append(base)
+    return out
+
+
+def _to_numeric_series(s):
+    """
+    Accepts Series, DataFrame, ndarray. Returns a pd.Series of numerics where possible.
+    Collapses DataFrame -> Series before using .str.
+    """
+    if s is None:
         return s
 
-    # Always work on a string copy
-    s2 = s.astype(str).str.strip()
+    # Convert DataFrame -> Series by joining columns per-row
+    if isinstance(s, pd.DataFrame):
+        if s.shape[1] == 1:
+            s = s.iloc[:, 0]
+        else:
+            s = pd.Series(s.astype(str).agg(" | ".join, axis=1), index=s.index)
 
-    # normalise blanks / NA markers
+    if isinstance(s, np.ndarray):
+        if s.ndim > 1:
+            s = pd.Series([" | ".join(map(str, row)) for row in s], index=getattr(s, "index", None))
+        else:
+            s = pd.Series(s)
+
+    if not isinstance(s, pd.Series):
+        s = pd.Series(s)
+
+    if s.empty:
+        return s
+
+    # Force string before using .str accessors (prevents errors)
+    s2 = s.astype(str).str.strip()
     s2 = s2.replace({"": np.nan, "nan": np.nan, "None": np.nan})
 
-    # remove currency signs, thousand separators, percent sign
     s2 = s2.str.replace(CURRENCY_SIGNS, "", regex=True)
     s2 = s2.str.replace(THOUSAND_SEP, "", regex=True)
     s2 = s2.str.replace(PERCENT, "", regex=True)
@@ -55,48 +94,57 @@ def _to_numeric_series(s: pd.Series) -> pd.Series:
 
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Generic cleaner:
-      • normalise headers
-      • collapse list/array cells to plain strings
-      • try numeric, then datetime, else keep as string
-    Works even with duplicate columns already deduped.
+    Robust cleaning:
+      - normalize headers (then re-unique)
+      - collapse multi-column cells or array-like cells into single string per-row
+      - coerce numeric/date when appropriate
+      - ensure operations use positional access to avoid label-duplication issues
     """
     df = df.copy()
 
-    # normalise header names
+    # Normalize header names (safe even if input had MultiIndex collapsed earlier)
     df.columns = [str(_normalize_header_name(c)) for c in df.columns]
 
-    # drop columns that are completely empty
+    # Make sure normalization didn't create duplicates
+    df.columns = _ensure_unique_columns(df.columns)
+
+    # Remove entirely empty columns
     df = df.dropna(axis=1, how="all")
 
-    for col in df.columns:
-        s = df[col]
+    # Process columns by position (avoids df['name'] -> DataFrame when duplicates exist)
+    for i in range(df.shape[1]):
+        col_label = df.columns[i]
+        col_series = df.iloc[:, i]
 
-        # collapse list / ndarray cells to single string per row
+        # Collapse nested structures to simple strings
         def _collapse_val(v):
             if isinstance(v, (list, tuple, set)):
                 return " | ".join(map(str, v))
             if isinstance(v, np.ndarray):
+                # flatten and join
                 return " | ".join(map(str, v.flatten().tolist()))
             return v
-        s = s.map(_collapse_val)
 
-        # ---- 1️⃣ Try numeric ----
+        s = col_series.map(_collapse_val)
+
+        # Try numeric coercion (if >=30% parse numeric)
         numeric = _to_numeric_series(s)
-        if numeric.notna().sum() >= max(1, int(0.3 * len(df))):
-            df[col] = numeric.fillna(0)
+        if isinstance(numeric, pd.Series) and numeric.notna().sum() >= max(1, int(0.3 * len(df))):
+            df.iloc[:, i] = numeric.fillna(0)
             continue
 
-        # ---- 2️⃣ Try datetime ----
+        # Try datetime (if >=70% parse to datetime)
         dt = pd.to_datetime(s.astype(str), errors="coerce", infer_datetime_format=True)
         if dt.notna().sum() >= max(1, int(0.7 * len(df))):
-            df[col] = dt
+            df.iloc[:, i] = dt
             continue
 
-        # ---- 3️⃣ Fallback: plain string ----
-        df[col] = s.astype(str).fillna("")
+        # Fallback to string
+        df.iloc[:, i] = s.astype(str).fillna("")
 
-    # final fill for non-numeric columns to remove NaN
+    # final fills: numeric cols -> fill 0, others -> fill ""
+    for col in df.select_dtypes(include=[np.number]).columns:
+        df[col] = df[col].fillna(0)
     for col in df.columns.difference(df.select_dtypes(include=[np.number]).columns):
         df[col] = df[col].fillna("")
 
