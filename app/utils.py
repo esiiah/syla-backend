@@ -1,7 +1,6 @@
-# app/utils.py
 import re
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 CURRENCY_SIGNS = r"[₹$€£¥]"
 THOUSAND_SEP = r","
@@ -27,41 +26,16 @@ def _normalize_header_name(name: str) -> str:
         return ""
     n = str(name).strip()
     for pattern, target in HEADER_MAP.items():
-        try:
-            if re.match(pattern, n, flags=re.IGNORECASE):
-                return target
-        except re.error:
-            continue
+        if re.match(pattern, n, flags=re.IGNORECASE):
+            return target
     return n
 
 
 def _to_numeric_series(s: pd.Series) -> pd.Series:
-    """Robust numeric coercion. Accepts Series, DataFrame or ndarray."""
-    if s is None:
+    if s is None or s.empty:
         return s
-
-    # Collapse DataFrame -> Series by joining columns per-row
-    if isinstance(s, pd.DataFrame):
-        if s.shape[1] == 1:
-            s = s.iloc[:, 0]
-        else:
-            s = pd.Series(s.astype(str).agg(" | ".join, axis=1))
-
-    if isinstance(s, np.ndarray):
-        if s.ndim > 1:
-            s = pd.Series([" | ".join(map(str, row)) for row in s])
-        else:
-            s = pd.Series(s)
-
-    if not isinstance(s, pd.Series):
-        s = pd.Series(s)
-
-    if s.empty:
-        return s
-
     if pd.api.types.is_numeric_dtype(s):
         return s
-
     s2 = s.astype(str).str.strip()
     s2 = s2.replace({"": np.nan, "nan": np.nan, "None": np.nan})
     s2 = s2.str.replace(CURRENCY_SIGNS, "", regex=True)
@@ -71,81 +45,41 @@ def _to_numeric_series(s: pd.Series) -> pd.Series:
 
 
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Robust cleaning:
-    - normalize headers
-    - collapse multi-column cells or array-like cells into single string per-row
-    - coerce numeric/date when appropriate
-    - ensure all columns are 1-D Series
-    """
     df = df.copy()
-    # normalize header names
     df.columns = [str(_normalize_header_name(c)) for c in df.columns]
-
-    # ensure no entirely empty columns
     df = df.dropna(axis=1, how="all")
 
-    # collapse any cell that is list/ndarray into a string and ensure Series per-col
-    for col in list(df.columns):
-        col_data = df[col]
+    for col in df.columns:
+        s = df[col]
 
-        # if pandas returned a DataFrame slice unexpectedly, collapse its columns
-        if isinstance(col_data, pd.DataFrame):
-            if col_data.shape[1] == 1:
-                col_data = col_data.iloc[:, 0]
-            else:
-                col_data = pd.Series(col_data.astype(str).agg(" | ".join, axis=1), index=df.index)
+        # collapse any nested structures to simple strings
+        def _collapse_val(v):
+            if isinstance(v, (list, tuple, set)):
+                return " | ".join(map(str, v))
+            if isinstance(v, np.ndarray):
+                return " | ".join(map(str, v.flatten().tolist()))
+            return v
+        s = s.map(_collapse_val)
 
-        # if numpy array, flatten rows
-        if isinstance(col_data, np.ndarray):
-            if getattr(col_data, "ndim", 1) > 1:
-                col_data = pd.Series([" | ".join(map(str, row)) for row in col_data], index=df.index)
-            else:
-                col_data = pd.Series(col_data, index=df.index)
-
-        # collapse list/tuple cells inside a Series
-        if isinstance(col_data, pd.Series):
-            def _collapse_val(v):
-                if isinstance(v, (list, tuple, set)):
-                    return " | ".join(map(str, v))
-                if isinstance(v, (np.ndarray,)):
-                    if getattr(v, "ndim", 1) > 1:
-                        return " | ".join(map(lambda r: " | ".join(map(str, r)), v.tolist()))
-                    return " | ".join(map(str, v.tolist()))
-                return v
-            col_data = col_data.map(_collapse_val)
-
-        # now ensure it's a Series
-        if not isinstance(col_data, pd.Series):
-            col_data = pd.Series(col_data, index=df.index)
-
-        # force collapse again if something weird remains
-        if isinstance(col_data, pd.DataFrame):
-            col_data = col_data.iloc[:, 0]
-
-        # Try numeric coercion
-        numeric = _to_numeric_series(col_data)
+        # try numeric then datetime
+        numeric = _to_numeric_series(s)
         if numeric.notna().sum() >= max(1, int(0.3 * len(df))):
-            df[col] = numeric
+            df[col] = numeric.fillna(0)
             continue
 
-        # Try datetime
-        dt = pd.to_datetime(col_data, errors="coerce", infer_datetime_format=True)
+        dt = pd.to_datetime(s, errors="coerce", infer_datetime_format=True)
         if dt.notna().sum() >= max(1, int(0.7 * len(df))):
             df[col] = dt
             continue
 
-        # fallback to string (guarantees 1-D)
-        df[col] = col_data.astype(str).fillna("")
+        df[col] = s.astype(str).fillna("")
 
-    # final fills for numeric columns (avoid NaN for charts/log scale)
-    for col in df.select_dtypes(include=[np.number]).columns:
-        df[col] = df[col].fillna(0)
-
+    # final fill for any remaining non-numeric columns
     for col in df.columns.difference(df.select_dtypes(include=[np.number]).columns):
         df[col] = df[col].fillna("")
 
     return df
+
 
 def detect_column_types(df: pd.DataFrame) -> dict:
     out = {}
