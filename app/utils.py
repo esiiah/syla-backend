@@ -36,8 +36,32 @@ def _normalize_header_name(name: str) -> str:
 
 
 def _to_numeric_series(s: pd.Series) -> pd.Series:
-    """Try to coerce a series to numeric by stripping currency/commas/percent."""
-    if s is None or s.empty:
+    """Try to coerce a series to numeric by stripping currency/commas/percent.
+    Robust to receiving a DataFrame or 2D ndarray as input (flattens to strings)."""
+    if s is None:
+        return s
+
+    # If we received a DataFrame (happens when label maps to multiple columns),
+    # collapse into a single Series by joining row values with " | ".
+    if isinstance(s, pd.DataFrame):
+        if s.shape[1] == 1:
+            s = s.iloc[:, 0]
+        else:
+            s = s.astype(str).agg(" | ".join, axis=1)
+            s = pd.Series(s)
+
+    # If numpy ndarray (2D), flatten similarly
+    if isinstance(s, np.ndarray):
+        if s.ndim > 1:
+            s = pd.Series([" | ".join(map(str, row)) for row in s])
+        else:
+            s = pd.Series(s)
+
+    # now operate assuming s is a Series
+    if not isinstance(s, pd.Series):
+        s = pd.Series(s)
+
+    if s.empty:
         return s
 
     if pd.api.types.is_numeric_dtype(s):
@@ -49,6 +73,7 @@ def _to_numeric_series(s: pd.Series) -> pd.Series:
     s2 = s2.str.replace(THOUSAND_SEP, "", regex=True)
     s2 = s2.str.replace(PERCENT, "", regex=True)
     return pd.to_numeric(s2, errors="coerce")
+
 
 
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
@@ -67,9 +92,23 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     for col in df.columns:
         col_data = df[col]
 
+        # If selection returned a DataFrame (duplicate labels or multi-col cell),
+        # flatten to a single Series.
+        if isinstance(col_data, pd.DataFrame):
+            if col_data.shape[1] == 1:
+                col_data = col_data.iloc[:, 0]
+            else:
+                col_data = col_data.astype(str).agg(" | ".join, axis=1)
+                col_data = pd.Series(col_data, index=df.index)
+        elif isinstance(col_data, np.ndarray):
+            if getattr(col_data, "ndim", 1) > 1:
+                col_data = pd.Series([" | ".join(map(str, row)) for row in col_data], index=df.index)
+            else:
+                col_data = pd.Series(col_data, index=df.index)
+
         # Ensure we are working with a Series
         if not isinstance(col_data, pd.Series):
-            col_data = pd.Series(col_data)
+            col_data = pd.Series(col_data, index=df.index)
 
         # Try numeric
         numeric = _to_numeric_series(col_data)
