@@ -119,7 +119,7 @@ function App() {
                     {/* Options */}
                     <div>
                       <label className="block mb-1 font-medium">Chart Type</label>
-                      <select value={chartOptions.type} onChange={(e) => setChartOptions(prev => ({...prev, type: e.target.value}))} className="w-full border rounded px-2 py-1">
+                      <select value={chartOptions.type} onChange={(e) => setChartOptions(prev => ({ ...prev, type: e.target.value }))} className="w-full border rounded px-2 py-1">
                         <option value="bar">Bar</option>
                         <option value="line">Line</option>
                         <option value="pie">Pie</option>
@@ -129,33 +129,33 @@ function App() {
 
                     <div>
                       <label className="block mb-1 font-medium">Color</label>
-                      <input type="color" value={chartOptions.color} onChange={(e) => setChartOptions(prev => ({...prev, type: e.target.value}))} className="w-full h-8 p-0 border rounded"/>
+                      <input type="color" value={chartOptions.color} onChange={(e) => setChartOptions(prev => ({ ...prev, color: e.target.value }))} className="w-full h-8 p-0 border rounded"/>
                     </div>
 
                     <div>
                       <label className="block mb-1 font-medium">
-                        <input type="checkbox" checked={chartOptions.gradient} onChange={(e) => setChartOptions(prev => ({...prev, type: e.target.value}))} className="mr-2"/>
+                        <input type="checkbox" checked={chartOptions.gradient} onChange={(e) => setChartOptions(prev => ({ ...prev, gradient: e.target.checked }))} className="mr-2"/>
                         Gradient
                       </label>
                     </div>
 
                     <div>
                       <label className="block mb-1 font-medium">
-                        <input type="checkbox" checked={chartOptions.showLabels} onChange={(e) => setChartOptions(prev => ({...prev, type: e.target.value}))} className="mr-2"/>
+                        <input type="checkbox" checked={chartOptions.showLabels} onChange={(e) => setChartOptions(prev => ({ ...prev, showLabels: e.target.checked }))} className="mr-2"/>
                         Show Labels
                       </label>
                     </div>
 
                     <div>
                       <label className="block mb-1 font-medium">
-                        <input type="checkbox" checked={chartOptions.trendline} onChange={(e) => setChartOptions(prev => ({...prev, type: e.target.value}))} className="mr-2"/>
+                        <input type="checkbox" checked={chartOptions.trendline} onChange={(e) => setChartOptions(prev => ({ ...prev, trendline: e.target.checked }))} className="mr-2"/>
                         Trendline
                       </label>
                     </div>
 
                     <div>
                       <label className="block mb-1 font-medium">Sort</label>
-                      <select value={chartOptions.sort} onChange={(e) => setChartOptions(prev => ({...prev, type: e.target.value}))} className="w-full border rounded px-2 py-1">
+                      <select value={chartOptions.sort} onChange={(e) => setChartOptions(prev => ({ ...prev, sort: e.target.value }))} className="w-full border rounded px-2 py-1">
                         <option value="none">None</option>
                         <option value="asc">Ascending</option>
                         <option value="desc">Descending</option>
@@ -164,7 +164,7 @@ function App() {
 
                     <div>
                       <label className="block mb-1 font-medium">
-                        <input type="checkbox" checked={chartOptions.logScale} onChange={(e) => setChartOptions(prev => ({...prev, type: e.target.value}))} className="mr-2"/>
+                        <input type="checkbox" checked={chartOptions.logScale} onChange={(e) => setChartOptions(prev => ({ ...prev, logScale: e.target.checked }))} className="mr-2"/>
                         Log Scale
                       </label>
                     </div>
