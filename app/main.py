@@ -5,6 +5,7 @@ import logging
 import os
 from typing import List
 
+import numpy as np
 import pandas as pd
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
