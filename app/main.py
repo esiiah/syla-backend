@@ -1,8 +1,4 @@
-# app/main.py
-import io
-import csv
-import logging
-import os
+import io, csv, logging, os
 from typing import List
 
 import numpy as np
@@ -12,7 +8,6 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
-# ✅ relative import (since utils.py is in same package)
 from .utils import clean_dataframe, detect_column_types, summarize_numeric
 
 logging.basicConfig(level=logging.INFO)
@@ -20,7 +15,6 @@ logger = logging.getLogger("syla-backend")
 
 app = FastAPI(title="Syla Backend")
 
-# Public app: allow any origin
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -33,29 +27,19 @@ ALLOWED_EXTS = (".csv", ".tsv", ".xls", ".xlsx")
 
 
 def make_unique_columns(cols: List[str]) -> List[str]:
-    cleaned = [("" if c is None else str(c).strip()) for c in cols]
-    counts = {}
-    for name in cleaned:
-        counts[name] = counts.get(name, 0) + 1
-
-    duplicates = {name for name, c in counts.items() if c > 1}
-    counters = {name: 0 for name in duplicates}
-    result = []
-    for idx, name in enumerate(cleaned, start=1):
-        if name == "":
-            base = f"column_{idx}"
-            if base in duplicates:
-                counters.setdefault(base, 0)
-                counters[base] += 1
-                result.append(f"{base} {counters[base]}")
-            else:
-                result.append(base)
-        elif name in duplicates:
-            counters[name] += 1
-            result.append(f"{name} {counters[name]}")
+    """Always return globally unique column names."""
+    new_cols, seen = [], {}
+    for c in cols:
+        base = "" if c is None else str(c).strip()
+        if base == "":
+            base = "column"
+        if base in seen:
+            seen[base] += 1
+            new_cols.append(f"{base}_{seen[base]}")
         else:
-            result.append(name)
-    return result
+            seen[base] = 0
+            new_cols.append(base)
+    return new_cols
 
 
 @app.get("/api/health")
@@ -71,17 +55,18 @@ async def upload_file(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Only CSV/TSV/XLS/XLSX files are allowed")
 
     try:
-        contents = await file.read()
-        if not contents:
+        raw = await file.read()
+        if not raw:
             raise HTTPException(status_code=400, detail="File is empty")
 
-        # ✅ Read dataframe robustly (always as strings first)
+        # --- read as text/strings first
         if lower.endswith((".xls", ".xlsx")):
-            df = pd.read_excel(io.BytesIO(contents))
+            df = pd.read_excel(io.BytesIO(raw), dtype=str)
         else:
-            text = contents.decode("utf-8", errors="replace")
+            text = raw.decode("utf-8", errors="replace")
             try:
-                df = pd.read_csv(io.StringIO(text), sep=None, engine="python", dtype=str, keep_default_na=False)
+                df = pd.read_csv(io.StringIO(text), sep=None, engine="python",
+                                 dtype=str, keep_default_na=False)
             except Exception:
                 sample = text[:8192]
                 try:
@@ -89,46 +74,30 @@ async def upload_file(file: UploadFile = File(...)):
                     delim = dialect.delimiter
                 except Exception:
                     delim = "\t" if "\t" in sample else ","
-                df = pd.read_csv(io.StringIO(text), sep=delim, engine="python", dtype=str, keep_default_na=False)
+                df = pd.read_csv(io.StringIO(text), sep=delim, engine="python",
+                                 dtype=str, keep_default_na=False)
 
         if df is None or df.empty:
             raise HTTPException(status_code=400, detail="No data found in the uploaded file")
 
-        # ✅ Normalize index and ensure consistent column names
         df = df.reset_index(drop=True)
 
-        # ✅ ensure all values are strings or scalars (collapse lists/ndarrays)
+        # --- enforce unique columns immediately
+        df.columns = make_unique_columns(df.columns)
+
+        # --- collapse any list/array cells to simple scalars
         def _collapse_cell(v):
             if isinstance(v, (list, tuple, set)):
                 return " | ".join(map(str, v))
-            if isinstance(v, (np.ndarray,)):
-                if v.ndim > 1:
-                    return " | ".join(map(lambda r: " | ".join(map(str, r)), v.tolist()))
-                return " | ".join(map(str, v.tolist()))
+            if isinstance(v, np.ndarray):
+                return " | ".join(map(str, v.flatten().tolist()))
             return v
-
         df = df.applymap(_collapse_cell)
 
-        # ✅ make column names unique in a consistent "name 1", "name 2" style if duplicates exist
-        cols = list(df.columns)
-        seen = {}
-        newcols = []
-        for c in cols:
-            cname = str(c).strip()
-            if cname in seen:
-                seen[cname] += 1
-                newcols.append(f"{cname} {seen[cname]}")
-            else:
-                seen[cname] = 1
-                # first occurrence keep original name (no " 1")
-                newcols.append(cname if cols.count(cname) == 1 else f"{cname} 1")
-        df.columns = newcols
-
-        # Clean & process
-        df.columns = make_unique_columns(list(df.columns))
+        # --- clean & type-detect
         df_clean = clean_dataframe(df)
 
-        # ✅ Ensure datetime columns are JSON serializable
+        # ensure datetimes are JSON serialisable
         for col in df_clean.select_dtypes(include=["datetime64[ns]", "datetime64[ns, UTC]"]).columns:
             df_clean[col] = df_clean[col].astype(str)
 
@@ -136,16 +105,12 @@ async def upload_file(file: UploadFile = File(...)):
         summary = summarize_numeric(df_clean)
         data_records = df_clean.to_dict(orient="records")
 
-        # Default axes
-        x_axis = df_clean.columns[0] if len(df_clean.columns) >= 1 else ""
+        x_axis = df_clean.columns[0] if len(df_clean.columns) else ""
         y_axis = x_axis
         numeric_cols = [c for c, t in column_types.items() if t == "numeric"]
         if numeric_cols:
             if x_axis in numeric_cols:
-                if len(numeric_cols) > 1:
-                    y_axis = numeric_cols[1] if numeric_cols[0] == x_axis else numeric_cols[0]
-                else:
-                    y_axis = numeric_cols[0]
+                y_axis = numeric_cols[1] if len(numeric_cols) > 1 else numeric_cols[0]
             else:
                 y_axis = numeric_cols[0]
 
@@ -163,12 +128,11 @@ async def upload_file(file: UploadFile = File(...)):
                 "y_axis": y_axis,
             },
         )
-
     except HTTPException:
         raise
     except Exception as e:
         logger.exception("Upload failed")
-        raise HTTPException(status_code=500, detail=f"Server error processing file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Server error processing file: {e}")
     finally:
         try:
             await file.close()
@@ -176,7 +140,6 @@ async def upload_file(file: UploadFile = File(...)):
             pass
 
 
-# Serve frontend (optional)
 frontend_dist_path = os.path.join(os.path.dirname(__file__), "dist")
 if os.path.isdir(frontend_dist_path):
     app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="frontend")
