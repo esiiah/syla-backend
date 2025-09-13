@@ -80,12 +80,10 @@ async def upload_file(file: UploadFile = File(...)):
         else:
             text = contents.decode("utf-8", errors="replace")
 
-            # Try pandas auto-detection first (more robust than csv.Sniffer in many edge cases).
-            # Read as strings (dtype=str) and let clean_dataframe coerce types later.
+            # Try pandas auto-detection first (safer for many messy CSVs).
             try:
                 df = pd.read_csv(io.StringIO(text), sep=None, engine="python", dtype=str)
             except Exception:
-                # fallback: try csv.Sniffer and a default heuristic
                 sample = text[:8192]
                 try:
                     dialect = csv.Sniffer().sniff(sample)
