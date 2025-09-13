@@ -41,16 +41,30 @@ export default function ChartView({
   xAxis = "",
   yAxis = "",
 }) {
-  // ✅ define chartOpts so it's always available
+  // ✅ define chartOpts so it's always available and ready to be mutated below
   let chartOpts = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: {},
+    plugins: {
+      legend: { labels: { color: "#0f172a" } },
+      datalabels: { color: "#0f172a" },
+      tooltip: {},
+    },
     scales: {
-      x: { ticks: {} },
-      y: { ticks: {} },
+      x: { ticks: { color: "#0f172a" } },
+      y: { ticks: { color: "#0f172a" }, type: "linear" },
     },
   };
+
+  // apply user-controlled log scale toggle
+  if (options.logScale) {
+    chartOpts.scales.y.type = "log";
+    // Chart.js log scale needs a min > 0 for log; ensure reasonable fallback
+    chartOpts.scales.y.min = options.logMin && Number(options.logMin) > 0 ? Number(options.logMin) : 1;
+  } else {
+    chartOpts.scales.y.type = "linear";
+    if (chartOpts.scales.y.min) delete chartOpts.scales.y.min;
+  }
 
   if (!data.length || !xAxis || !yAxis) {
     return (
@@ -81,8 +95,8 @@ export default function ChartView({
   if (options.sort === "asc") pairs.sort((a, b) => a.val - b.val);
   if (options.sort === "desc") pairs.sort((a, b) => b.val - a.val);
 
-  const labels = pairs.map(p => p.lbl);
-  const datasetValues = pairs.map(p => p.val);
+  const labels = pairs.map((p) => p.lbl);
+  const datasetValues = pairs.map((p) => p.val);
 
   const baseColor = options.color || "#2563eb";
 
@@ -92,7 +106,7 @@ export default function ChartView({
       ? "#E6EEF8"
       : "#0f172a";
 
-  // simple per-bar color ramp when gradient enabled (safe, no ctx plugins)
+  // simple per-bar color ramp when gradient enabled (stronger amplitude)
   const adjustHex = (hex, amt) => {
     const h = hex.replace("#", "");
     const num = parseInt(h, 16);
@@ -106,7 +120,7 @@ export default function ChartView({
   };
 
   const backgroundColor = labels.map((_, i) =>
-    options.gradient ? adjustHex(baseColor, Math.round(((i / Math.max(1, labels.length - 1)) - 0.5) * 50)) : baseColor
+    options.gradient ? adjustHex(baseColor, Math.round(((i / Math.max(1, labels.length - 1)) - 0.5) * 90)) : baseColor
   );
 
   const chartData = {
@@ -128,7 +142,8 @@ export default function ChartView({
     const ys = datasetValues.slice();
     const xMean = xs.reduce((a, b) => a + b, 0) / n;
     const yMean = ys.reduce((a, b) => a + b, 0) / n;
-    let num = 0, den = 0;
+    let num = 0,
+      den = 0;
     for (let i = 0; i < n; i++) {
       const dx = xs[i] - xMean;
       num += dx * (ys[i] - yMean);
@@ -136,13 +151,13 @@ export default function ChartView({
     }
     const slope = den === 0 ? 0 : num / den;
     const intercept = yMean - slope * xMean;
-    const trendData = xs.map(x => slope * x + intercept);
+    const trendData = xs.map((x) => slope * x + intercept);
 
     chartData.datasets.push({
       label: "Trendline",
       data: trendData,
       type: "line",
-      borderColor: adjustHex(baseColor, -70),
+      borderColor: adjustHex(baseColor, -80),
       borderWidth: 2,
       fill: false,
       pointRadius: 0,
@@ -164,38 +179,28 @@ export default function ChartView({
         }
       : chartData;
 
-  // update chart options text colors
+  // update chart options text colors (dark mode friendly)
   chartOpts.plugins = chartOpts.plugins || {};
   chartOpts.plugins.legend = chartOpts.plugins.legend || {};
   chartOpts.plugins.legend.labels = { color: textColor };
   chartOpts.plugins.datalabels = chartOpts.plugins.datalabels || {};
   chartOpts.plugins.datalabels.color = textColor;
-  if (chartOpts.scales) {
-    if (chartOpts.scales.x && chartOpts.scales.x.ticks) chartOpts.scales.x.ticks.color = textColor;
-    if (chartOpts.scales.y && chartOpts.scales.y.ticks) chartOpts.scales.y.ticks.color = textColor;
-  }
+  chartOpts.scales = chartOpts.scales || {};
+  chartOpts.scales.x = chartOpts.scales.x || { ticks: {} };
+  chartOpts.scales.y = chartOpts.scales.y || { ticks: {} };
+  chartOpts.scales.x.ticks.color = textColor;
+  chartOpts.scales.y.ticks.color = textColor;
 
   const ChartComponent =
-    options.type === "bar"
-      ? Bar
-      : options.type === "line"
-      ? Line
-      : options.type === "pie"
-      ? Pie
-      : options.type === "scatter"
-      ? Scatter
-      : Bar;
-  
+    options.type === "bar" ? Bar : options.type === "line" ? Line : options.type === "pie" ? Pie : options.type === "scatter" ? Scatter : Bar;
+
   return (
     <div className="rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border p-5">
       <h3 className="font-display text-sm mb-2">{chartTitle || "Visualization"}</h3>
       {/* Inner sub-chamber just like the Upload box */}
       <div className="rounded-xl p-3 bg-gradient-to-b from-white to-gray-50 border border-gray-100 shadow-inner dark:from-black/30 dark:to-black/10 dark:border-white/10 min-h-[320px]">
         <div className="w-full h-[320px]">
-          <ChartComponent
-            data={options.type === "scatter" ? scatterData : chartData}
-            options={chartOpts}
-          />
+          <ChartComponent data={options.type === "scatter" ? scatterData : chartData} options={chartOpts} />
         </div>
       </div>
     </div>
