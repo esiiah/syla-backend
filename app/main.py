@@ -79,13 +79,20 @@ async def upload_file(file: UploadFile = File(...)):
             df = pd.read_excel(io.BytesIO(contents))
         else:
             text = contents.decode("utf-8", errors="replace")
-            sample = text[:8192]
+
+            # Try pandas auto-detection first (more robust than csv.Sniffer in many edge cases).
+            # Read as strings (dtype=str) and let clean_dataframe coerce types later.
             try:
-                dialect = csv.Sniffer().sniff(sample)
-                delim = dialect.delimiter
+                df = pd.read_csv(io.StringIO(text), sep=None, engine="python", dtype=str)
             except Exception:
-                delim = "\t" if "\t" in sample else ","
-            df = pd.read_csv(io.StringIO(text), sep=delim, engine="python")
+                # fallback: try csv.Sniffer and a default heuristic
+                sample = text[:8192]
+                try:
+                    dialect = csv.Sniffer().sniff(sample)
+                    delim = dialect.delimiter
+                except Exception:
+                    delim = "\t" if "\t" in sample else ","
+                df = pd.read_csv(io.StringIO(text), sep=delim, engine="python", dtype=str)
 
         if df is None or df.empty:
             raise HTTPException(status_code=400, detail="No data found in the uploaded file")
