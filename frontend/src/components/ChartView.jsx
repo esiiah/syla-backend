@@ -1,5 +1,5 @@
 // frontend/src/components/ChartView.jsx
-import React from "react";
+import React, { useMemo } from "react";
 import { Bar, Line, Pie, Scatter } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -41,31 +41,7 @@ export default function ChartView({
   xAxis = "",
   yAxis = "",
 }) {
-  // ✅ define chartOpts so it's always available and ready to be mutated below
-  let chartOpts = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { labels: { color: "#0f172a" } },
-      datalabels: { color: "#0f172a" },
-      tooltip: {},
-    },
-    scales: {
-      x: { ticks: { color: "#0f172a" } },
-      y: { ticks: { color: "#0f172a" }, type: "linear" },
-    },
-  };
-
-  // apply user-controlled log scale toggle
-  if (options.logScale) {
-    chartOpts.scales.y.type = "log";
-    // Chart.js log scale needs a min > 0 for log; ensure reasonable fallback
-    chartOpts.scales.y.min = options.logMin && Number(options.logMin) > 0 ? Number(options.logMin) : 1;
-  } else {
-    chartOpts.scales.y.type = "linear";
-    if (chartOpts.scales.y.min) delete chartOpts.scales.y.min;
-  }
-
+  // Early exit if data or axis not defined
   if (!data.length || !xAxis || !yAxis) {
     return (
       <div className="rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border p-5">
@@ -77,7 +53,7 @@ export default function ChartView({
     );
   }
 
-  // labels / raw numeric values
+  // --- Extract labels and values ---
   const labelsRaw = data.map((row, i) => {
     const v = row[xAxis];
     return v === null || typeof v === "undefined" ? `Row ${i + 1}` : String(v);
@@ -90,7 +66,7 @@ export default function ChartView({
     return Number.isFinite(n) ? n : 0;
   });
 
-  // Pair and sort if requested
+  // Sort if requested
   const pairs = labelsRaw.map((lbl, i) => ({ lbl, val: valuesRaw[i] }));
   if (options.sort === "asc") pairs.sort((a, b) => a.val - b.val);
   if (options.sort === "desc") pairs.sort((a, b) => b.val - a.val);
@@ -98,109 +74,142 @@ export default function ChartView({
   const labels = pairs.map((p) => p.lbl);
   const datasetValues = pairs.map((p) => p.val);
 
+  // --- Color & Gradient ---
   const baseColor = options.color || "#2563eb";
+  const gradientColors = options.gradientColors && options.gradientColors.length
+    ? options.gradientColors
+    : [baseColor, baseColor];
 
-  // make text visible in dark mode
-  const textColor =
-    typeof document !== "undefined" && document.body && document.body.classList.contains("dark")
-      ? "#E6EEF8"
-      : "#0f172a";
-
-  // simple per-bar color ramp when gradient enabled (stronger amplitude)
-  const adjustHex = (hex, amt) => {
-    const h = hex.replace("#", "");
-    const num = parseInt(h, 16);
-    let r = (num >> 16) + amt;
-    let g = ((num >> 8) & 0xff) + amt;
-    let b = (num & 0xff) + amt;
-    r = Math.max(0, Math.min(255, r));
-    g = Math.max(0, Math.min(255, g));
-    b = Math.max(0, Math.min(255, b));
-    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+  const interpolateColors = (colors, steps) => {
+    if (colors.length === 1) return Array(steps).fill(colors[0]);
+    const result = [];
+    for (let i = 0; i < steps; i++) {
+      const t = i / (steps - 1);
+      const seg = t * (colors.length - 1);
+      const idx = Math.floor(seg);
+      const frac = seg - idx;
+      const hexToRgb = (h) => h.length === 4
+        ? [parseInt(h[1]+h[1],16), parseInt(h[2]+h[2],16), parseInt(h[3]+h[3],16)]
+        : [parseInt(h[1]+h[2],16), parseInt(h[3]+h[4],16), parseInt(h[5]+h[6],16)];
+      const rgbToHex = (r,g,b) => "#" + [r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');
+      const [r1,g1,b1] = hexToRgb(colors[idx]);
+      const [r2,g2,b2] = hexToRgb(colors[Math.min(idx+1,colors.length-1)]);
+      const r = Math.round(r1 + (r2 - r1)*frac);
+      const g = Math.round(g1 + (g2 - g1)*frac);
+      const b = Math.round(b1 + (b2 - b1)*frac);
+      result.push(rgbToHex(r,g,b));
+    }
+    return result;
   };
 
-  const backgroundColor = labels.map((_, i) =>
-    options.gradient ? adjustHex(baseColor, Math.round(((i / Math.max(1, labels.length - 1)) - 0.5) * 90)) : baseColor
-  );
+  const backgroundColor = options.gradient
+    ? interpolateColors(gradientColors, labels.length)
+    : labels.map(() => baseColor);
 
-  const chartData = {
-    labels,
-    datasets: [
+  // --- Chart Data ---
+  const chartData = useMemo(() => {
+    const datasets = [
       {
-        label: yAxis,
+        label: options.showLabels ? yAxis : "",
         data: datasetValues,
         backgroundColor,
         borderRadius: 6,
       },
-    ],
-  };
+    ];
 
-  // Trendline overlay (simple least squares on displayed points)
-  if (options.trendline && datasetValues.length > 1) {
-    const n = datasetValues.length;
-    const xs = Array.from({ length: n }, (_, i) => i);
-    const ys = datasetValues.slice();
-    const xMean = xs.reduce((a, b) => a + b, 0) / n;
-    const yMean = ys.reduce((a, b) => a + b, 0) / n;
-    let num = 0,
-      den = 0;
-    for (let i = 0; i < n; i++) {
-      const dx = xs[i] - xMean;
-      num += dx * (ys[i] - yMean);
-      den += dx * dx;
+    // Trendline
+    if (options.trendline && datasetValues.length > 1) {
+      const n = datasetValues.length;
+      const xs = Array.from({ length: n }, (_, i) => i);
+      const ys = datasetValues.slice();
+      const xMean = xs.reduce((a,b)=>a+b,0)/n;
+      const yMean = ys.reduce((a,b)=>a+b,0)/n;
+      let num=0, den=0;
+      for(let i=0;i<n;i++){
+        const dx = xs[i]-xMean;
+        num += dx*(ys[i]-yMean);
+        den += dx*dx;
+      }
+      const slope = den===0?0:num/den;
+      const intercept = yMean - slope*xMean;
+      const trendData = xs.map(x => slope*x + intercept);
+      datasets.push({
+        label: "Trendline",
+        data: trendData,
+        type: "line",
+        borderColor: baseColor,
+        borderWidth: 2,
+        fill: false,
+        pointRadius: 0,
+        tension: 0.2,
+        order: 0,
+      });
     }
-    const slope = den === 0 ? 0 : num / den;
-    const intercept = yMean - slope * xMean;
-    const trendData = xs.map((x) => slope * x + intercept);
 
-    chartData.datasets.push({
-      label: "Trendline",
-      data: trendData,
-      type: "line",
-      borderColor: adjustHex(baseColor, -80),
-      borderWidth: 2,
-      fill: false,
-      pointRadius: 0,
-      tension: 0.2,
-      order: 0,
-    });
-  }
+    // Scatter
+    if (options.type === "scatter") {
+      return {
+        datasets: [
+          {
+            label: yAxis,
+            data: datasetValues.map((v,i)=>({x:labels[i], y:v})),
+            backgroundColor,
+          }
+        ]
+      };
+    }
 
-  const scatterData =
-    options.type === "scatter"
-      ? {
-          datasets: [
-            {
-              label: yAxis,
-              data: datasetValues.map((v, i) => ({ x: labels[i], y: v })),
-              backgroundColor,
-            },
-          ],
+    return { labels, datasets };
+  }, [labels, datasetValues, backgroundColor, options]);
+
+  // --- Chart Options ---
+  const chartOpts = useMemo(() => {
+    const textColor = document && document.body && document.body.classList.contains("dark")
+      ? "#E6EEF8"
+      : "#0f172a";
+
+    const yMin = options.logScale
+      ? Math.max(1, Math.min(...datasetValues.filter(v => v > 0)))
+      : undefined;
+
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: textColor } },
+        tooltip: {},
+        datalabels: {
+          display: options.showLabels,
+          color: textColor,
+        },
+      },
+      scales: {
+        x: { ticks: { color: textColor } },
+        y: { 
+          type: options.logScale ? "log" : "linear",
+          ticks: { color: textColor },
+          min: yMin,
         }
-      : chartData;
+      },
+    };
+  }, [options, datasetValues]);
 
-  // update chart options text colors (dark mode friendly)
-  chartOpts.plugins = chartOpts.plugins || {};
-  chartOpts.plugins.legend = chartOpts.plugins.legend || {};
-  chartOpts.plugins.legend.labels = { color: textColor };
-  chartOpts.plugins.datalabels = chartOpts.plugins.datalabels || {};
-  chartOpts.plugins.datalabels.color = textColor;
-  chartOpts.scales = chartOpts.scales || {};
-  chartOpts.scales.x = chartOpts.scales.x || { ticks: {} };
-  chartOpts.scales.y = chartOpts.scales.y || { ticks: {} };
-  chartOpts.scales.x.ticks.color = textColor;
-  chartOpts.scales.y.ticks.color = textColor;
-
-  const ChartComponent =
-    options.type === "bar" ? Bar : options.type === "line" ? Line : options.type === "pie" ? Pie : options.type === "scatter" ? Scatter : Bar;
+  const ChartComponent = options.type === "bar"
+    ? Bar
+    : options.type === "line"
+      ? Line
+      : options.type === "pie"
+        ? Pie
+        : options.type === "scatter"
+          ? Scatter
+          : Bar;
 
   return (
     <div className="rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border p-5">
       <h3 className="font-display text-sm mb-2">{chartTitle || "Visualization"}</h3>
-      {/* Inner sub-chamber just like the Upload box */}
       <div className="rounded-xl p-3 bg-gradient-to-b from-white to-gray-50 border border-gray-100 shadow-inner dark:from-black/30 dark:to-black/10 dark:border-white/10 min-h-[320px]">
         <div className="w-full h-[320px]">
-          <ChartComponent data={options.type === "scatter" ? scatterData : chartData} options={chartOpts} />
+          <ChartComponent data={chartData} options={chartOpts} />
         </div>
       </div>
     </div>
