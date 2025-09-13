@@ -2,6 +2,7 @@ import re
 import numpy as np
 import pandas as pd
 
+# --- Constants
 CURRENCY_SIGNS = r"[₹$€£¥]"
 THOUSAND_SEP = r","
 PERCENT = r"%"
@@ -20,7 +21,7 @@ HEADER_MAP = {
     r"^\s*unique\s*clicks.*$": "Unique Clicks",
 }
 
-
+# --- Header normalization
 def _normalize_header_name(name: str) -> str:
     if name is None:
         return ""
@@ -33,9 +34,7 @@ def _normalize_header_name(name: str) -> str:
             continue
     return n
 
-
 def _ensure_unique_columns(cols):
-    """Make columns unique after any normalization: name, name_1, name_2..."""
     out = []
     counts = {}
     for c in cols:
@@ -50,23 +49,23 @@ def _ensure_unique_columns(cols):
             out.append(base)
     return out
 
-
+# --- Numeric conversion
 def _to_numeric_series(s):
     """
-    Accepts Series, DataFrame, ndarray.
-    Returns a pd.Series of numerics where possible.
-    Safely handles nested objects and NaN.
+    Robust numeric coercion for Series, DataFrame, ndarray.
+    Handles nested structures, mixed types, and avoids .str errors.
     """
     if s is None:
         return pd.Series([], dtype=float)
 
-    # Convert DataFrame -> Series by joining columns per-row
+    # Convert DataFrame -> Series
     if isinstance(s, pd.DataFrame):
         if s.shape[1] == 1:
             s = s.iloc[:, 0]
         else:
             s = pd.Series(s.astype(str).agg(" | ".join, axis=1), index=s.index)
 
+    # Convert ndarray -> Series
     if isinstance(s, np.ndarray):
         if s.ndim > 1:
             s = pd.Series([" | ".join(map(str, row)) for row in s], index=getattr(s, "index", None))
@@ -90,38 +89,28 @@ def _to_numeric_series(s):
     s2 = s.map(_safe_str).str.strip()
     s2 = s2.replace({"": np.nan})
 
-    # Remove currency symbols, thousands separators, percentages
-    s2 = s2.str.replace(CURRENCY_SIGNS, "", regex=True)
-    s2 = s2.str.replace(THOUSAND_SEP, "", regex=True)
-    s2 = s2.str.replace(PERCENT, "", regex=True)
+    # Safe replacements without .str
+    s2 = s2.replace(to_replace=CURRENCY_SIGNS, value="", regex=True)
+    s2 = s2.replace(to_replace=THOUSAND_SEP, value="", regex=True)
+    s2 = s2.replace(to_replace=PERCENT, value="", regex=True)
 
     return pd.to_numeric(s2, errors="coerce")
 
-
+# --- DataFrame cleaning
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Robust cleaning:
-      - normalize headers (then re-unique)
-      - collapse multi-column cells or array-like cells into single string per-row
-      - coerce numeric/date when appropriate
-      - ensure operations use positional access to avoid label-duplication issues
-    """
     df = df.copy()
 
-    # Normalize header names
+    # Normalize headers
     df.columns = [_normalize_header_name(c) for c in df.columns]
-
-    # Make sure normalization didn't create duplicates
     df.columns = _ensure_unique_columns(df.columns)
 
-    # Remove entirely empty columns
+    # Remove empty columns
     df = df.dropna(axis=1, how="all")
 
-    # Process columns by position
     for i in range(df.shape[1]):
         col_series = df.iloc[:, i]
 
-        # Collapse nested structures to simple strings
+        # Collapse nested structures
         def _collapse_val(v):
             if isinstance(v, (list, tuple, set, np.ndarray)):
                 return " | ".join(map(str, v.flatten() if isinstance(v, np.ndarray) else v))
@@ -129,13 +118,13 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
         s = col_series.map(_collapse_val)
 
-        # Try numeric coercion (if >=30% parse numeric)
+        # Numeric coercion if >=30% parse
         numeric = _to_numeric_series(s)
         if numeric.notna().sum() >= max(1, int(0.3 * len(df))):
             df.iloc[:, i] = numeric.fillna(0)
             continue
 
-        # Try datetime (if >=70% parse to datetime)
+        # Datetime coercion if >=70% parse
         dt = pd.to_datetime(s.astype(str), errors="coerce", infer_datetime_format=True)
         if dt.notna().sum() >= max(1, int(0.7 * len(df))):
             df.iloc[:, i] = dt
@@ -144,7 +133,7 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         # Fallback to string
         df.iloc[:, i] = s.map(lambda x: "" if pd.isna(x) else str(x)).fillna("")
 
-    # final fills: numeric cols -> fill 0, others -> fill ""
+    # Fill numeric NaN -> 0, others -> ""
     for col in df.select_dtypes(include=[np.number]).columns:
         df[col] = df[col].fillna(0)
     for col in df.columns.difference(df.select_dtypes(include=[np.number]).columns):
@@ -152,9 +141,8 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
-
+# --- Column type detection
 def detect_column_types(df: pd.DataFrame) -> dict:
-    """Return a dict of column_name -> 'numeric'|'datetime'|'categorical'"""
     out = {}
     for col in df.columns:
         if pd.api.types.is_numeric_dtype(df[col]):
@@ -165,9 +153,8 @@ def detect_column_types(df: pd.DataFrame) -> dict:
             out[col] = "categorical"
     return out
 
-
+# --- Summarize numeric/categorical columns
 def summarize_numeric(df: pd.DataFrame) -> dict:
-    """Summarize numeric columns, fallback to top categorical values"""
     result = {}
     for col in df.columns:
         if pd.api.types.is_numeric_dtype(df[col]):
