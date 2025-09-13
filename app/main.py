@@ -1,4 +1,7 @@
-import io, csv, logging, os
+import io
+import csv
+import logging
+import os
 from typing import List
 
 import numpy as np
@@ -27,19 +30,21 @@ ALLOWED_EXTS = (".csv", ".tsv", ".xls", ".xlsx")
 
 
 def make_unique_columns(cols: List[str]) -> List[str]:
-    """Always return globally unique column names."""
-    new_cols, seen = [], {}
+    """Return column names guaranteed to be unique: name, name_1, name_2, ..."""
+    out: List[str] = []
+    counts: dict = {}
     for c in cols:
         base = "" if c is None else str(c).strip()
         if base == "":
             base = "column"
-        if base in seen:
-            seen[base] += 1
-            new_cols.append(f"{base}_{seen[base]}")
+        if base in counts:
+            counts[base] += 1
+            out_name = f"{base}_{counts[base]}"
         else:
-            seen[base] = 0
-            new_cols.append(base)
-    return new_cols
+            counts[base] = 0
+            out_name = base
+        out.append(out_name)
+    return out
 
 
 @app.get("/api/health")
@@ -59,7 +64,7 @@ async def upload_file(file: UploadFile = File(...)):
         if not raw:
             raise HTTPException(status_code=400, detail="File is empty")
 
-        # --- read as text/strings first
+        # --- read file robustly (as strings initially)
         if lower.endswith((".xls", ".xlsx")):
             df = pd.read_excel(io.BytesIO(raw), dtype=str)
         else:
@@ -80,41 +85,32 @@ async def upload_file(file: UploadFile = File(...)):
         if df is None or df.empty:
             raise HTTPException(status_code=400, detail="No data found in the uploaded file")
 
-        # >>> ADD THIS BLOCK <<<
-        def force_unique(cols):
-            seen = {}
-            out = []
-            for c in cols:
-                c = str(c).strip() if c is not None else "column"
-                if c in seen:
-                    seen[c] += 1
-                    out.append(f"{c}_{seen[c]}")
-                else:
-                    seen[c] = 0
-                    out.append(c)
-            return out
+        # If MultiIndex columns (Excel with multi-row header), collapse them first
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = [
+                " | ".join([str(x).strip() for x in col if str(x).strip() != ""]) or "column"
+                for col in df.columns
+            ]
 
-        df.columns = force_unique(df.columns)
-        # >>> END OF ADDED BLOCK <<<
-
+        # Ensure unique names immediately to avoid any DataFrame-slice issues later
+        df.columns = make_unique_columns(df.columns)
         df = df.reset_index(drop=True)
 
-        # --- enforce unique columns immediately
-        df.columns = make_unique_columns(df.columns)
-
-        # --- collapse any list/array cells to simple scalars
+        # Collapse any list/array cells to simple scalars (defensive)
         def _collapse_cell(v):
             if isinstance(v, (list, tuple, set)):
                 return " | ".join(map(str, v))
             if isinstance(v, np.ndarray):
                 return " | ".join(map(str, v.flatten().tolist()))
             return v
+
+        # applymap is safe because columns are unique now
         df = df.applymap(_collapse_cell)
 
-        # --- clean & type-detect
+        # Clean & type-detect (utils cleans headers again and re-uniques after normalization)
         df_clean = clean_dataframe(df)
 
-        # ensure datetimes are JSON serialisable
+        # Convert datetimes to strings for JSON
         for col in df_clean.select_dtypes(include=["datetime64[ns]", "datetime64[ns, UTC]"]).columns:
             df_clean[col] = df_clean[col].astype(str)
 
@@ -145,6 +141,7 @@ async def upload_file(file: UploadFile = File(...)):
                 "y_axis": y_axis,
             },
         )
+
     except HTTPException:
         raise
     except Exception as e:
