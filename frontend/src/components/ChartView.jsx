@@ -52,12 +52,12 @@ export default function ChartView({
     );
   }
 
+  // labels / raw numeric values
   const labelsRaw = data.map((row, i) => {
     const v = row[xAxis];
     return v === null || typeof v === "undefined" ? `Row ${i + 1}` : String(v);
   });
 
-  // Try to coerce y values to numbers (strip commas if present)
   const valuesRaw = data.map((row) => {
     const val = row[yAxis];
     if (typeof val === "number") return val;
@@ -65,40 +65,38 @@ export default function ChartView({
     return Number.isFinite(n) ? n : 0;
   });
 
-  // Pair labels+values for sorting
-  const pairs = labelsRaw.map((label, i) => ({ label, value: valuesRaw[i], idx: i }));
+  // Pair and sort if requested
+  const pairs = labelsRaw.map((lbl, i) => ({ lbl, val: valuesRaw[i] }));
+  if (options.sort === "asc") pairs.sort((a, b) => a.val - b.val);
+  if (options.sort === "desc") pairs.sort((a, b) => b.val - a.val);
 
-  if (options.sort === "asc") {
-    pairs.sort((a, b) => a.value - b.value);
-  } else if (options.sort === "desc") {
-    pairs.sort((a, b) => b.value - a.value);
-  }
-
-  const labels = pairs.map((p) => p.label);
-  const datasetValues = pairs.map((p) => p.value);
+  const labels = pairs.map(p => p.lbl);
+  const datasetValues = pairs.map(p => p.val);
 
   const baseColor = options.color || "#2563eb";
 
-  // helper: slightly lighten/darken a hex color to create a gradient-like ramp
-  function adjustHex(hex, amt) {
-    // hex like "#rrggbb"
+  // make text visible in dark mode
+  const textColor =
+    typeof document !== "undefined" && document.body && document.body.classList.contains("dark")
+      ? "#E6EEF8"
+      : "#0f172a";
+
+  // simple per-bar color ramp when gradient enabled (safe, no ctx plugins)
+  const adjustHex = (hex, amt) => {
     const h = hex.replace("#", "");
     const num = parseInt(h, 16);
     let r = (num >> 16) + amt;
-    let g = ((num >> 8) & 0x00ff) + amt;
-    let b = (num & 0x0000ff) + amt;
+    let g = ((num >> 8) & 0xff) + amt;
+    let b = (num & 0xff) + amt;
     r = Math.max(0, Math.min(255, r));
     g = Math.max(0, Math.min(255, g));
     b = Math.max(0, Math.min(255, b));
     return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
-  }
+  };
 
-  // Create per-bar colors: if gradient enabled, vary slightly by index
-  const backgroundColors = labels.map((_, i) => {
-    if (!options.gradient) return baseColor;
-    const amt = Math.round(((i / Math.max(1, labels.length - 1)) - 0.5) * 50); // -25..+25
-    return adjustHex(baseColor, amt);
-  });
+  const backgroundColor = labels.map((_, i) =>
+    options.gradient ? adjustHex(baseColor, Math.round(((i / Math.max(1, labels.length - 1)) - 0.5) * 50)) : baseColor
+  );
 
   const chartData = {
     labels,
@@ -106,21 +104,20 @@ export default function ChartView({
       {
         label: yAxis,
         data: datasetValues,
-        backgroundColor: backgroundColors,
+        backgroundColor,
         borderRadius: 6,
       },
     ],
   };
 
-  // Trendline: simple least-squares on indices 0..n-1 (works for visuals)
+  // Trendline overlay (simple least squares on displayed points)
   if (options.trendline && datasetValues.length > 1) {
     const n = datasetValues.length;
     const xs = Array.from({ length: n }, (_, i) => i);
     const ys = datasetValues.slice();
     const xMean = xs.reduce((a, b) => a + b, 0) / n;
     const yMean = ys.reduce((a, b) => a + b, 0) / n;
-    let num = 0,
-      den = 0;
+    let num = 0, den = 0;
     for (let i = 0; i < n; i++) {
       const dx = xs[i] - xMean;
       num += dx * (ys[i] - yMean);
@@ -128,7 +125,7 @@ export default function ChartView({
     }
     const slope = den === 0 ? 0 : num / den;
     const intercept = yMean - slope * xMean;
-    const trendData = xs.map((x) => slope * x + intercept);
+    const trendData = xs.map(x => slope * x + intercept);
 
     chartData.datasets.push({
       label: "Trendline",
@@ -149,13 +146,35 @@ export default function ChartView({
           datasets: [
             {
               label: yAxis,
-              data: datasetValues.map((v, i) => ({ x: i, y: v })),
-              backgroundColor: backgroundColors,
+              data: datasetValues.map((v, i) => ({ x: labels[i], y: v })),
+              backgroundColor,
             },
           ],
         }
       : chartData;
 
+  // update chart options text colors
+  chartOpts.plugins = chartOpts.plugins || {};
+  chartOpts.plugins.legend = chartOpts.plugins.legend || {};
+  chartOpts.plugins.legend.labels = { color: textColor };
+  chartOpts.plugins.datalabels = chartOpts.plugins.datalabels || {};
+  chartOpts.plugins.datalabels.color = textColor;
+  if (chartOpts.scales) {
+    if (chartOpts.scales.x && chartOpts.scales.x.ticks) chartOpts.scales.x.ticks.color = textColor;
+    if (chartOpts.scales.y && chartOpts.scales.y.ticks) chartOpts.scales.y.ticks.color = textColor;
+  }
+
+  const ChartComponent =
+    options.type === "bar"
+      ? Bar
+      : options.type === "line"
+      ? Line
+      : options.type === "pie"
+      ? Pie
+      : options.type === "scatter"
+      ? Scatter
+      : Bar;
+  
   return (
     <div className="rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border p-5">
       <h3 className="font-display text-sm mb-2">{chartTitle || "Visualization"}</h3>
