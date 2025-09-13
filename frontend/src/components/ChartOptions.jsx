@@ -13,13 +13,13 @@ import {
 } from "lucide-react";
 
 function ChartOptions({ options, setOptions }) {
-  const toggle = (key) => {
-    setOptions((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
+const toggle = (key) => {
+  setOptions(prev => ({ ...prev, [key]: !prev[key] }));
+};
 
-  const update = (key, value) => {
-    setOptions((prev) => ({ ...prev, [key]: value }));
-  };
+const update = (key, value) => {
+  setOptions(prev => ({ ...prev, [key]: value }));
+};
 
   return (
     <div
