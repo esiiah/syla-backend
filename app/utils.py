@@ -80,7 +80,6 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     for col in list(df.columns):
         col_data = df[col]
 
-        # If column selection yields a DataFrame (duplicates / multi-col cells), collapse it
         if isinstance(col_data, pd.DataFrame):
             if col_data.shape[1] == 1:
                 col_data = col_data.iloc[:, 0]
@@ -92,9 +91,11 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
             else:
                 col_data = pd.Series(col_data, index=df.index)
 
-        # Ensure Series
-        if not isinstance(col_data, pd.Series):
-            col_data = pd.Series(col_data, index=df.index)
+        # ✅ force collapse again if still multi-d
+        if isinstance(col_data, pd.DataFrame):
+            col_data = col_data.iloc[:, 0]
+        if isinstance(col_data, np.ndarray) and col_data.ndim > 1:
+            col_data = pd.Series([" | ".join(map(str, row)) for row in col_data], index=df.index)
 
         numeric = _to_numeric_series(col_data)
         if numeric.notna().sum() >= max(1, int(0.3 * len(df))):
