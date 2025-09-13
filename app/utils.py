@@ -71,47 +71,77 @@ def _to_numeric_series(s: pd.Series) -> pd.Series:
 
 
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Robust cleaning:
+    - normalize headers
+    - collapse multi-column cells or array-like cells into single string per-row
+    - coerce numeric/date when appropriate
+    - ensure all columns are 1-D Series
+    """
     df = df.copy()
-    df.columns = [_normalize_header_name(c) for c in df.columns]
+    # normalize header names
+    df.columns = [str(_normalize_header_name(c)) for c in df.columns]
 
-    # Drop fully empty cols
+    # ensure no entirely empty columns
     df = df.dropna(axis=1, how="all")
 
+    # collapse any cell that is list/ndarray into a string and ensure Series per-col
     for col in list(df.columns):
         col_data = df[col]
 
+        # if pandas returned a DataFrame slice unexpectedly, collapse its columns
         if isinstance(col_data, pd.DataFrame):
             if col_data.shape[1] == 1:
                 col_data = col_data.iloc[:, 0]
             else:
                 col_data = pd.Series(col_data.astype(str).agg(" | ".join, axis=1), index=df.index)
-        elif isinstance(col_data, np.ndarray):
+
+        # if numpy array, flatten rows
+        if isinstance(col_data, np.ndarray):
             if getattr(col_data, "ndim", 1) > 1:
                 col_data = pd.Series([" | ".join(map(str, row)) for row in col_data], index=df.index)
             else:
                 col_data = pd.Series(col_data, index=df.index)
 
-        # ✅ force collapse again if still multi-d
+        # collapse list/tuple cells inside a Series
+        if isinstance(col_data, pd.Series):
+            def _collapse_val(v):
+                if isinstance(v, (list, tuple, set)):
+                    return " | ".join(map(str, v))
+                if isinstance(v, (np.ndarray,)):
+                    if getattr(v, "ndim", 1) > 1:
+                        return " | ".join(map(lambda r: " | ".join(map(str, r)), v.tolist()))
+                    return " | ".join(map(str, v.tolist()))
+                return v
+            col_data = col_data.map(_collapse_val)
+
+        # now ensure it's a Series
+        if not isinstance(col_data, pd.Series):
+            col_data = pd.Series(col_data, index=df.index)
+
+        # force collapse again if something weird remains
         if isinstance(col_data, pd.DataFrame):
             col_data = col_data.iloc[:, 0]
-        if isinstance(col_data, np.ndarray) and col_data.ndim > 1:
-            col_data = pd.Series([" | ".join(map(str, row)) for row in col_data], index=df.index)
 
+        # Try numeric coercion
         numeric = _to_numeric_series(col_data)
         if numeric.notna().sum() >= max(1, int(0.3 * len(df))):
             df[col] = numeric
             continue
 
+        # Try datetime
         dt = pd.to_datetime(col_data, errors="coerce", infer_datetime_format=True)
         if dt.notna().sum() >= max(1, int(0.7 * len(df))):
             df[col] = dt
             continue
 
+        # fallback to string (guarantees 1-D)
         df[col] = col_data.astype(str).fillna("")
 
-    # Fill NaNs
+    # final fills for numeric columns (avoid NaN for charts/log scale)
     for col in df.select_dtypes(include=[np.number]).columns:
         df[col] = df[col].fillna(0)
+
     for col in df.columns.difference(df.select_dtypes(include=[np.number]).columns):
         df[col] = df[col].fillna("")
 
