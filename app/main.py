@@ -74,15 +74,13 @@ async def upload_file(file: UploadFile = File(...)):
         if not contents:
             raise HTTPException(status_code=400, detail="File is empty")
 
-        # Read dataframe
+        # ✅ Read dataframe robustly (always as strings first)
         if lower.endswith((".xls", ".xlsx")):
             df = pd.read_excel(io.BytesIO(contents))
         else:
             text = contents.decode("utf-8", errors="replace")
-
-            # Try pandas auto-detection first (safer for many messy CSVs).
             try:
-                df = pd.read_csv(io.StringIO(text), sep=None, engine="python", dtype=str)
+                df = pd.read_csv(io.StringIO(text), sep=None, engine="python", dtype=str, keep_default_na=False)
             except Exception:
                 sample = text[:8192]
                 try:
@@ -90,10 +88,40 @@ async def upload_file(file: UploadFile = File(...)):
                     delim = dialect.delimiter
                 except Exception:
                     delim = "\t" if "\t" in sample else ","
-                df = pd.read_csv(io.StringIO(text), sep=delim, engine="python", dtype=str)
+                df = pd.read_csv(io.StringIO(text), sep=delim, engine="python", dtype=str, keep_default_na=False)
 
         if df is None or df.empty:
             raise HTTPException(status_code=400, detail="No data found in the uploaded file")
+
+        # ✅ Normalize index and ensure consistent column names
+        df = df.reset_index(drop=True)
+
+        # ✅ ensure all values are strings or scalars (collapse lists/ndarrays)
+        def _collapse_cell(v):
+            if isinstance(v, (list, tuple, set)):
+                return " | ".join(map(str, v))
+            if isinstance(v, (np.ndarray,)):
+                if v.ndim > 1:
+                    return " | ".join(map(lambda r: " | ".join(map(str, r)), v.tolist()))
+                return " | ".join(map(str, v.tolist()))
+            return v
+
+        df = df.applymap(_collapse_cell)
+
+        # ✅ make column names unique in a consistent "name 1", "name 2" style if duplicates exist
+        cols = list(df.columns)
+        seen = {}
+        newcols = []
+        for c in cols:
+            cname = str(c).strip()
+            if cname in seen:
+                seen[cname] += 1
+                newcols.append(f"{cname} {seen[cname]}")
+            else:
+                seen[cname] = 1
+                # first occurrence keep original name (no " 1")
+                newcols.append(cname if cols.count(cname) == 1 else f"{cname} 1")
+        df.columns = newcols
 
         # Clean & process
         df.columns = make_unique_columns(list(df.columns))
