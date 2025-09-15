@@ -1,12 +1,26 @@
 // frontend/src/components/FileUpload.jsx
 import React, { useState, useRef } from "react";
 
-function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAxis, onYAxis }) {
+function FileUpload({
+  onData,
+  onColumns,
+  onTypes,
+  onSummary,
+  onChartTitle,
+  onXAxis,
+  onYAxis,
+  endpoint = "/api/upload", // default - dashboard upload; FileTool pages pass custom endpoint
+}) {
   const [file, setFile] = useState(null);
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [downloadUrl, setDownloadUrl] = useState("");
+  const [showExport, setShowExport] = useState(false);
+  const [copied, setCopied] = useState(false);
   const inputRef = useRef(null);
+
+  const ACCEPT = ".csv,.tsv,.xls,.xlsx,.pdf,.doc,.docx,.txt,.pptx,.zip,.json";
 
   const handleFileChange = (e) => {
     const f = e.target.files?.[0];
@@ -30,9 +44,7 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
     formData.append("file", file);
 
     const xhr = new XMLHttpRequest();
-
-    // POST to same origin /api/upload (if you host backend elsewhere change URL)
-    xhr.open("POST", "/api/upload", true);
+    xhr.open("POST", endpoint, true);
 
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable) {
@@ -56,6 +68,7 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
             return;
           }
 
+          // Only pass structured data if backend returned it
           onData(result.data || []);
           onColumns(result.columns || []);
           onTypes(result.types || {});
@@ -63,6 +76,14 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
           onChartTitle(result.chart_title || "");
           onXAxis(result.x_axis || "");
           onYAxis(result.y_axis || "");
+
+          if (result.download_url) {
+            setDownloadUrl(result.download_url);
+            setShowExport(true);
+          } else {
+            setDownloadUrl("");
+            setShowExport(false);
+          }
 
           setFile(null);
           if (inputRef.current) inputRef.current.value = "";
@@ -72,11 +93,10 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
           alert("Upload succeeded but response was not JSON.");
         }
       } else {
-        // try parse JSON error from server
         let msg = `Upload failed (status ${xhr.status})`;
         try {
           const r = JSON.parse(xhr.responseText);
-          if (r && (r.detail || r.error)) msg = r.detail || r.error;
+          if (r && (r.detail || r.error || r.message)) msg = r.detail || r.error || r.message;
         } catch (e) {}
         alert(msg);
       }
@@ -98,6 +118,18 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
       }
     : {};
 
+  const copyShare = async () => {
+    if (!downloadUrl) return;
+    try {
+      const full = window.location.origin + downloadUrl;
+      await navigator.clipboard.writeText(full);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      alert("Copy failed");
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Drag & Drop Zone */}
@@ -110,10 +142,10 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
         onDrop={handleDrop}
       >
         <p className="mb-2 font-medium text-gray-700 dark:text-slate-300">
-          Drag & drop your CSV / Excel here
+          Drag & drop your file here
         </p>
         <p className="text-xs mb-4 text-gray-500 dark:text-slate-400">
-          or select a file from your computer
+          CSV / Excel / PDF / DOCX / TXT / PPTX etc.
         </p>
         <div className="flex items-center justify-center gap-3">
           <button
@@ -129,7 +161,7 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
           <input
             ref={inputRef}
             type="file"
-            accept=".csv,.tsv,.xls,.xlsx"
+            accept={ACCEPT}
             onChange={handleFileChange}
             className="hidden"
           />
@@ -139,6 +171,32 @@ function FileUpload({ onData, onColumns, onTypes, onSummary, onChartTitle, onXAx
             </span>
           )}
         </div>
+
+        {/* Optional Export / Share display after upload */}
+        {showExport && downloadUrl && (
+          <div className="mt-4 flex items-center justify-center gap-3">
+            <a
+              className="px-3 py-1 rounded-lg border border-gray-300 text-sm hover:bg-gray-100 dark:border-white/10"
+              href={downloadUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Download
+            </a>
+            <button
+              onClick={copyShare}
+              className="px-3 py-1 rounded-lg border border-gray-300 text-sm hover:bg-gray-100 dark:border-white/10"
+            >
+              {copied ? "Copied!" : "Copy link"}
+            </button>
+            <button
+              onClick={() => setShowExport(false)}
+              className="px-3 py-1 rounded-lg border border-gray-300 text-sm hover:bg-gray-100 dark:border-white/10"
+            >
+              Close
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Upload Button */}
