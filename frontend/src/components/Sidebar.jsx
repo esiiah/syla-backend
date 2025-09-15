@@ -1,5 +1,6 @@
 // frontend/src/components/Sidebar.jsx
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import {
   LayoutDashboard,
   FolderOpen,
@@ -15,11 +16,25 @@ import {
   ChevronRight,
   Sun,
   Moon,
+  FilePlus,
+  FileText,
+  FileSpreadsheet,
+  FileArchive,
 } from "lucide-react";
 
 function Sidebar({ onReportChange, theme, setTheme }) {
   const [collapsed, setCollapsed] = useState(false);
   const [reportType, setReportType] = useState("Bar");
+  const [toolsOpen, setToolsOpen] = useState(false);
+
+  const tools = [
+    { title: "PDF to Excel", path: "/tools/pdf-to-excel", icon: FileSpreadsheet },
+    { title: "Excel to PDF", path: "/tools/excel-to-pdf", icon: FileText },
+    { title: "CSV to Excel", path: "/tools/csv-to-excel", icon: FilePlus },
+    { title: "Merge PDF", path: "/tools/merge", icon: FilePlus },
+    { title: "Compress File", path: "/tools/compress", icon: FileArchive },
+    { title: "Word to PDF", path: "/tools/word-to-pdf", icon: FileText },
+  ];
 
   return (
     <aside
@@ -45,32 +60,20 @@ function Sidebar({ onReportChange, theme, setTheme }) {
 
       {/* Nav links */}
       <div className="flex-1 px-3 py-5 space-y-2 overflow-y-auto">
-        {/* Overview */}
-        <div
-          className="flex items-center px-3 py-2 rounded-lg cursor-pointer
-        hover:bg-gray-100 dark:hover:bg-white/5 group"
-        >
-          <LayoutDashboard className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300 group-hover:text-neonBlue" />
-          {!collapsed && <span className="group-hover:text-black dark:group-hover:text-white">Overview</span>}
+        <Link to="/" className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 group">
+          <LayoutDashboard className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300" />
+          {!collapsed && <span>Overview</span>}
+        </Link>
+
+        <div className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 group">
+          <FolderOpen className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300" />
+          {!collapsed && <span>Data Source</span>}
         </div>
 
-        {/* Data Source */}
-        <div
-          className="flex items-center px-3 py-2 rounded-lg cursor-pointer
-        hover:bg-gray-100 dark:hover:bg-white/5 group"
-        >
-          <FolderOpen className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300 group-hover:text-neonBlue" />
-          {!collapsed && <span className="group-hover:text-black dark:group-hover:text-white">Data Source</span>}
-        </div>
-
-        {/* Reports with dropdown */}
         <div className="px-3">
-          <div
-            className="flex items-center rounded-lg cursor-pointer mb-2
-          hover:bg-gray-100 dark:hover:bg-white/5 group"
-          >
-            <BarChart className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300 group-hover:text-neonBlue" />
-            {!collapsed && <span className="group-hover:text-black dark:group-hover:text-white">Reports</span>}
+          <div className="flex items-center rounded-lg cursor-pointer mb-2 hover:bg-gray-100 dark:hover:bg-white/5 group">
+            <BarChart className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300" />
+            {!collapsed && <span>Reports</span>}
           </div>
           {!collapsed && (
             <select
@@ -79,9 +82,7 @@ function Sidebar({ onReportChange, theme, setTheme }) {
                 setReportType(e.target.value);
                 onReportChange?.(e.target.value);
               }}
-              className="w-full mt-1 rounded-lg px-2 py-1 text-sm
-              bg-gray-100 border border-gray-300 text-gray-800
-              dark:bg-black/40 dark:border-white/10 dark:text-slate-200"
+              className="w-full mt-1 rounded-lg px-2 py-1 text-sm bg-gray-100 border border-gray-300 text-gray-800 dark:bg-black/40 dark:border-white/10 dark:text-slate-200"
             >
               <option>Bar</option>
               <option>Line</option>
@@ -91,63 +92,48 @@ function Sidebar({ onReportChange, theme, setTheme }) {
           )}
         </div>
 
-        {/* Settings */}
-        <div
-          className="flex items-center px-3 py-2 rounded-lg cursor-pointer
-        hover:bg-gray-100 dark:hover:bg-white/5 group"
-        >
-          <Settings className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300 group-hover:text-neonBlue" />
-          {!collapsed && <span className="group-hover:text-black dark:group-hover:text-white">Settings</span>}
+        <div className="mt-3 px-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <FilePlus className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300" />
+              {!collapsed && <span className="font-medium">File Tools</span>}
+            </div>
+            {!collapsed && (
+              <button onClick={() => setToolsOpen(!toolsOpen)} className="text-xs px-2 py-1 rounded border">
+                {toolsOpen ? "Hide" : "Show"}
+              </button>
+            )}
+          </div>
+
+          {!collapsed && toolsOpen && (
+            <div className="mt-2 space-y-1">
+              {tools.map((t, i) => (
+                <Link key={i} to={t.path} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-white/5">
+                  <t.icon className="w-4 h-4 text-gray-600" />
+                  <span className="text-sm">{t.title}</span>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Help */}
-        <div
-          className="flex items-center px-3 py-2 rounded-lg cursor-pointer
-        hover:bg-gray-100 dark:hover:bg-white/5 group"
-        >
-          <HelpCircle className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300 group-hover:text-neonBlue" />
-          {!collapsed && <span className="group-hover:text-black dark:group-hover:text-white">Help</span>}
-        </div>
-
-        {/* Divider */}
-        <div className="border-t border-gray-200 dark:border-white/10 my-3" />
-
-        {/* Upgrade */}
-        <div
-          className="flex items-center px-3 py-2 rounded-lg cursor-pointer
-        hover:bg-gray-100 dark:hover:bg-white/5 group"
-        >
-          <ArrowUpRight className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300 group-hover:text-neonBlue" />
-          {!collapsed && <span className="group-hover:text-black dark:group-hover:text-white">Upgrade</span>}
-        </div>
-
-        {/* Docs */}
-        <div
-          className="flex items-center px-3 py-2 rounded-lg cursor-pointer
-        hover:bg-gray-100 dark:hover:bg-white/5 group"
-        >
-          <BookOpen className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300 group-hover:text-neonBlue" />
-          {!collapsed && <span className="group-hover:text-black dark:group-hover:text-white">Docs</span>}
-        </div>
-
-        {/* Contact */}
-        <div
-          className="flex items-center px-3 py-2 rounded-lg cursor-pointer
-        hover:bg-gray-100 dark:hover:bg-white/5 group"
-        >
-          <Mail className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300 group-hover:text-neonBlue" />
-          {!collapsed && <span className="group-hover:text-black dark:group-hover:text-white">Contact</span>}
+        <div className="mt-4 px-3">
+          <div className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 group">
+            <Settings className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300" />
+            {!collapsed && <span>Settings</span>}
+          </div>
+          <div className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 group">
+            <HelpCircle className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300" />
+            {!collapsed && <span>Help</span>}
+          </div>
         </div>
       </div>
 
       {/* Footer */}
       <div className="px-3 py-4 border-t border-gray-200 dark:border-white/10 space-y-2">
-        {/* Theme toggle */}
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="w-full flex items-center justify-center px-3 py-2 rounded-lg
-          bg-gray-100 hover:bg-gray-200 text-sm text-gray-800
-          dark:bg-black/40 dark:hover:bg-white/5 dark:text-slate-200 transition"
+          className="w-full flex items-center justify-center px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm text-gray-800 dark:bg-black/40 dark:hover:bg-white/5 dark:text-slate-200 transition"
         >
           {theme === "dark" ? (
             <>
@@ -162,15 +148,11 @@ function Sidebar({ onReportChange, theme, setTheme }) {
           )}
         </button>
 
-        {/* Auth buttons */}
-        <button className="w-full flex items-center justify-center px-3 py-2 rounded-lg
-        bg-gray-100 hover:bg-gray-200 text-sm text-gray-800
-        dark:bg-black/40 dark:hover:bg-white/5 dark:text-slate-200 transition">
+        <button className="w-full flex items-center justify-center px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm text-gray-800 dark:bg-black/40 dark:hover:bg-white/5 dark:text-slate-200 transition">
           <LogIn className="w-4 h-4 mr-2" />
           {!collapsed && "Log in"}
         </button>
-        <button className="w-full flex items-center justify-center px-3 py-2 rounded-lg
-        bg-neonBlue text-white shadow-neon hover:animate-glow text-sm transition">
+        <button className="w-full flex items-center justify-center px-3 py-2 rounded-lg bg-neonBlue text-white shadow-neon hover:animate-glow text-sm transition">
           <UserPlus className="w-4 h-4 mr-2" />
           {!collapsed && "Sign up"}
         </button>
