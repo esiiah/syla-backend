@@ -1,5 +1,6 @@
 // frontend/src/components/Features.jsx
 import React from "react";
+import { Link } from "react-router-dom";
 import {
   FileSpreadsheet,
   FileType,
@@ -83,11 +84,9 @@ export default function Features() {
           {features.map((feature, index) => {
             const Icon = feature.icon;
             return (
-              <a
+              <Link
                 key={index}
-                href={feature.link}
-                target="_blank"                // <-- opens in new tab
-                rel="noopener noreferrer"      // <-- security best practice
+                to={feature.link}
                 className="p-6 bg-white dark:bg-ink/80 rounded-2xl shadow-sm hover:shadow-md transform hover:scale-101 transition-all duration-300 flex flex-col items-start space-y-4 border border-gray-200 dark:border-white/5 neon-border"
                 title={feature.title}
               >
@@ -98,7 +97,7 @@ export default function Features() {
                   {feature.title}
                 </h3>
                 <p className="text-sm text-gray-600 dark:text-gray-300">{feature.description}</p>
-              </a>
+              </Link>
             );
           })}
         </div>
