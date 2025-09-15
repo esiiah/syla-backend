@@ -86,6 +86,8 @@ export default function Features() {
               <a
                 key={index}
                 href={feature.link}
+                target="_blank"                // <-- opens in new tab
+                rel="noopener noreferrer"      // <-- security best practice
                 className="p-6 bg-white dark:bg-ink/80 rounded-2xl shadow-sm hover:shadow-md transform hover:scale-101 transition-all duration-300 flex flex-col items-start space-y-4 border border-gray-200 dark:border-white/5 neon-border"
                 title={feature.title}
               >
