@@ -26,6 +26,9 @@ app.add_middleware(
     allow_credentials=False,
 )
 
+from . import file_tools
+app.include_router(file_tools.router)
+
 ALLOWED_EXTS = (".csv", ".tsv", ".xls", ".xlsx")
 
 
