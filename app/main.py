@@ -7,11 +7,12 @@ from typing import List
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
 from .utils import clean_dataframe, detect_column_types, summarize_numeric
+from . import file_tools  # your existing router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("syla-backend")
@@ -26,7 +27,6 @@ app.add_middleware(
     allow_credentials=False,
 )
 
-from . import file_tools
 app.include_router(file_tools.router)
 
 ALLOWED_EXTS = (".csv", ".tsv", ".xls", ".xlsx")
@@ -107,10 +107,9 @@ async def upload_file(file: UploadFile = File(...)):
                 return " | ".join(map(str, v.flatten().tolist()))
             return v
 
-        # applymap is safe because columns are unique now
         df = df.applymap(_collapse_cell)
 
-        # Clean & type-detect (utils cleans headers again and re-uniques after normalization)
+        # Clean & type-detect
         df_clean = clean_dataframe(df)
 
         # Convert datetimes to strings for JSON
@@ -157,6 +156,25 @@ async def upload_file(file: UploadFile = File(...)):
             pass
 
 
-frontend_dist_path = os.path.join(os.path.dirname(__file__), "dist")
-if os.path.isdir(frontend_dist_path):
-    app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="frontend")
+# -------------------------
+# Serve React frontend correctly
+# -------------------------
+frontend_path = os.path.join(os.path.dirname(__file__), "../frontend/dist")
+
+# Mount static assets
+app.mount("/static", StaticFiles(directory=os.path.join(frontend_path, "assets")), name="static")
+
+# Catch-all route for React Router
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    """
+    Serve React's index.html for all non-API routes so React Router works in production.
+    """
+    # Do not override API routes
+    if full_path.startswith("api/"):
+        return JSONResponse({"detail": "API route not found"}, status_code=404)
+
+    index_file = os.path.join(frontend_path, "index.html")
+    if os.path.exists(index_file):
+        return FileResponse(index_file)
+    return JSONResponse({"detail": "Frontend not found"}, status_code=404)
