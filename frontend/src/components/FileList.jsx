@@ -53,11 +53,23 @@ export default function FileList() {
               <li key={i} className="flex items-center gap-3 p-2 rounded-lg bg-gray-50 dark:bg-black/30">
                 <div className="flex-1">
                   <div className="font-medium">{f.name}</div>
-                  <div className="text-xs text-gray-500">{Math.round((f.size || 0)/1024)} KB</div>
+                  <div className="text-xs text-gray-500">{Math.round((f.size || 0) / 1024)} KB</div>
                 </div>
                 <div className="flex gap-2">
-                  <a href={f.download_url} className="px-3 py-1 rounded bg-white border" target="_blank" rel="noopener noreferrer">Download</a>
-                  <button onClick={() => handleDelete(f.name)} className="px-3 py-1 rounded border">Delete</button>
+                  <a
+                    href={f.download_url}
+                    className="px-3 py-1 rounded bg-white border"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Download
+                  </a>
+                  <button
+                    onClick={() => handleDelete(f.name)}
+                    className="px-3 py-1 rounded border"
+                  >
+                    Delete
+                  </button>
                 </div>
               </li>
             ))}
@@ -75,5 +87,41 @@ export default function FileList() {
               {files.map((f, i) => (
                 <tr key={i} className="odd:bg-gray-50 dark:odd:bg-black/20">
                   <td className="px-3 py-2 text-sm">{f.name}</td>
-                  <td className="px-3 py-2 text-sm">{Math.round((f.size||0)/1024)} KB</td>
-                  <td className="px-3 py-2 text-sm
+                  <td className="px-3 py-2 text-sm">{Math.round((f.size || 0) / 1024)} KB</td>
+                  <td className="px-3 py-2 text-sm">
+                    <a href={f.download_url} className="mr-2">Download</a>
+                    <button onClick={() => handleDelete(f.name)}>Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {files.map((f, i) => (
+              <div key={i} className="flex flex-col items-center p-3 rounded-xl bg-gray-50 dark:bg-black/30">
+                <div className="mb-2 text-sm">{f.name}</div>
+                <div className="flex gap-2">
+                  <a
+                    href={f.download_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-2 py-1 border rounded"
+                  >
+                    DL
+                  </a>
+                  <button
+                    onClick={() => handleDelete(f.name)}
+                    className="px-2 py-1 border rounded"
+                  >
+                    Del
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
