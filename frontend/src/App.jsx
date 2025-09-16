@@ -18,7 +18,7 @@ function App() {
   const [xAxis, setXAxis] = useState("");
   const [yAxis, setYAxis] = useState("");
 
-  const [theme, setTheme] = useState("dark");
+  const [theme, setTheme] = useState("light");
 
   // central chart options state (passed to ChartView and ChartOptions)
   const [chartOptions, setChartOptions] = useState({
