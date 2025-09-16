@@ -343,7 +343,7 @@ function FileUpload({
               <option value="xlsx">Excel (.xlsx)</option>
               <option value="pdf">PDF</option>
               <option value="docx">Word (.docx)</option>
-              <option value="pdf-to-csv">PDF -> CSV (extract)</option>
+              <option value="pdf-to-csv">PDF → CSV (extract)</option>
             </select>
 
             <button
