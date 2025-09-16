@@ -17,6 +17,7 @@ from starlette.staticfiles import StaticFiles
 
 from .utils import clean_dataframe, detect_column_types, summarize_numeric
 from . import file_tools  # router with additional file tools
+from . import file_tools_pdf_compress
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("syla-backend")
@@ -33,6 +34,7 @@ app.add_middleware(
 
 # 🔗 include your router
 app.include_router(file_tools.router)
+app.include_router(file_tools_pdf_compress.router)
 
 # ---- File handling setup ----
 ALLOWED_EXTS = (
