@@ -16,8 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
 from .utils import clean_dataframe, detect_column_types, summarize_numeric
-from . import file_tools  # router with additional file tools
-from . import file_tools_pdf_compress
+from .file_tools_full import router as file_tools_full_router, UPLOAD_DIR
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("syla-backend")
@@ -33,8 +32,10 @@ app.add_middleware(
 )
 
 # 🔗 include your router
-app.include_router(file_tools.router)
-app.include_router(file_tools_pdf_compress.router)
+app.include_router(file_tools_full_router)
+
+# Mount uploaded files directory so download_url /api/files/<name> works
+app.mount("/api/files", StaticFiles(directory=UPLOAD_DIR), name="files")
 
 # ---- File handling setup ----
 ALLOWED_EXTS = (
