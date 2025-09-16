@@ -4,7 +4,6 @@ import { useParams, useSearchParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import FileUpload from "../components/FileUpload";
 import FileList from "../components/FileList";
-import PdfCompress from "./PdfCompress";
 import PdfMerge from "./PdfMerge";
 import GenericConvert from "./GenericConvert";
 
