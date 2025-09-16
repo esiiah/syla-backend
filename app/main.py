@@ -31,33 +31,22 @@ app.add_middleware(
     allow_credentials=False,
 )
 
+# 🔗 include your router
 app.include_router(file_tools.router)
 
-# Allow more file types (CSV/Excel remain processed as dataframes, others saved)
+# ---- File handling setup ----
 ALLOWED_EXTS = (
-    ".csv",
-    ".tsv",
-    ".xls",
-    ".xlsx",
-    ".pdf",
-    ".doc",
-    ".docx",
-    ".txt",
-    ".pptx",
-    ".zip",
-    ".json",
+    ".csv", ".tsv", ".xls", ".xlsx",  # tabular
+    ".pdf", ".doc", ".docx", ".txt", ".pptx", ".zip", ".json"  # other
 )
-
 TABULAR_EXTS = (".csv", ".tsv", ".xls", ".xlsx")
 
-# Directory to save uploaded non-tabular files or cleaned csv exports
 BASE_DIR = os.path.dirname(__file__)
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 def sanitize_filename(name: str) -> str:
-    # Keep base name and replace unsafe chars
     base = os.path.basename(name or "uploaded_file")
     base = base.replace(" ", "_")
     base = re.sub(r"[^A-Za-z0-9._-]", "_", base)
@@ -80,17 +69,15 @@ async def upload_file(file: UploadFile = File(...)):
     filename = file.filename or "uploaded_file"
     lower = filename.lower()
     if not any(lower.endswith(ext) for ext in ALLOWED_EXTS):
-        raise HTTPException(status_code=400, detail="Only specific file types are allowed")
+        raise HTTPException(status_code=400, detail="File type not allowed")
 
-    saved_name = None
     try:
         raw = await file.read()
         if not raw:
             raise HTTPException(status_code=400, detail="File is empty")
 
-        # Tabular files -> parse & return data (same logic as your working version)
+        # --- Tabular: process with pandas ---
         if lower.endswith(TABULAR_EXTS):
-            # read robustly (strings initially)
             if lower.endswith((".xls", ".xlsx")):
                 df = pd.read_excel(io.BytesIO(raw), dtype=str)
             else:
@@ -109,19 +96,11 @@ async def upload_file(file: UploadFile = File(...)):
                                      dtype=str, keep_default_na=False)
 
             if df is None or df.empty:
-                raise HTTPException(status_code=400, detail="No data found in the uploaded file")
+                raise HTTPException(status_code=400, detail="No data found in the file")
 
-            # If MultiIndex columns (Excel with multi-row header), collapse them first
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = [
-                    " | ".join([str(x).strip() for x in col if str(x).strip() != ""]) or "column"
-                    for col in df.columns
-                ]
-
-            # Ensure unique names immediately to avoid any DataFrame-slice issues later
+            # --- normalize columns ---
             def make_unique_columns(cols: List[str]) -> List[str]:
-                out: List[str] = []
-                counts: dict = {}
+                out, counts = [], {}
                 for c in cols:
                     base = "" if c is None else str(c).strip()
                     if base == "":
@@ -135,10 +114,15 @@ async def upload_file(file: UploadFile = File(...)):
                     out.append(out_name)
                 return out
 
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = [
+                    " | ".join([str(x).strip() for x in col if str(x).strip() != ""]) or "column"
+                    for col in df.columns
+                ]
             df.columns = make_unique_columns(df.columns)
             df = df.reset_index(drop=True)
 
-            # Collapse any list/array cells to simple scalars (defensive)
+            # collapse lists/arrays in cells
             def _collapse_cell(v):
                 if isinstance(v, (list, tuple, set)):
                     return " | ".join(map(str, v))
@@ -148,10 +132,9 @@ async def upload_file(file: UploadFile = File(...)):
 
             df = df.applymap(_collapse_cell)
 
-            # Clean & type-detect (utils does normalization too)
             df_clean = clean_dataframe(df)
 
-            # Convert datetimes to strings for JSON
+            # convert datetimes to str
             for col in df_clean.select_dtypes(include=["datetime64[ns]", "datetime64[ns, UTC]"]).columns:
                 df_clean[col] = df_clean[col].astype(str)
 
@@ -163,22 +146,17 @@ async def upload_file(file: UploadFile = File(...)):
             y_axis = x_axis
             numeric_cols = [c for c, t in column_types.items() if t == "numeric"]
             if numeric_cols:
-                if x_axis in numeric_cols:
-                    y_axis = numeric_cols[1] if len(numeric_cols) > 1 else numeric_cols[0]
+                if x_axis in numeric_cols and len(numeric_cols) > 1:
+                    y_axis = numeric_cols[1]
                 else:
                     y_axis = numeric_cols[0]
 
-            # save cleaned CSV for export
-            cleaned_csv = df_clean.to_csv(index=False).encode("utf-8")
+            # save cleaned csv
             saved_name = unique_filename(f"cleaned_{filename}.csv")
-            saved_path = os.path.join(UPLOAD_DIR, saved_name)
-            with open(saved_path, "wb") as fh:
-                fh.write(cleaned_csv)
-
-            download_url = f"/api/files/{saved_name}"
+            with open(os.path.join(UPLOAD_DIR, saved_name), "wb") as fh:
+                fh.write(df_clean.to_csv(index=False).encode("utf-8"))
 
             return JSONResponse(
-                status_code=200,
                 content={
                     "filename": filename,
                     "rows": len(df_clean),
@@ -189,22 +167,18 @@ async def upload_file(file: UploadFile = File(...)):
                     "chart_title": filename,
                     "x_axis": x_axis,
                     "y_axis": y_axis,
-                    "download_url": download_url,
-                },
+                    "download_url": f"/api/files/{saved_name}",
+                }
             )
 
-        # Non-tabular file -> save to uploads and return metadata + download url
+        # --- Non-tabular: just save and return meta ---
         else:
             saved_name = unique_filename(filename)
             saved_path = os.path.join(UPLOAD_DIR, saved_name)
             with open(saved_path, "wb") as fh:
                 fh.write(raw)
 
-            download_url = f"/api/files/{saved_name}"
-            file_size = os.path.getsize(saved_path)
-
             return JSONResponse(
-                status_code=200,
                 content={
                     "filename": filename,
                     "rows": 0,
@@ -215,16 +189,16 @@ async def upload_file(file: UploadFile = File(...)):
                     "chart_title": filename,
                     "x_axis": "",
                     "y_axis": "",
-                    "download_url": download_url,
-                    "size": file_size,
-                },
+                    "download_url": f"/api/files/{saved_name}",
+                    "size": os.path.getsize(saved_path),
+                }
             )
 
     except HTTPException:
         raise
     except Exception as e:
         logger.exception("Upload failed")
-        raise HTTPException(status_code=500, detail=f"Server error processing file: {e}")
+        raise HTTPException(status_code=500, detail=f"Server error: {e}")
     finally:
         try:
             await file.close()
@@ -234,41 +208,17 @@ async def upload_file(file: UploadFile = File(...)):
 
 @app.get("/api/files/{saved_filename}")
 async def serve_uploaded_file(saved_filename: str):
-    # Prevent path traversal: saved_filename should not contain path separators
     if "/" in saved_filename or "\\" in saved_filename:
         raise HTTPException(status_code=400, detail="Invalid filename")
     path = os.path.join(UPLOAD_DIR, saved_filename)
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="File not found")
     mime_type, _ = mimetypes.guess_type(path)
-    return FileResponse(path, media_type=mime_type or "application/octet-stream", filename=os.path.basename(path))
+    return FileResponse(path, media_type=mime_type or "application/octet-stream",
+                        filename=os.path.basename(path))
 
 
-# Frontend static serving (try the common locations)
-frontend_candidates = [
-    os.path.join(BASE_DIR, "dist"),
-    os.path.join(BASE_DIR, "../frontend/dist"),
-    os.path.join(BASE_DIR, "frontend/dist"),
-]
-frontend_dist_path = next((p for p in frontend_candidates if os.path.isdir(p)), None)
-
-if frontend_dist_path:
-    # mount static assets (assets directory if exists)
-    assets_dir = os.path.join(frontend_dist_path, "assets")
-    if os.path.isdir(assets_dir):
-        app.mount("/static", StaticFiles(directory=assets_dir), name="static")
-
-    # catch-all to serve index.html for react-router
-    from fastapi import Request
-
-    @app.get("/{full_path:path}")
-    async def serve_spa(full_path: str, request: Request):
-        # Do not override API routes
-        # Ensure any path starting with 'api/' hits API (not the SPA)
-        if full_path.startswith("api/") or full_path.startswith("_next") or full_path.startswith("static/"):
-            return JSONResponse({"detail": "API route not found"}, status_code=404)
-
-        index_file = os.path.join(frontend_dist_path, "index.html")
-        if os.path.exists(index_file):
-            return FileResponse(index_file)
-        return JSONResponse({"detail": "Frontend not found"}, status_code=404)
+# ---- Frontend serving (exactly like your working one) ----
+frontend_dist_path = os.path.join(os.path.dirname(__file__), "dist")
+if os.path.isdir(frontend_dist_path):
+    app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="frontend")
