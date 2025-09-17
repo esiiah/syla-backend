@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 const features = [
+  { title: "PDF → Word", description: "Convert PDF to editable Word document.", icon: FileText, link: "/tools/pdf-to-word" },
   { title: "PDF → Excel", description: "Convert PDF to Excel.", icon: FileSpreadsheet, link: "/tools/pdf-to-excel" },
   { title: "Merge PDF", description: "Combine multiple PDFs.", icon: FilePlus, link: "/tools/merge" },
   { title: "Compress File", description: "Reduce PDF/Excel/CSV size.", icon: FileArchive, link: "/tools/compress" },
