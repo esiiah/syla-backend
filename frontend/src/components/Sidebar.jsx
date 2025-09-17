@@ -22,6 +22,7 @@ function Sidebar({ onReportChange, theme, setTheme }) {
 
   // Updated tool ordering — removed Word/PDF entries
   const tools = [
+    { title: "PDF → Word", path: "/tools/pdf-to-word", icon: FileText },
     { title: "PDF → Excel", path: "/tools/pdf-to-excel", icon: FileSpreadsheet },
     { title: "Merge PDF", path: "/tools/merge", icon: FilePlus },
     { title: "Compress PDF", path: "/tools/compress", icon: FileArchive },
