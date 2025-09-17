@@ -13,11 +13,13 @@ from fastapi.responses import FileResponse, JSONResponse
 
 router = APIRouter(prefix="/api/filetools", tags=["filetools"])
 
+# ⚠️ NOTE:
+# UPLOAD_DIR will be overridden by main.py so both main and file_tools share the same folder.
 BASE_DIR = os.path.dirname(__file__)
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")  # default, replaced in main.py
 STASH_DIR = os.path.join(BASE_DIR, "stash")
 TMP_DIR = os.path.join(BASE_DIR, "tmp")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+
 os.makedirs(STASH_DIR, exist_ok=True)
 os.makedirs(TMP_DIR, exist_ok=True)
 
