@@ -13,13 +13,11 @@ from fastapi.responses import FileResponse, JSONResponse
 
 router = APIRouter(prefix="/api/filetools", tags=["filetools"])
 
-# ⚠️ NOTE:
-# UPLOAD_DIR will be overridden by main.py so both main and file_tools share the same folder.
 BASE_DIR = os.path.dirname(__file__)
-UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")  # default, replaced in main.py
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 STASH_DIR = os.path.join(BASE_DIR, "stash")
 TMP_DIR = os.path.join(BASE_DIR, "tmp")
-
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(STASH_DIR, exist_ok=True)
 os.makedirs(TMP_DIR, exist_ok=True)
 
@@ -437,38 +435,29 @@ async def pdf_to_excel(file: UploadFile = File(...)):
         except Exception:
             pass
 
-# 6) Word -> PDF and PDF -> Word (uses soffice / LibreOffice if available)
+# 6) Word -> PDF and PDF -> Word (replacing LibreOffice with docx2pdf & pdf2docx)
 @router.post("/convert/word-to-pdf")
 async def word_to_pdf(file: UploadFile = File(...)):
-    if not (file.filename or "").lower().endswith((".doc", ".docx", ".rtf")):
-        raise HTTPException(status_code=400, detail="Only DOC/DOCX/RTF allowed for Word->PDF")
-    if SOFFICE_EXEC is None:
-        raise HTTPException(
-            status_code=500,
-            detail="LibreOffice (soffice) not found on server. Install LibreOffice to enable Word->PDF conversion."
-        )
+    if not (file.filename or "").lower().endswith((".doc", ".docx")):
+        raise HTTPException(status_code=400, detail="Only DOC/DOCX allowed for Word->PDF")
+    try:
+        from docx2pdf import convert
+    except ImportError:
+        raise HTTPException(status_code=500, detail="docx2pdf required: pip install docx2pdf")
 
     in_path = write_upload_to_temp(file, prefix="word2pdf_in_")
     try:
-        # Define the command for conversion
-        cmd = [SOFFICE_EXEC, "--headless", "--convert-to", "pdf", "--outdir", TMP_DIR, in_path]
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            raise HTTPException(status_code=500, detail=f"Conversion failed: {result.stderr}")
+        base_name = Path(file.filename).stem
+        out_name = f"word2pdf_{int(time.time() * 1000)}.pdf"
+        out_path = os.path.join(UPLOAD_DIR, out_name)
 
-        # Locate generated PDF
-        base = Path(file.filename).stem
-        generated = os.path.join(TMP_DIR, f"{base}.pdf")
-        if not os.path.exists(generated):
-            pdfs = [os.path.join(TMP_DIR, f) for f in os.listdir(TMP_DIR) if f.lower().endswith(".pdf")]
-            if not pdfs:
-                raise HTTPException(status_code=500, detail="Conversion failed (no output PDF)")
-            generated = max(pdfs, key=os.path.getctime)
+        # docx2pdf converts to same folder if output not specified
+        convert(in_path, out_path)
 
-        out_name = f"word2pdf_{int(time.time()*1000)}.pdf"
-        shutil.move(generated, os.path.join(UPLOAD_DIR, out_name))
+        if not os.path.exists(out_path):
+            raise HTTPException(status_code=500, detail="Conversion failed: output PDF not found")
+
         return {"message": "Word -> PDF", "download_url": f"/api/files/{out_name}"}
-
     finally:
         try:
             if os.path.exists(in_path):
@@ -481,37 +470,28 @@ async def word_to_pdf(file: UploadFile = File(...)):
 async def pdf_to_word(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF allowed for PDF->Word")
-    if SOFFICE_EXEC is None:
-        raise HTTPException(
-            status_code=500,
-            detail="LibreOffice (soffice) not found. Install it for PDF->Word conversion."
-        )
+    try:
+        from pdf2docx import Converter
+    except ImportError:
+        raise HTTPException(status_code=500, detail="pdf2docx required: pip install pdf2docx")
 
     in_path = write_upload_to_temp(file, prefix="pdf2word_in_")
     try:
-        # Define the command for conversion
-        cmd = [SOFFICE_EXEC, "--headless", "--convert-to", "docx", "--outdir", TMP_DIR, in_path]
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            raise HTTPException(status_code=500, detail=f"Conversion failed: {result.stderr}")
+        base_name = Path(file.filename).stem
+        out_name = f"pdf2word_{int(time.time() * 1000)}.docx"
+        out_path = os.path.join(UPLOAD_DIR, out_name)
 
-        # Locate generated DOCX
-        base = Path(file.filename).stem
-        generated = os.path.join(TMP_DIR, f"{base}.docx")
-        if not os.path.exists(generated):
-            docs = [os.path.join(TMP_DIR, f) for f in os.listdir(TMP_DIR) if f.lower().endswith(".docx")]
-            if not docs:
-                raise HTTPException(status_code=500, detail="Conversion failed (no output DOCX)")
-            generated = max(docs, key=os.path.getctime)
+        cv = Converter(in_path)
+        cv.convert(out_path, start=0, end=None)
+        cv.close()
 
-        out_name = f"pdf2word_{int(time.time()*1000)}.docx"
-        shutil.move(generated, os.path.join(UPLOAD_DIR, out_name))
+        if not os.path.exists(out_path):
+            raise HTTPException(status_code=500, detail="Conversion failed: output DOCX not found")
+
         return {"message": "PDF -> Word", "download_url": f"/api/files/{out_name}"}
-
     finally:
         try:
             if os.path.exists(in_path):
                 os.remove(in_path)
         except Exception:
             pass
-
