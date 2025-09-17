@@ -1,8 +1,7 @@
 FROM python:3.11-slim
 
 ENV DEBIAN_FRONTEND=noninteractive \
-    PYTHONUNBUFFERED=1 \
-    TMPDIR=/tmp
+    PYTHONUNBUFFERED=1
 
 # Install system dependencies (LibreOffice + Ghostscript + qpdf + fonts)
 RUN apt-get update \
@@ -15,7 +14,6 @@ RUN apt-get update \
        qpdf \
        poppler-utils \
        fonts-dejavu-core \
-       ttf-mscorefonts-installer \
        libxrender1 \
        libxext6 \
        libfontconfig1 \
