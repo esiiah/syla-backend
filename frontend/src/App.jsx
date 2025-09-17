@@ -126,17 +126,25 @@ function App() {
                   </div>
                 )}
 
-                <ChartView
-                  data={data}
-                  columns={columns}
-                  types={types}
-                  options={chartOptions}
-                  chartTitle={chartTitle}
-                  xAxis={xAxis}
-                  yAxis={yAxis}
-                  setXAxis={setXAxis}
-                  setYAxis={setYAxis}
-                />
+                {/* Only show actual chart when data exists */}
+                {data && data.length > 0 ? (
+                  <ChartView
+                    data={data}
+                    columns={columns}
+                    types={types}
+                    options={chartOptions}
+                    chartTitle={chartTitle}
+                    xAxis={xAxis}
+                    yAxis={yAxis}
+                    setXAxis={setXAxis}
+                    setYAxis={setYAxis}
+                  />
+                ) : (
+                  <div className="rounded-2xl p-8 bg-gray-50 dark:bg-black/20 text-center text-gray-500">
+                    <div className="text-lg font-medium">Upload to visualise</div>
+                    <div className="text-sm mt-2">Upload a CSV / Excel file on the left to enable the visualisation tools.</div>
+                  </div>
+                )}
               </div>
             </section>
           </div>
