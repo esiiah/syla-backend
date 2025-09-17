@@ -1,4 +1,3 @@
-// frontend/src/components/Sidebar.jsx
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -7,13 +6,6 @@ import {
   BarChart,
   Settings,
   HelpCircle,
-  ArrowUpRight,
-  BookOpen,
-  Mail,
-  LogIn,
-  UserPlus,
-  ChevronLeft,
-  ChevronRight,
   Sun,
   Moon,
   FilePlus,
@@ -23,24 +15,27 @@ import {
 } from "lucide-react";
 
 function Sidebar({ onReportChange, theme, setTheme }) {
-  const [collapsed, setCollapsed] = useState(false);
+  // hidden by default
+  const [collapsed, setCollapsed] = useState(true);
   const [reportType, setReportType] = useState("Bar");
   const [toolsOpen, setToolsOpen] = useState(false);
 
+  // Updated tool ordering — removed Word/PDF entries
   const tools = [
-    { title: "PDF to Excel", path: "/tools/pdf-to-excel", icon: FileSpreadsheet },
-    { title: "Excel to PDF", path: "/tools/excel-to-pdf", icon: FileText },
-    { title: "CSV to Excel", path: "/tools/csv-to-excel", icon: FilePlus },
+    { title: "PDF → Excel", path: "/tools/pdf-to-excel", icon: FileSpreadsheet },
     { title: "Merge PDF", path: "/tools/merge", icon: FilePlus },
-    { title: "Compress File", path: "/tools/compress", icon: FileArchive },
-    { title: "Word to PDF", path: "/tools/word-to-pdf", icon: FileText },
+    { title: "Compress PDF", path: "/tools/compress", icon: FileArchive },
+    { title: "CSV → Excel", path: "/tools/csv-to-excel", icon: FileSpreadsheet },
+    { title: "Excel → CSV", path: "/tools/excel-to-csv", icon: FileText },
+    { title: "CSV → PDF", path: "/tools/csv-to-pdf", icon: FileText },
+    { title: "Excel → PDF", path: "/tools/excel-to-pdf", icon: FileText },
+    { title: "PDF → Excel (alt)", path: "/tools/pdf-to-excel", icon: FileSpreadsheet },
+    { title: "PDF → CSV", path: "/tools/pdf-to-csv", icon: FileText },
   ];
 
   return (
     <aside
-      className={`${
-        collapsed ? "w-16" : "w-64"
-      } flex flex-col transition-all duration-300 relative
+      className={`${collapsed ? "w-16" : "w-64"} flex flex-col transition-all duration-300 relative
       bg-white text-gray-900 border-r border-gray-200
       dark:bg-ink/80 dark:text-slate-200 dark:border-white/5 rounded-r-2xl shadow-soft neon-border`}
     >
@@ -52,9 +47,9 @@ function Sidebar({ onReportChange, theme, setTheme }) {
         hover:bg-gray-300 dark:hover:bg-white/10 transition"
       >
         {collapsed ? (
-          <ChevronRight className="w-4 h-4 text-gray-700 dark:text-slate-300" />
+          <svg className="w-4 h-4 text-gray-700 dark:text-slate-300" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
         ) : (
-          <ChevronLeft className="w-4 h-4 text-gray-700 dark:text-slate-300" />
+          <svg className="w-4 h-4 text-gray-700 dark:text-slate-300" viewBox="0 0 24 24"><path d="M16 19V5L5 12z" /></svg>
         )}
       </button>
 
@@ -149,11 +144,11 @@ function Sidebar({ onReportChange, theme, setTheme }) {
         </button>
 
         <button className="w-full flex items-center justify-center px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm text-gray-800 dark:bg-black/40 dark:hover:bg-white/5 dark:text-slate-200 transition">
-          <LogIn className="w-4 h-4 mr-2" />
+          <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24"><path d="M12 12m-10 0a10 10 0 1 0 20 0a10 10 0 1 0 -20 0"/></svg>
           {!collapsed && "Log in"}
         </button>
         <button className="w-full flex items-center justify-center px-3 py-2 rounded-lg bg-neonBlue text-white shadow-neon hover:animate-glow text-sm transition">
-          <UserPlus className="w-4 h-4 mr-2" />
+          <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24"><path d="M12 2v20"/></svg>
           {!collapsed && "Sign up"}
         </button>
       </div>
