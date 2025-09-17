@@ -12,6 +12,11 @@ export default function FileToolPage() {
   const [theme, setTheme] = useState("light");
   const [stashedFile, setStashedFile] = useState(null);
 
+  // floating-panel export state
+  const [exportType, setExportType] = useState("");
+  const [downloadUrl, setDownloadUrl] = useState("");
+  const [error, setError] = useState("");
+
   useEffect(() => {
     const token = searchParams.get("token");
     if (!token) return;
@@ -38,11 +43,26 @@ export default function FileToolPage() {
     "excel-to-csv": { component: "convert", endpoint: "/api/filetools/convert/excel-to-csv", accept: ".xls,.xlsx", label: "Excel → CSV" },
     "pdf-to-csv": { component: "convert", endpoint: "/api/filetools/convert/pdf-to-csv", accept: ".pdf", label: "PDF → CSV (table extraction)" },
     "csv-to-pdf": { component: "convert", endpoint: "/api/filetools/convert/csv-to-pdf", accept: ".csv", label: "CSV → PDF" },
-    // removed word/pdf conversions per request
   };
 
   const config = mapping[action] || null;
   const formattedAction = action ? action.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Tool";
+
+  // called by child when conversion completes and backend gives a download link
+  const handleDownloadReady = (url) => {
+    setDownloadUrl(url || "");
+  };
+
+  const confirmExport = () => {
+    setError("");
+    if (!downloadUrl) {
+      setError("No processed file available yet.");
+      return;
+    }
+    // for now all options (PNG, JPEG, JSON, CSV, Download) just open same link,
+    // you can extend with format-specific logic if backend supports it.
+    window.open(downloadUrl, "_blank");
+  };
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-slate-950">
@@ -62,15 +82,16 @@ export default function FileToolPage() {
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {config ? (
             config.component === "compress" ? (
-              <PdfCompress initialFile={stashedFile} />
+              <PdfCompress initialFile={stashedFile} onDownloadReady={handleDownloadReady} />
             ) : config.component === "merge" ? (
-              <PdfMerge />
+              <PdfMerge onDownloadReady={handleDownloadReady} />
             ) : (
               <GenericConvert
                 endpoint={config.endpoint}
                 accept={config.accept}
                 label={config.label}
                 initialFile={stashedFile}
+                onDownloadReady={handleDownloadReady}
               />
             )
           ) : (
@@ -90,6 +111,44 @@ export default function FileToolPage() {
               </section>
             </>
           )}
+        </div>
+
+        {/* Floating export panel */}
+        <div
+          style={{
+            position: "fixed",
+            right: "20px",
+            top: "35%",
+            width: "220px",
+            zIndex: 60,
+          }}
+        >
+          <div className="p-3 rounded-lg bg-white border border-gray-200 shadow-sm dark:bg-black/60 dark:border-white/10">
+            <div className="text-sm font-medium mb-2">Export</div>
+            <select
+              value={exportType}
+              onChange={(e) => setExportType(e.target.value)}
+              className="w-full px-3 py-2 rounded border text-sm mb-2"
+            >
+              <option value="">Choose export</option>
+              <option value="download">Download processed file</option>
+              <option value="png">PNG</option>
+              <option value="jpeg">JPEG</option>
+              <option value="json">JSON</option>
+              <option value="csv">CSV</option>
+            </select>
+            <button
+              onClick={confirmExport}
+              className="w-full px-3 py-2 rounded bg-neonBlue text-white text-sm"
+            >
+              Confirm
+            </button>
+            {error && (
+              <div className="mt-2 text-xs text-red-500">
+                {error}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
