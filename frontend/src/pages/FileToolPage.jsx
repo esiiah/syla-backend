@@ -1,4 +1,3 @@
-// frontend/src/pages/FileToolPage.jsx
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
@@ -13,7 +12,6 @@ export default function FileToolPage() {
   const [theme, setTheme] = useState("light");
   const [stashedFile, setStashedFile] = useState(null);
 
-  // Retrieve stashed file if token present
   useEffect(() => {
     const token = searchParams.get("token");
     if (!token) return;
@@ -30,18 +28,17 @@ export default function FileToolPage() {
       .catch((err) => console.warn("Failed to retrieve stashed file:", err));
   }, [searchParams]);
 
-  // Map action -> which component to render
   const mapping = {
     "compress": { component: "compress" },
     "merge": { component: "merge" },
+    "pdf-to-word": { component: "convert", endpoint: "/api/filetools/convert/pdf-to-word", accept: ".pdf", label: "PDF → Word" },
     "pdf-to-excel": { component: "convert", endpoint: "/api/filetools/convert/pdf-to-excel", accept: ".pdf", label: "PDF → Excel" },
     "excel-to-pdf": { component: "convert", endpoint: "/api/filetools/convert/excel-to-pdf", accept: ".xls,.xlsx", label: "Excel → PDF" },
     "csv-to-excel": { component: "convert", endpoint: "/api/filetools/convert/csv-to-excel", accept: ".csv", label: "CSV → Excel" },
     "excel-to-csv": { component: "convert", endpoint: "/api/filetools/convert/excel-to-csv", accept: ".xls,.xlsx", label: "Excel → CSV" },
     "pdf-to-csv": { component: "convert", endpoint: "/api/filetools/convert/pdf-to-csv", accept: ".pdf", label: "PDF → CSV (table extraction)" },
     "csv-to-pdf": { component: "convert", endpoint: "/api/filetools/convert/csv-to-pdf", accept: ".csv", label: "CSV → PDF" },
-    "word-to-pdf": { component: "convert", endpoint: "/api/filetools/convert/word-to-pdf", accept: ".doc,.docx", label: "Word → PDF" },
-    "pdf-to-word": { component: "convert", endpoint: "/api/filetools/convert/pdf-to-word", accept: ".pdf", label: "PDF → Word" },
+    // removed word/pdf conversions per request
   };
 
   const config = mapping[action] || null;
@@ -63,7 +60,6 @@ export default function FileToolPage() {
         </nav>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Render tool-specific component if mapped */}
           {config ? (
             config.component === "compress" ? (
               <PdfCompress initialFile={stashedFile} />
@@ -79,7 +75,6 @@ export default function FileToolPage() {
             )
           ) : (
             <>
-              {/* Default upload + file list UI if action unknown */}
               <section className="rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 neon-border p-6">
                 <FileUpload action={action} initialFile={stashedFile} />
               </section>
@@ -91,7 +86,6 @@ export default function FileToolPage() {
               <section className="text-sm text-gray-500 dark:text-gray-400 mt-6">
                 <p>
                   Uploaded files for <span className="font-medium">{formattedAction}</span> are listed above.
-                  You can remove or process them as needed. Files stashed for cross-tool export are valid for a short time.
                 </p>
               </section>
             </>
