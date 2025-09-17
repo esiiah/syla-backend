@@ -445,8 +445,10 @@ async def word_to_pdf(file: UploadFile = File(...)):
     in_path = write_upload_to_temp(file, prefix="word2pdf_in_")
     try:
         # soffice --headless --convert-to pdf --outdir <dir> <file>
-        cmd = [SOFFICE_EXEC, "--headless", "--convert-to", "pdf", "--outdir", TMP_DIR, in_path]
-        subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise HTTPException(status_code=500, detail=f"Conversion failed: {result.stderr}")
+
         # find generated pdf
         base = Path(file.filename).stem
         generated = os.path.join(TMP_DIR, f"{base}.pdf")
@@ -476,8 +478,9 @@ async def pdf_to_word(file: UploadFile = File(...)):
     in_path = write_upload_to_temp(file, prefix="pdf2word_in_")
     try:
         # soffice --headless --convert-to docx --outdir <dir> <file>
-        cmd = [SOFFICE_EXEC, "--headless", "--convert-to", "docx", "--outdir", TMP_DIR, in_path]
-        subprocess.check_call(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise HTTPException(status_code=500, detail=f"Conversion failed: {result.stderr}")
         # find docx
         base = Path(file.filename).stem
         generated = os.path.join(TMP_DIR, f"{base}.docx")
