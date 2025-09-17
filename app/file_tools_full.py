@@ -166,6 +166,7 @@ async def pdf_compress_preview(file: UploadFile = File(...)):
     results = {}
     try:
         for level, gs_setting in GS_SETTINGS.items():
+            out_tmp = None   # <-- added fix
             try:
                 fd, out_tmp = tempfile.mkstemp(prefix=f"preview_{level}_", suffix=".pdf", dir=TMP_DIR)
                 os.close(fd)
@@ -179,7 +180,7 @@ async def pdf_compress_preview(file: UploadFile = File(...)):
                 results[level] = {"error": str(e)}
             finally:
                 try:
-                    if os.path.exists(out_tmp):
+                    if out_tmp and os.path.exists(out_tmp):
                         os.remove(out_tmp)
                 except Exception:
                     pass
@@ -437,8 +438,8 @@ async def pdf_to_excel(file: UploadFile = File(...)):
 # 6) Word -> PDF and PDF -> Word (uses soffice / LibreOffice if available)
 @router.post("/convert/word-to-pdf")
 async def word_to_pdf(file: UploadFile = File(...)):
-    if not (file.filename or "").lower().endswith((".doc", ".docx")):
-        raise HTTPException(status_code=400, detail="Only DOC/DOCX allowed for Word->PDF")
+    if not (file.filename or "").lower().endswith((".doc", ".docx", ".rtf")):   # <-- added .rtf
+        raise HTTPException(status_code=400, detail="Only DOC/DOCX/RTF allowed for Word->PDF")
     if SOFFICE_EXEC is None:
         raise HTTPException(status_code=500, detail="LibreOffice (soffice) not found on server. Install LibreOffice to enable Word->PDF conversion.")
     in_path = write_upload_to_temp(file, prefix="word2pdf_in_")
@@ -450,7 +451,6 @@ async def word_to_pdf(file: UploadFile = File(...)):
         base = Path(file.filename).stem
         generated = os.path.join(TMP_DIR, f"{base}.pdf")
         if not os.path.exists(generated):
-            # soffice may produce name without exact stem; search TMP_DIR for newest pdf
             pdfs = [os.path.join(TMP_DIR, f) for f in os.listdir(TMP_DIR) if f.lower().endswith(".pdf")]
             if not pdfs:
                 raise HTTPException(status_code=500, detail="Conversion failed (no output PDF)")
