@@ -1,22 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 
-/**
- * FileUpload (rewritten)
- *
- * - Drag & drop + choose files
- * - Multiple or single file support
- * - Accept validation
- * - Preview of selected/uploaded files in 3 views: grid / details / list (default: grid)
- * - Floating action panel (right side) with Convert button and export/download controls
- * - Reuses existing upload endpoint behavior (POST to /api/filetools/<action> or /api/upload)
- *
- * Props:
- *  - action: optional endpoint suffix
- *  - accept: accept string (".csv,.xlsx,.pdf", etc.)
- *  - multiple, maxFiles
- *  - callbacks: onResult, onData, onColumns, onTypes, onSummary, onChartTitle, onXAxis, onYAxis
- *  - initialFiles: optional preloaded File(s)
- */
 export default function FileUpload({
   action = null,
   accept = ".csv,.xlsx,.xls",
@@ -37,9 +20,8 @@ export default function FileUpload({
   const [progress, setProgress] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState("");
-  const [showExport, setShowExport] = useState(false);
   const [exportType, setExportType] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState("");
   const [previewView, setPreviewView] = useState("grid"); // grid | details | list
   const inputRef = useRef(null);
 
@@ -123,23 +105,14 @@ export default function FileUpload({
           if (onXAxis) onXAxis(result.x_axis || "");
           if (onYAxis) onYAxis(result.y_axis || "");
 
-          if (result.download_url) {
-            setDownloadUrl(result.download_url);
-            setShowExport(true);
-          } else {
-            setDownloadUrl("");
-            setShowExport(false);
-          }
+          setDownloadUrl(result.download_url || "");
 
-          // keep a lightweight preview of the just-uploaded filename(s)
+          // clear file input
           setFiles([]);
           if (inputRef.current) inputRef.current.value = "";
 
-          // non-intrusive message
-          const msg = result.filename ? `Uploaded: ${result.filename}` : "Upload successful";
-          // show small toast-like alert (simple alert here)
-          alert(msg);
-        } catch (e) {
+          alert(result.filename ? `Uploaded: ${result.filename}` : "Upload successful");
+        } catch {
           alert("Upload succeeded but response was not JSON.");
         }
       } else {
@@ -147,7 +120,7 @@ export default function FileUpload({
         try {
           const r = JSON.parse(xhr.responseText);
           if (r && (r.detail || r.error || r.message)) msg = r.detail || r.error || r.message;
-        } catch (e) {}
+        } catch {}
         alert(msg);
       }
     };
@@ -160,85 +133,22 @@ export default function FileUpload({
     xhr.send(fd);
   };
 
-  const confirmExport = async () => {
-    if (!exportType && !downloadUrl) return alert("Choose export format");
-    // support direct download if downloadUrl present and no stash needed
-    try {
-      if (downloadUrl && (exportType === "" || exportType === "download")) {
-        window.open(downloadUrl, "_blank");
-        setShowExport(false);
-        return;
-      }
-
-      // if user wants to export via stash route, reuse existing stash flow (keeps cross-tool behavior)
-      const routeMap = {
-        csv: "csv-to-excel",
-        xlsx: "csv-to-excel",
-        excel: "csv-to-excel",
-        pdf: "word-to-pdf",
-        docx: "pdf-to-word",
-        "pdf-to-csv": "pdf-to-csv",
-      };
-      const targetRoute = routeMap[exportType] || null;
-
-      if (!targetRoute) {
-        if (downloadUrl) window.open(downloadUrl, "_blank");
-        setShowExport(false);
-        return;
-      }
-
-      let blobToStash = null;
-      let originalName = "file";
-
-      if (files.length) {
-        blobToStash = files[0];
-        originalName = files[0].name;
-      } else if (downloadUrl) {
-        const res = await fetch(downloadUrl);
-        if (!res.ok) throw new Error("Failed to fetch resource");
-        const b = await res.blob();
-        const cd = res.headers.get("content-disposition");
-        if (cd) {
-          const m = /filename="?([^"]+)"?/.exec(cd);
-          if (m) originalName = m[1];
-        }
-        blobToStash = new File([b], originalName, { type: b.type });
-      }
-
-      const fd = new FormData();
-      fd.append("file", blobToStash);
-
-      const stashRes = await fetch("/api/filetools/stash", { method: "POST", body: fd });
-      if (!stashRes.ok) throw new Error("Could not stash file");
-      const stashJson = await stashRes.json();
-      if (!stashJson.token) throw new Error("No token returned from stash");
-
-      window.open(`/tools/${targetRoute}?token=${stashJson.token}`, "_blank");
-      setShowExport(false);
-    } catch (e) {
-      alert("Export failed: " + (e.message || e));
-      setShowExport(false);
+  const confirmExport = () => {
+    setError("");
+    if (!downloadUrl) {
+      setError("No processed file available yet.");
+      return;
     }
-  };
-
-  const copyShare = async () => {
-    if (!downloadUrl) return;
-    try {
-      await navigator.clipboard.writeText(window.location.origin + downloadUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch {
-      alert("Copy failed");
-    }
+    // for now every option just opens the processed file link.
+    window.open(downloadUrl, "_blank");
   };
 
   const dragStyle = dragOver
     ? { borderColor: "#FACC15", backgroundColor: "rgba(250, 204, 21, 0.03)", boxShadow: "0 0 0 6px rgba(250,204,21,0.05)" }
     : {};
 
-  // Render small preview row for file-like objects (File or {name,size,download_url})
   const renderFileCard = (f, i) => {
-    const name = f.name || f.filename || `File-${i+1}`;
+    const name = f.name || f.filename || `File-${i + 1}`;
     const sizeKB = f.size ? `${Math.round(f.size / 1024)} KB` : "";
     return (
       <div key={i} className="p-3 rounded-xl bg-gray-50 dark:bg-black/30 flex flex-col items-start gap-2">
@@ -250,7 +160,6 @@ export default function FileUpload({
           ) : f instanceof File ? (
             <span className="px-2 py-1 border rounded text-xs">Local</span>
           ) : null}
-          {/* placeholder for future actions */}
         </div>
       </div>
     );
@@ -262,7 +171,7 @@ export default function FileUpload({
       <div
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
-        className={`rounded-2xl p-6 text-center transition bg-white border dark:bg-ink/80 neon-border`}
+        className="rounded-2xl p-6 text-center transition bg-white border dark:bg-ink/80 neon-border"
         style={dragStyle}
         onDragEnter={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={(e) => { e.preventDefault(); setDragOver(false); }}
@@ -290,18 +199,9 @@ export default function FileUpload({
           <button onClick={() => setPreviewView("details")} className={`px-3 py-1 rounded ${previewView==="details" ? "bg-gray-100" : ""}`}>Details</button>
           <button onClick={() => setPreviewView("list")} className={`px-3 py-1 rounded ${previewView==="list" ? "bg-gray-100" : ""}`}>List</button>
         </div>
-
-        {/* Minimal inline export widgets when server returned download link */}
-        {showExport && downloadUrl && (
-          <div className="mt-4 flex items-center justify-center gap-3">
-            <a className="px-3 py-1 rounded-lg border border-gray-300 text-sm hover:bg-gray-100 dark:border-white/10" href={downloadUrl} target="_blank" rel="noopener noreferrer">Download</a>
-            <button onClick={copyShare} className="px-3 py-1 rounded-lg border border-gray-300 text-sm hover:bg-gray-100 dark:border-white/10">{copied ? "Copied!" : "Copy link"}</button>
-            <button onClick={() => setShowExport(false)} className="px-3 py-1 rounded-lg border border-gray-300 text-sm hover:bg-gray-100 dark:border-white/10">Close</button>
-          </div>
-        )}
       </div>
 
-      {/* Preview area (shows selected or uploaded files) */}
+      {/* Preview area */}
       <div className="mt-4">
         {files.length === 0 ? (
           <div className="text-sm text-gray-500 dark:text-slate-400 p-3">No files selected. Use drag & drop or choose a file to preview.</div>
@@ -313,13 +213,6 @@ export default function FileUpload({
                   <div className="font-medium">{f.name || f.filename}</div>
                   <div className="text-xs text-gray-500">{f.size ? `${Math.round(f.size/1024)} KB` : ""}</div>
                 </div>
-                <div className="flex gap-2">
-                  {f.download_url ? (
-                    <a href={f.download_url} className="px-3 py-1 rounded bg-white border text-sm">Download</a>
-                  ) : (
-                    <button onClick={() => { /* no-op local file */ }} className="px-3 py-1 rounded border text-sm">Info</button>
-                  )}
-                </div>
               </li>
             ))}
           </ul>
@@ -329,7 +222,6 @@ export default function FileUpload({
               <tr className="bg-gray-100 dark:bg-black/30">
                 <th className="px-3 py-2 text-left text-sm">Name</th>
                 <th className="px-3 py-2 text-left text-sm">Size</th>
-                <th className="px-3 py-2 text-left text-sm">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -337,9 +229,6 @@ export default function FileUpload({
                 <tr key={i} className="odd:bg-gray-50 dark:odd:bg-black/20">
                   <td className="px-3 py-2 text-sm">{f.name || f.filename}</td>
                   <td className="px-3 py-2 text-sm">{f.size ? `${Math.round(f.size/1024)} KB` : ""}</td>
-                  <td className="px-3 py-2 text-sm">
-                    {f.download_url ? <a href={f.download_url} target="_blank" rel="noreferrer">Download</a> : "Local"}
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -368,43 +257,39 @@ export default function FileUpload({
         </div>
       )}
 
-      {/* Floating action panel (right side) */}
-      <div style={{
-        position: "fixed",
-        right: "20px",
-        top: "35%",
-        width: "220px",
-        zIndex: 60,
-      }}>
+      {/* Floating export panel */}
+      <div
+        style={{
+          position: "fixed",
+          right: "20px",
+          top: "35%",
+          width: "220px",
+          zIndex: 60,
+        }}
+      >
         <div className="p-3 rounded-lg bg-white border border-gray-200 shadow-sm dark:bg-black/60 dark:border-white/10">
-          <div className="text-sm font-medium mb-2">Actions</div>
-
-          {/* Quick actions (Download/Copy) */}
-          <div className="flex flex-col gap-2">
-            {downloadUrl ? (
-              <>
-                <a href={downloadUrl} target="_blank" rel="noreferrer" className="px-3 py-2 rounded border text-sm text-center">Download Output</a>
-                <button onClick={copyShare} className="px-3 py-2 rounded border text-sm">{copied ? "Copied!" : "Copy link"}</button>
-              </>
-            ) : (
-              <div className="text-xs text-gray-500">No output yet</div>
-            )}
-          </div>
-
-          <div className="mt-4">
-            <select value={exportType} onChange={(e) => setExportType(e.target.value)} className="w-full px-3 py-2 rounded border text-sm mb-2">
-              <option value="">Choose export</option>
-              <option value="csv">CSV</option>
-              <option value="xlsx">Excel (.xlsx)</option>
-              <option value="pdf">PDF</option>
-              <option value="docx">Word (.docx)</option>
-              <option value="pdf-to-csv">PDF → CSV (extract)</option>
-            </select>
-
-            <button onClick={confirmExport} className="w-full px-3 py-2 rounded bg-neonBlue text-white text-sm">
-              Confirm / Convert
-            </button>
-          </div>
+          <div className="text-sm font-medium mb-2">Export</div>
+          <select
+            value={exportType}
+            onChange={(e) => setExportType(e.target.value)}
+            className="w-full px-3 py-2 rounded border text-sm mb-2"
+          >
+            <option value="">Choose export</option>
+            <option value="download">Download processed file</option>
+            <option value="png">PNG</option>
+            <option value="jpeg">JPEG</option>
+            <option value="json">JSON</option>
+            <option value="csv">CSV</option>
+          </select>
+          <button
+            onClick={confirmExport}
+            className="w-full px-3 py-2 rounded bg-neonBlue text-white text-sm"
+          >
+            Confirm
+          </button>
+          {error && (
+            <div className="mt-2 text-xs text-red-500">{error}</div>
+          )}
         </div>
       </div>
     </div>
