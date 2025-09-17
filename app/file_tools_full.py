@@ -438,18 +438,23 @@ async def pdf_to_excel(file: UploadFile = File(...)):
 # 6) Word -> PDF and PDF -> Word (uses soffice / LibreOffice if available)
 @router.post("/convert/word-to-pdf")
 async def word_to_pdf(file: UploadFile = File(...)):
-    if not (file.filename or "").lower().endswith((".doc", ".docx", ".rtf")):   # <-- added .rtf
+    if not (file.filename or "").lower().endswith((".doc", ".docx", ".rtf")):
         raise HTTPException(status_code=400, detail="Only DOC/DOCX/RTF allowed for Word->PDF")
     if SOFFICE_EXEC is None:
-        raise HTTPException(status_code=500, detail="LibreOffice (soffice) not found on server. Install LibreOffice to enable Word->PDF conversion.")
+        raise HTTPException(
+            status_code=500,
+            detail="LibreOffice (soffice) not found on server. Install LibreOffice to enable Word->PDF conversion."
+        )
+
     in_path = write_upload_to_temp(file, prefix="word2pdf_in_")
     try:
-        # soffice --headless --convert-to pdf --outdir <dir> <file>
+        # Define the command for conversion
+        cmd = [SOFFICE_EXEC, "--headless", "--convert-to", "pdf", "--outdir", TMP_DIR, in_path]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             raise HTTPException(status_code=500, detail=f"Conversion failed: {result.stderr}")
 
-        # find generated pdf
+        # Locate generated PDF
         base = Path(file.filename).stem
         generated = os.path.join(TMP_DIR, f"{base}.pdf")
         if not os.path.exists(generated):
@@ -457,11 +462,11 @@ async def word_to_pdf(file: UploadFile = File(...)):
             if not pdfs:
                 raise HTTPException(status_code=500, detail="Conversion failed (no output PDF)")
             generated = max(pdfs, key=os.path.getctime)
+
         out_name = f"word2pdf_{int(time.time()*1000)}.pdf"
         shutil.move(generated, os.path.join(UPLOAD_DIR, out_name))
         return {"message": "Word -> PDF", "download_url": f"/api/files/{out_name}"}
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=500, detail=f"Conversion failed: {e}")
+
     finally:
         try:
             if os.path.exists(in_path):
@@ -469,19 +474,26 @@ async def word_to_pdf(file: UploadFile = File(...)):
         except Exception:
             pass
 
+
 @router.post("/convert/pdf-to-word")
 async def pdf_to_word(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF allowed for PDF->Word")
     if SOFFICE_EXEC is None:
-        raise HTTPException(status_code=500, detail="LibreOffice (soffice) not found. Install it for PDF->Word conversion.")
+        raise HTTPException(
+            status_code=500,
+            detail="LibreOffice (soffice) not found. Install it for PDF->Word conversion."
+        )
+
     in_path = write_upload_to_temp(file, prefix="pdf2word_in_")
     try:
-        # soffice --headless --convert-to docx --outdir <dir> <file>
+        # Define the command for conversion
+        cmd = [SOFFICE_EXEC, "--headless", "--convert-to", "docx", "--outdir", TMP_DIR, in_path]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             raise HTTPException(status_code=500, detail=f"Conversion failed: {result.stderr}")
-        # find docx
+
+        # Locate generated DOCX
         base = Path(file.filename).stem
         generated = os.path.join(TMP_DIR, f"{base}.docx")
         if not os.path.exists(generated):
@@ -489,14 +501,15 @@ async def pdf_to_word(file: UploadFile = File(...)):
             if not docs:
                 raise HTTPException(status_code=500, detail="Conversion failed (no output DOCX)")
             generated = max(docs, key=os.path.getctime)
+
         out_name = f"pdf2word_{int(time.time()*1000)}.docx"
         shutil.move(generated, os.path.join(UPLOAD_DIR, out_name))
         return {"message": "PDF -> Word", "download_url": f"/api/files/{out_name}"}
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=500, detail=f"Conversion failed: {e}")
+
     finally:
         try:
             if os.path.exists(in_path):
                 os.remove(in_path)
         except Exception:
             pass
+
