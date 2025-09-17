@@ -138,42 +138,59 @@ QPDF_EXEC = find_executable(["qpdf"])
 
 # ---------- PDF compression (preview + compress) ----------
 # Uses Ghostscript if available for good presets, else falls back to pikepdf if installed.
-GS_SETTINGS = {"strong": "/screen", "medium": "/ebook", "light": "/printer"}
+
+GS_SETTINGS = {
+    "strong": "/ebook",   # instead of /screen, safer for colors
+    "medium": "/ebook",
+    "light": "/printer"
+}
 
 def _gs_compress(input_path: str, output_path: str, pdfsetting: str):
     if GS_EXEC is None:
         raise RuntimeError("Ghostscript not available")
-    cmd = [GS_EXEC, "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.4",
-           f"-dPDFSETTINGS={pdfsetting}", "-dNOPAUSE", "-dQUIET", "-dBATCH",
-           f"-sOutputFile={output_path}", input_path]
+    cmd = [
+        GS_EXEC, "-sDEVICE=pdfwrite",
+        "-dCompatibilityLevel=1.4",
+        f"-dPDFSETTINGS={pdfsetting}",
+        "-dColorImageDownsampleType=/Bicubic",
+        "-dColorImageResolution=150",
+        "-dGrayImageDownsampleType=/Bicubic",
+        "-dGrayImageResolution=150",
+        "-dMonoImageDownsampleType=/Subsample",
+        "-dMonoImageResolution=300",
+        "-dNOPAUSE", "-dQUIET", "-dBATCH",
+        f"-sOutputFile={output_path}", input_path
+    ]
     subprocess.check_call(cmd)
 
 def _pikepdf_compress(input_path: str, output_path: str, level: str):
     try:
         import pikepdf
-    except Exception as e:
-        raise RuntimeError("pikepdf not available") from e
+    except ImportError:
+        raise RuntimeError("pikepdf not available")
     pdf = pikepdf.Pdf.open(input_path)
-    pdf.save(output_path, optimize_streams=True)
+    pdf.save(output_path, optimize_streams=True, compression=pikepdf.CompressionLevel.medium)
     pdf.close()
 
 @router.post("/pdf/compress-preview")
 async def pdf_compress_preview(file: UploadFile = File(...)):
-    # Strict validation
     if not (file.filename or "").lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF allowed for compression preview")
+
     in_path = write_upload_to_temp(file, prefix="preview_in_")
     results = {}
     try:
         for level, gs_setting in GS_SETTINGS.items():
-            out_tmp = None   # <-- added fix
+            out_tmp = None
             try:
                 fd, out_tmp = tempfile.mkstemp(prefix=f"preview_{level}_", suffix=".pdf", dir=TMP_DIR)
                 os.close(fd)
+
                 if GS_EXEC:
                     _gs_compress(in_path, out_tmp, gs_setting)
                 else:
                     _pikepdf_compress(in_path, out_tmp, level)
+
                 size = os.path.getsize(out_tmp)
                 results[level] = {"size_bytes": size, "size_readable": human_readable_size(size)}
             except Exception as e:
@@ -186,10 +203,13 @@ async def pdf_compress_preview(file: UploadFile = File(...)):
                     pass
     finally:
         try:
-            os.remove(in_path)
+            if os.path.exists(in_path):
+                os.remove(in_path)
         except Exception:
             pass
+
     return {"results": results}
+
 
 @router.post("/pdf/compress")
 async def pdf_compress(file: UploadFile = File(...), level: str = Form("medium")):
@@ -207,17 +227,23 @@ async def pdf_compress(file: UploadFile = File(...), level: str = Form("medium")
             _gs_compress(in_path, out_tmp, GS_SETTINGS[level])
         else:
             _pikepdf_compress(in_path, out_tmp, level)
+
         size_before = os.path.getsize(in_path)
         size_after = os.path.getsize(out_tmp)
         orig_name = Path(file.filename).stem if file.filename else "document"
         out_name = f"{orig_name}_compressed_{level}.pdf"
-        # Move to uploads and return public path
         final_name = unique_filename(out_name)
         shutil.move(out_tmp, os.path.join(UPLOAD_DIR, final_name))
-        return {"message": "Compressed", "download_url": f"/api/files/{final_name}",
-                "size_before": size_before, "size_after": size_after,
-                "size_before_readable": human_readable_size(size_before),
-                "size_after_readable": human_readable_size(size_after)}
+
+        return {
+            "message": "Compressed",
+            "download_url": f"/api/files/{final_name}",
+            "size_before": size_before,
+            "size_after": size_after,
+            "size_before_readable": human_readable_size(size_before),
+            "size_after_readable": human_readable_size(size_after)
+        }
+
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail=f"Compression failed: {e}")
     finally:
