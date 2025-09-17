@@ -1,4 +1,3 @@
-// frontend/src/components/Features.jsx
 import React from "react";
 import { Link } from "react-router-dom";
 import {
@@ -13,66 +12,15 @@ import {
 } from "lucide-react";
 
 const features = [
-  {
-    title: "PDF to Excel",
-    description: "Convert PDF documents into editable Excel spreadsheets.",
-    icon: FileSpreadsheet,
-    link: "/tools/pdf-to-excel",
-  },
-  {
-    title: "Excel to PDF",
-    description: "Turn your Excel spreadsheets into PDF documents easily.",
-    icon: FileType,
-    link: "/tools/excel-to-pdf",
-  },
-  {
-    title: "Excel to CSV",
-    description: "Export Excel files to CSV for easier data handling.",
-    icon: FileDown,
-    link: "/tools/excel-to-csv",
-  },
-  {
-    title: "CSV to Excel",
-    description: "Convert CSV files into Excel spreadsheets in seconds.",
-    icon: FileUp,
-    link: "/tools/csv-to-excel",
-  },
-  {
-    title: "PDF to CSV",
-    description: "Extract tables from PDF files into clean CSV format.",
-    icon: FileInput,
-    link: "/tools/pdf-to-csv",
-  },
-  {
-    title: "CSV to PDF",
-    description: "Convert CSV data into a neatly formatted PDF.",
-    icon: FileText,
-    link: "/tools/csv-to-pdf",
-  },
-  {
-    title: "Merge PDF",
-    description: "Combine multiple PDFs into one seamless document.",
-    icon: FilePlus,
-    link: "/tools/merge",
-  },
-  {
-    title: "Compress File",
-    description: "Reduce the size of PDF, Excel, or CSV files.",
-    icon: FileArchive,
-    link: "/tools/compress",
-  },
-  {
-    title: "Word to PDF",
-    description: "Convert DOC/DOCX files into high-quality PDFs.",
-    icon: FileText,
-    link: "/tools/word-to-pdf",
-  },
-  {
-    title: "PDF to Word",
-    description: "Turn your PDF files into editable Word documents.",
-    icon: FileText,
-    link: "/tools/pdf-to-word",
-  },
+  { title: "PDF → Excel", description: "Convert PDF to Excel.", icon: FileSpreadsheet, link: "/tools/pdf-to-excel" },
+  { title: "Merge PDF", description: "Combine multiple PDFs.", icon: FilePlus, link: "/tools/merge" },
+  { title: "Compress File", description: "Reduce PDF/Excel/CSV size.", icon: FileArchive, link: "/tools/compress" },
+  { title: "CSV → Excel", description: "Convert CSV to Excel.", icon: FileUp, link: "/tools/csv-to-excel" },
+  { title: "Excel → CSV", description: "Export Excel to CSV.", icon: FileDown, link: "/tools/excel-to-csv" },
+  { title: "CSV → PDF", description: "Convert CSV into PDF.", icon: FileText, link: "/tools/csv-to-pdf" },
+  { title: "Excel → PDF", description: "Turn Excel into PDF.", icon: FileType, link: "/tools/excel-to-pdf" },
+  { title: "PDF → CSV", description: "Extract tables from PDF into CSV.", icon: FileInput, link: "/tools/pdf-to-csv" },
+  { title: "PDF → Excel (alt)", description: "Alternative conversion route (if needed).", icon: FileSpreadsheet, link: "/tools/pdf-to-excel" },
 ];
 
 export default function Features() {
