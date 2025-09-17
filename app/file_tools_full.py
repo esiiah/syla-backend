@@ -461,11 +461,14 @@ async def pdf_to_excel(file: UploadFile = File(...)):
         except Exception:
             pass
 
-# 6) Word -> PDF and PDF -> Word (replacing LibreOffice with docx2pdf & pdf2docx)
+# 6) Word -> PDF and PDF -> Word (docx2pdf & pdf2docx)
 @router.post("/convert/word-to-pdf")
 async def word_to_pdf(file: UploadFile = File(...)):
+    # Accept only DOC/DOCX
     if not (file.filename or "").lower().endswith((".doc", ".docx")):
         raise HTTPException(status_code=400, detail="Only DOC/DOCX allowed for Word->PDF")
+
+    # Check docx2pdf availability
     try:
         from docx2pdf import convert
     except ImportError:
@@ -473,24 +476,28 @@ async def word_to_pdf(file: UploadFile = File(...)):
 
     in_path = write_upload_to_temp(file, prefix="word2pdf_in_")
     try:
-        base_name = Path(file.filename).stem
         out_name = f"word2pdf_{int(time.time() * 1000)}.pdf"
         out_path = os.path.join(UPLOAD_DIR, out_name)
 
-        # docx2pdf converts to same folder if output not specified
-        convert(in_path, out_path)
+        # Run conversion safely
+        try:
+            convert(in_path, out_path)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
 
+        # Ensure output exists
         if not os.path.exists(out_path):
             raise HTTPException(status_code=500, detail="Conversion failed: output PDF not found")
 
         return {"message": "Word -> PDF", "download_url": f"/api/files/{out_name}"}
+
     finally:
+        # Always remove temp file
         try:
             if os.path.exists(in_path):
                 os.remove(in_path)
         except Exception:
             pass
-
 
 @router.post("/convert/pdf-to-word")
 async def pdf_to_word(file: UploadFile = File(...)):
