@@ -1,4 +1,3 @@
-# main.py
 import io
 import csv
 import logging
@@ -16,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
 from .utils import clean_dataframe, detect_column_types, summarize_numeric
-from .file_tools_full import router as file_tools_full_router, UPLOAD_DIR
+from . import file_tools_full   # import full module, not just router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("syla-backend")
@@ -31,12 +30,6 @@ app.add_middleware(
     allow_credentials=False,
 )
 
-# 🔗 include your router
-app.include_router(file_tools_full_router)
-
-# Mount uploaded files directory so download_url /api/files/<name> works
-app.mount("/api/files", StaticFiles(directory=UPLOAD_DIR), name="files")
-
 # ---- File handling setup ----
 ALLOWED_EXTS = (
     ".csv", ".tsv", ".xls", ".xlsx",  # tabular
@@ -48,6 +41,12 @@ BASE_DIR = os.path.dirname(__file__)
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# 👉 unify upload dir with file_tools_full
+file_tools_full.UPLOAD_DIR = UPLOAD_DIR
+app.include_router(file_tools_full.router)
+
+# Mount uploaded files directory so download_url /api/files/<name> works
+app.mount("/api/files", StaticFiles(directory=UPLOAD_DIR), name="files")
 
 def sanitize_filename(name: str) -> str:
     base = os.path.basename(name or "uploaded_file")
@@ -55,17 +54,14 @@ def sanitize_filename(name: str) -> str:
     base = re.sub(r"[^A-Za-z0-9._-]", "_", base)
     return base
 
-
 def unique_filename(name: str) -> str:
     safe = sanitize_filename(name)
     ts = int(time.time() * 1000)
     return f"{ts}_{safe}"
 
-
 @app.get("/api/health")
 def health_check():
     return {"message": "Backend is running 🚀"}
-
 
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
@@ -101,7 +97,7 @@ async def upload_file(file: UploadFile = File(...)):
             if df is None or df.empty:
                 raise HTTPException(status_code=400, detail="No data found in the file")
 
-            # --- normalize columns ---
+            # normalize columns
             def make_unique_columns(cols: List[str]) -> List[str]:
                 out, counts = [], {}
                 for c in cols:
@@ -125,7 +121,6 @@ async def upload_file(file: UploadFile = File(...)):
             df.columns = make_unique_columns(df.columns)
             df = df.reset_index(drop=True)
 
-            # collapse lists/arrays in cells
             def _collapse_cell(v):
                 if isinstance(v, (list, tuple, set)):
                     return " | ".join(map(str, v))
@@ -134,10 +129,8 @@ async def upload_file(file: UploadFile = File(...)):
                 return v
 
             df = df.applymap(_collapse_cell)
-
             df_clean = clean_dataframe(df)
 
-            # convert datetimes to str
             for col in df_clean.select_dtypes(include=["datetime64[ns]", "datetime64[ns, UTC]"]).columns:
                 df_clean[col] = df_clean[col].astype(str)
 
@@ -154,48 +147,43 @@ async def upload_file(file: UploadFile = File(...)):
                 else:
                     y_axis = numeric_cols[0]
 
-            # save cleaned csv
             saved_name = unique_filename(f"cleaned_{filename}.csv")
             with open(os.path.join(UPLOAD_DIR, saved_name), "wb") as fh:
                 fh.write(df_clean.to_csv(index=False).encode("utf-8"))
 
-            return JSONResponse(
-                content={
-                    "filename": filename,
-                    "rows": len(df_clean),
-                    "columns": list(df_clean.columns),
-                    "types": column_types,
-                    "summary": summary,
-                    "data": data_records,
-                    "chart_title": filename,
-                    "x_axis": x_axis,
-                    "y_axis": y_axis,
-                    "download_url": f"/api/files/{saved_name}",
-                }
-            )
+            return JSONResponse(content={
+                "filename": filename,
+                "rows": len(df_clean),
+                "columns": list(df_clean.columns),
+                "types": column_types,
+                "summary": summary,
+                "data": data_records,
+                "chart_title": filename,
+                "x_axis": x_axis,
+                "y_axis": y_axis,
+                "download_url": f"/api/files/{saved_name}",
+            })
 
-        # --- Non-tabular: just save and return meta ---
+        # --- Non-tabular ---
         else:
             saved_name = unique_filename(filename)
             saved_path = os.path.join(UPLOAD_DIR, saved_name)
             with open(saved_path, "wb") as fh:
                 fh.write(raw)
 
-            return JSONResponse(
-                content={
-                    "filename": filename,
-                    "rows": 0,
-                    "columns": [],
-                    "types": {},
-                    "summary": {},
-                    "data": [],
-                    "chart_title": filename,
-                    "x_axis": "",
-                    "y_axis": "",
-                    "download_url": f"/api/files/{saved_name}",
-                    "size": os.path.getsize(saved_path),
-                }
-            )
+            return JSONResponse(content={
+                "filename": filename,
+                "rows": 0,
+                "columns": [],
+                "types": {},
+                "summary": {},
+                "data": [],
+                "chart_title": filename,
+                "x_axis": "",
+                "y_axis": "",
+                "download_url": f"/api/files/{saved_name}",
+                "size": os.path.getsize(saved_path),
+            })
 
     except HTTPException:
         raise
@@ -208,7 +196,6 @@ async def upload_file(file: UploadFile = File(...)):
         except Exception:
             pass
 
-
 @app.get("/api/files/{saved_filename}")
 async def serve_uploaded_file(saved_filename: str):
     if "/" in saved_filename or "\\" in saved_filename:
@@ -220,8 +207,7 @@ async def serve_uploaded_file(saved_filename: str):
     return FileResponse(path, media_type=mime_type or "application/octet-stream",
                         filename=os.path.basename(path))
 
-
-# ---- Frontend serving (exactly like your working one) ----
+# ---- Frontend serving ----
 frontend_dist_path = os.path.join(os.path.dirname(__file__), "dist")
 if os.path.isdir(frontend_dist_path):
     app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="frontend")
