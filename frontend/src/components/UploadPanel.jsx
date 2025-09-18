@@ -5,33 +5,22 @@ import React, { useRef } from "react";
  * UploadPanel
  *
  * Props:
- *  - title: string (e.g., "Upload Data" or "Upload File")
- *  - hint: subtext
  *  - accept: file accept string
  *  - multiple: bool
  *  - files: array (File objects or uploaded file objects)
  *  - setFiles(filesArray)
- *  - onChooseClick() optional
  *  - onDrop handler optional
  *  - viewMode, setViewMode (grid/details/list)
- *  - onUploadClick -> primary button handler (Upload & Process / Convert / Merge text is controlled by caller)
- *  - primaryLabel -> text of the main action button
  */
-export default function UploadPanel(props) {
-  const {
-    title = "Upload",
-    hint = "",
-    accept = "*/*",
-    multiple = false,
-    files = [],
-    setFiles = () => {},
-    onDrop = null,
-    viewMode = "grid",
-    setViewMode = () => {},
-    onUploadClick = () => {},
-    primaryLabel = "Upload & Process"
-  } = props;
-
+export default function UploadPanel({
+  accept = "*/*",
+  multiple = false,
+  files = [],
+  setFiles = () => {},
+  onDrop = null,
+  viewMode = "grid",
+  setViewMode = () => {}
+}) {
   const inputRef = useRef(null);
 
   const handleSelect = (e) => {
@@ -47,18 +36,19 @@ export default function UploadPanel(props) {
   };
 
   return (
-    <section className="rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 neon-border p-5">
-      <h3 className="font-display text-lg mb-1">{title}</h3>
-      {hint && <p className="text-sm text-gray-500 mb-4">{hint}</p>}
-
+    <section className="max-w-xl mx-auto rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 neon-border p-6">
       <div
         onDrop={handleDragDrop}
         onDragOver={(e) => e.preventDefault()}
         className="rounded-xl p-6 text-center transition bg-white border dark:bg-ink/80 neon-border"
         style={{ boxShadow: "0 6px 14px rgba(20,24,40,0.05)" }}
       >
-        <p className="mb-2 font-medium text-gray-700 dark:text-slate-300">Drag & drop your file here</p>
-        <p className="text-xs mb-4 text-gray-500 dark:text-slate-400">Accepted: {accept}</p>
+        <p className="mb-2 font-medium text-gray-700 dark:text-slate-300">
+          Drag & drop your file here
+        </p>
+        <p className="text-xs mb-4 text-gray-500 dark:text-slate-400">
+          Accepted: {accept}
+        </p>
 
         <div className="flex items-center justify-center gap-3">
           <button
@@ -68,11 +58,23 @@ export default function UploadPanel(props) {
           >
             Choose File
           </button>
-          <input ref={inputRef} type="file" accept={accept} multiple={multiple} onChange={handleSelect} className="hidden" />
+          <input
+            ref={inputRef}
+            type="file"
+            accept={accept}
+            multiple={multiple}
+            onChange={handleSelect}
+            className="hidden"
+          />
 
           <div className="text-xs text-gray-700 dark:text-slate-300 truncate max-w-[220px]">
             {files && files.length > 0 ? (
-              <>Selected: <span className="text-neonYellow">{files.map(f => f.name || f.filename).join(", ")}</span></>
+              <>
+                Selected:{" "}
+                <span className="text-neonYellow">
+                  {files.map((f) => f.name || f.filename).join(", ")}
+                </span>
+              </>
             ) : (
               <span>No file chosen</span>
             )}
@@ -80,16 +82,31 @@ export default function UploadPanel(props) {
         </div>
 
         <div className="mt-4 flex items-center justify-center gap-2">
-          <button onClick={() => setViewMode("grid")} className={`px-3 py-1 rounded ${viewMode==="grid" ? "bg-gray-100" : ""}`}>Grid</button>
-          <button onClick={() => setViewMode("details")} className={`px-3 py-1 rounded ${viewMode==="details" ? "bg-gray-100" : ""}`}>Details</button>
-          <button onClick={() => setViewMode("list")} className={`px-3 py-1 rounded ${viewMode==="list" ? "bg-gray-100" : ""}`}>List</button>
+          <button
+            onClick={() => setViewMode("grid")}
+            className={`px-3 py-1 rounded ${
+              viewMode === "grid" ? "bg-gray-100" : ""
+            }`}
+          >
+            Grid
+          </button>
+          <button
+            onClick={() => setViewMode("details")}
+            className={`px-3 py-1 rounded ${
+              viewMode === "details" ? "bg-gray-100" : ""
+            }`}
+          >
+            Details
+          </button>
+          <button
+            onClick={() => setViewMode("list")}
+            className={`px-3 py-1 rounded ${
+              viewMode === "list" ? "bg-gray-100" : ""
+            }`}
+          >
+            List
+          </button>
         </div>
-      </div>
-
-      <div className="mt-4">
-        <button onClick={onUploadClick} className="w-full px-4 py-3 rounded-2xl bg-neonBlue text-white shadow-neon transition font-medium">
-          {primaryLabel}
-        </button>
       </div>
     </section>
   );
