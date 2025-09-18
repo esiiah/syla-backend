@@ -10,9 +10,44 @@ import ChartOptions from "./components/ChartOptions.jsx";
 import { Settings } from "lucide-react";
 import "./App.css";
 
+// NEW: Login required modal component
+const LoginRequiredModal = ({ onClose, onSignup, onLogin }) => (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="bg-white dark:bg-ink rounded-2xl p-6 max-w-md w-full border-2 border-neonBlue/20 shadow-xl">
+      <h2 className="text-xl font-display font-bold text-gray-800 dark:text-slate-200 mb-3">
+        Sign In Required
+      </h2>
+      <p className="text-gray-600 dark:text-slate-400 mb-6">
+        You need to create an account or sign in to use the visualization features.
+      </p>
+      <div className="flex gap-3">
+        <button
+          onClick={onSignup}
+          className="flex-1 px-4 py-2 bg-neonBlue text-white rounded-lg hover:bg-blue-600 font-medium"
+        >
+          Sign Up
+        </button>
+        <button
+          onClick={onLogin}
+          className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 dark:border-white/20 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          Log In
+        </button>
+      </div>
+      <button
+        onClick={onClose}
+        className="mt-3 w-full text-sm text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
+      >
+        Cancel
+      </button>
+    </div>
+  </div>
+);
+
 function App() {
   // User state (null = not logged in)
   const [user, setUser] = useState(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const [data, setData] = useState([]);            // array of objects (CSV rows)
   const [columns, setColumns] = useState([]);      // array of column names
@@ -40,6 +75,22 @@ function App() {
 
   const [showOptions, setShowOptions] = useState(false);
 
+  // Load user on mount
+  useEffect(() => {
+    const savedUser = localStorage.getItem("user");
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+      }
+    }
+    
+    const savedTheme = localStorage.getItem("theme") || "light";
+    setTheme(savedTheme);
+  }, []);
+
   // Apply theme to body
   useEffect(() => {
     if (typeof window !== "undefined" && document && document.body) {
@@ -47,6 +98,17 @@ function App() {
       document.body.classList.add(theme === "light" ? "light" : "dark");
     }
   }, [theme]);
+
+  const handleVisualizationUpload = (uploadData) => {
+    // Check if user is logged in before processing visual data
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+    
+    // Process the upload normally if user is logged in
+    setData(uploadData);
+  };
   
   return (
     <div className="flex min-h-screen overflow-x-hidden relative">
@@ -54,22 +116,50 @@ function App() {
       <div className="flex-1 transition-all duration-300">
 
         {/* Navbar */}
-        {user ? (
-          <Navbar user={user} />   // post-login navbar with profile
-        ) : (
-          <Navbar />               // pre-login navbar
-        )}
+        <Navbar user={user} />
 
         {/* Main Content */}
         <main className="mx-auto max-w-7xl px-4 pb-16 pt-8">
-          <header className="mb-8">
-            <h1 className="font-display text-2xl md:text-3xl tracking-wide">
-              Upload. Clean. <span className="text-neonYellow">Visualize.</span>
-            </h1>
-            <p className="text-gray-600 mt-2 max-w-2xl dark:text-slate-300">
-              A next-gen analytics studio. Drop your files, explore instant insights, and export visuals — all in an AI-tech, cyberpunk inspired interface.
-            </p>
-          </header>
+          
+          {/* Dashboard Greeting Section */}
+          <div className="mb-8 relative">
+            {/* Background gradient */}
+            <div className="absolute inset-0 bg-gradient-to-b from-blue-100 via-blue-50 to-white dark:from-blue-900/20 dark:via-blue-800/10 dark:to-transparent rounded-2xl -z-10"></div>
+            
+            {/* Content */}
+            <div className="text-center py-12 px-6">
+              {user ? (
+                <>
+                  <h1 className="font-display text-4xl md:text-5xl tracking-wide mb-4 text-gray-800 dark:text-slate-200">
+                    Hi, <span className="text-neonBlue">{user.name}</span>. Welcome Back!
+                  </h1>
+                  <p className="text-lg text-gray-600 dark:text-slate-300 max-w-3xl mx-auto">
+                    Ready to dive into your data? Upload files for cleaning and visualization, or use our powerful file conversion tools.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h1 className="font-display text-4xl md:text-5xl tracking-wide mb-6 text-gray-800 dark:text-slate-200">
+                    Welcome! Here I can help you with <br />
+                    <span className="text-neonBlue">Cleaning</span>, 
+                    <span className="text-neonYellow"> Visualization</span>, and 
+                    <span className="text-green-500"> Conversion</span>.
+                  </h1>
+                  <p className="text-xl text-gray-600 dark:text-slate-300 mb-8 max-w-4xl mx-auto">
+                    What do you wanna do today?
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <a href="/signup" className="px-8 py-3 bg-neonBlue text-white rounded-xl font-semibold hover:bg-blue-600 shadow-lg hover:shadow-neon transition-all duration-300">
+                      Get Started - Sign Up
+                    </a>
+                    <a href="/login" className="px-8 py-3 border-2 border-neonBlue text-neonBlue rounded-xl font-semibold hover:bg-neonBlue hover:text-white transition-all duration-300">
+                      Already have account? Log In
+                    </a>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Upload Panel */}
@@ -80,7 +170,13 @@ function App() {
                   CSV / Excel only. Preview & progress included.
                 </p>
                 <FileUpload
-                  onData={(d) => { setData(d); }}
+                  onData={(d) => { 
+                    if (!user) {
+                      setShowLoginModal(true);
+                      return;
+                    }
+                    setData(d); 
+                  }}
                   onColumns={(cols) => { setColumns(cols); }}
                   onTypes={(t) => setTypes(t)}
                   onSummary={(s) => setSummary(s)}
@@ -107,8 +203,8 @@ function App() {
                   </div>
                 )}
 
-                {/* Only show actual chart when data exists */}
-                {data && data.length > 0 ? (
+                {/* Only show actual chart when data exists and user is logged in */}
+                {user && data && data.length > 0 ? (
                   <ChartView
                     data={data}
                     columns={columns}
@@ -120,10 +216,23 @@ function App() {
                     setXAxis={setXAxis}
                     setYAxis={setYAxis}
                   />
+                ) : !user ? (
+                  <div className="rounded-2xl p-8 bg-gray-50 dark:bg-black/20 text-center text-gray-500">
+                    <div className="text-lg font-medium mb-2">Sign in to visualize</div>
+                    <div className="text-sm">Create an account or sign in to unlock visualization features.</div>
+                    <div className="mt-4">
+                      <button 
+                        onClick={() => setShowLoginModal(true)}
+                        className="px-6 py-2 bg-neonBlue text-white rounded-lg hover:bg-blue-600 transition-colors duration-200"
+                      >
+                        Sign In
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="rounded-2xl p-8 bg-gray-50 dark:bg-black/20 text-center text-gray-500">
-                    <div className="text-lg font-medium">Upload to visualise</div>
-                    <div className="text-sm mt-2">Upload a CSV / Excel file on the left to enable the visualisation tools.</div>
+                    <div className="text-lg font-medium">Upload to visualize</div>
+                    <div className="text-sm mt-2">Upload a CSV / Excel file on the left to enable the visualization tools.</div>
                   </div>
                 )}
               </div>
@@ -131,7 +240,7 @@ function App() {
           </div>
 
           {/* Summary Panel */}
-          {Object.keys(summary).length > 0 && (
+          {Object.keys(summary).length > 0 && user && (
             <section className="mt-6 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
               <div className="p-5">
                 <h2 className="font-display text-lg mb-4">Summary</h2>
@@ -179,6 +288,15 @@ function App() {
 
         <Footer />
       </div>
+
+      {/* Login Required Modal */}
+      {showLoginModal && (
+        <LoginRequiredModal
+          onClose={() => setShowLoginModal(false)}
+          onSignup={() => window.location.href = "/signup"}
+          onLogin={() => window.location.href = "/login"}
+        />
+      )}
     </div>
   );
 }
