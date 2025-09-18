@@ -461,44 +461,46 @@ async def pdf_to_excel(file: UploadFile = File(...)):
         except Exception:
             pass
 
-# 6) Word -> PDF and PDF -> Word (docx2pdf & pdf2docx)
-@router.post("/convert/word-to-pdf")
-async def word_to_pdf(file: UploadFile = File(...)):
-    # Accept only DOC/DOCX
-    if not (file.filename or "").lower().endswith((".doc", ".docx")):
-        raise HTTPException(status_code=400, detail="Only DOC/DOCX allowed for Word->PDF")
-
-    # Check docx2pdf availability
+# 6) Excel -> PDF
+@router.post("/convert/excel-to-pdf")
+async def excel_to_pdf(file: UploadFile = File(...)):
+    ext = (file.filename or "").lower()
+    if not (ext.endswith(".xls") or ext.endswith(".xlsx")):
+        raise HTTPException(status_code=400, detail="Only .xls/.xlsx allowed for Excel->PDF")
     try:
-        from docx2pdf import convert
-    except ImportError:
-        raise HTTPException(status_code=500, detail="docx2pdf required: pip install docx2pdf")
+        import pandas as pd
+        from reportlab.lib.pagesizes import letter
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+        from reportlab.lib import colors
+    except Exception:
+        raise HTTPException(status_code=500, detail="pandas & reportlab required: pip install pandas reportlab openpyxl")
 
-    in_path = write_upload_to_temp(file, prefix="word2pdf_in_")
+    in_path = write_upload_to_temp(file, prefix="xls2pdf_in_")
     try:
-        out_name = f"word2pdf_{int(time.time() * 1000)}.pdf"
+        df = pd.read_excel(in_path)
+        data = [df.columns.tolist()] + df.values.tolist()
+
+        out_name = f"excel_print_{int(time.time()*1000)}.pdf"
         out_path = os.path.join(UPLOAD_DIR, out_name)
 
-        # Run conversion safely
-        try:
-            convert(in_path, out_path)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
+        doc = SimpleDocTemplate(out_path, pagesize=letter)
+        table = Table(data, repeatRows=1)
+        table.setStyle(TableStyle([
+            ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+            ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ]))
+        doc.build([table])
 
-        # Ensure output exists
-        if not os.path.exists(out_path):
-            raise HTTPException(status_code=500, detail="Conversion failed: output PDF not found")
-
-        return {"message": "Word -> PDF", "download_url": f"/api/files/{out_name}"}
-
+        return {"message": "Excel -> PDF", "download_url": f"/api/files/{out_name}"}
     finally:
-        # Always remove temp file
         try:
             if os.path.exists(in_path):
                 os.remove(in_path)
         except Exception:
             pass
 
+# 7) pdf -> word
 @router.post("/convert/pdf-to-word")
 async def pdf_to_word(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".pdf"):
