@@ -20,15 +20,12 @@ function Navbar({ user }) {
           </div>
         </div>
 
-        {/* Links */}
-        <div className="hidden md:flex items-center gap-6">
-          <a href="#" className="text-gray-700 hover:text-neonYellow dark:text-slate-300 dark:hover:text-neonYellow">Docs</a>
-          <a href="#" className="text-gray-700 hover:text-neonYellow dark:text-slate-300 dark:hover:text-neonYellow">Templates</a>
-          <a href="#" className="text-gray-700 hover:text-neonYellow dark:text-slate-300 dark:hover:text-neonYellow">Pricing</a>
-        </div>
-
-        {/* Right Side */}
+        {/* Right Side - moved pricing here */}
         <div className="flex items-center gap-3">
+          <a href="#" className="text-gray-700 hover:text-neonYellow dark:text-slate-300 dark:hover:text-neonYellow hidden md:block">
+            Pricing
+          </a>
+          
           {!user ? (
             <>
               <Link
