@@ -15,12 +15,11 @@ import {
 } from "lucide-react";
 
 function Sidebar({ onReportChange, theme, setTheme }) {
-  // hidden by default
   const [collapsed, setCollapsed] = useState(true);
   const [reportType, setReportType] = useState("Bar");
   const [toolsOpen, setToolsOpen] = useState(false);
 
-  // Updated tool ordering — removed Word/PDF entries
+  // Updated tool ordering
   const tools = [
     { title: "PDF → Word", path: "/tools/pdf-to-word", icon: FileText },
     { title: "PDF → Excel", path: "/tools/pdf-to-excel", icon: FileSpreadsheet },
@@ -88,6 +87,7 @@ function Sidebar({ onReportChange, theme, setTheme }) {
           )}
         </div>
 
+        {/* File Tools Section */}
         <div className="mt-3 px-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -113,6 +113,7 @@ function Sidebar({ onReportChange, theme, setTheme }) {
           )}
         </div>
 
+        {/* Settings + Help */}
         <div className="mt-4 px-3">
           <div className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 group">
             <Settings className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300" />
@@ -125,8 +126,9 @@ function Sidebar({ onReportChange, theme, setTheme }) {
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Footer buttons */}
       <div className="px-3 py-4 border-t border-gray-200 dark:border-white/10 space-y-2">
+        {/* Theme toggle */}
         <button
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           className="w-full flex items-center justify-center px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm text-gray-800 dark:bg-black/40 dark:hover:bg-white/5 dark:text-slate-200 transition"
@@ -144,14 +146,22 @@ function Sidebar({ onReportChange, theme, setTheme }) {
           )}
         </button>
 
-        <button className="w-full flex items-center justify-center px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm text-gray-800 dark:bg-black/40 dark:hover:bg-white/5 dark:text-slate-200 transition">
+        {/* Login / Signup */}
+        <Link
+          to="/login"
+          className="w-full flex items-center justify-center px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm text-gray-800 dark:bg-black/40 dark:hover:bg-white/5 dark:text-slate-200 transition"
+        >
           <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24"><path d="M12 12m-10 0a10 10 0 1 0 20 0a10 10 0 1 0 -20 0"/></svg>
           {!collapsed && "Log in"}
-        </button>
-        <button className="w-full flex items-center justify-center px-3 py-2 rounded-lg bg-neonBlue text-white shadow-neon hover:animate-glow text-sm transition">
+        </Link>
+
+        <Link
+          to="/signup"
+          className="w-full flex items-center justify-center px-3 py-2 rounded-lg bg-neonBlue text-white shadow-neon hover:animate-glow text-sm transition"
+        >
           <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24"><path d="M12 2v20"/></svg>
           {!collapsed && "Sign up"}
-        </button>
+        </Link>
       </div>
     </aside>
   );
