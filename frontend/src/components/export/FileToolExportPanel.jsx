@@ -7,6 +7,86 @@ export default function FileToolExportPanel({
   onDownload, 
   error = "",
   loading = false,
+  showPanel = false, // Only show when file is selected
+  conversionComplete = false, // Show success message
+  fileName = "",
+  toolType = "convert", // "convert", "compress", "merge"
+  compressionLevel = "medium", // for compress tool
+  onCompressionLevelChange = () => {} // for compress tool
+}) {
+  
+  // Don't render panel if not needed
+  if (!showPanel) return null;
+
+  const handleDownload = () => {
+    if (typeof onDownload === "function") return onDownload();
+    if (downloadUrl) window.open(downloadUrl, "_blank");
+  };
+
+  const handleUpload = () => {
+    if (typeof onUpload === "function") onUpload();
+  };
+
+  // Dynamic button text based on tool type
+  const getUploadButtonText = () => {
+    if (loading) {
+      if (toolType === "compress") return "Compressing...";
+      if (toolType === "merge") return "Merging...";
+      return "Processing...";
+    }
+    
+    if (toolType === "compress") return "Compress PDF";
+    if (toolType === "merge") return "Merge PDFs";
+    return "Convert";
+  };
+
+  const getProcessingTitle = () => {
+    if (toolType === "compress") return "PDF Compression";
+    if (toolType === "merge") return "PDF Merging";
+    return "File Processing";
+  };
+
+  return (
+    <div style={{ position: "fixed", right: 20, top: "35%", width: 300, zIndex: 80 }}>
+      <div className="p-5 rounded-xl bg-white border-2 border-neonBlue/20 shadow-xl dark:bg-slate-800/95 dark:border-neonBlue/30 backdrop-blur-sm neon-border">
+        <div className="text-sm font-semibold mb-4 text-gray-800 dark:text-slate-200 flex items-center">
+          <svg className="w-4 h-4 mr-2 text-neonBlue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          {getProcessingTitle()}
+        </div>
+        
+        {/* Compression level selector - only for compress tool */}
+        {toolType === "compress" && !conversionComplete && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
+            <label className="block text-sm font-medium text-blue-700 dark:text-blue-400 mb-2">
+              Compression Level
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: "light", label: "Light", desc: "~25%" },
+                { value: "medium", label: "Medium", desc: "~50%" },
+                { value: "strong", label: "Strong", desc: "~75%" }
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => onCompressionLevelChange(option.value)}
+                  className={`p-2 text-xs rounded border transition-all duration-200 ${
+                    compressionLevel === option.value
+                      ? "bg-neonBlue text-white border-neonBlue"
+                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-600"
+                  }`}
+                >
+                  <div className="font-medium">{option.label}</div>
+                  <div className="text-xs opacity-75">{option.desc}// frontend/src/components/export/FileToolExportPanel.jsx
+import React from "react";
+
+export default function FileToolExportPanel({ 
+  onUpload, 
+  downloadUrl = "", 
+  onDownload, 
+  error = "",
+  loading = false,
   uploadLabel = "Convert",
   showPanel = false, // Only show when file is selected
   conversionComplete = false, // Show success message
