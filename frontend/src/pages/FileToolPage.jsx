@@ -1,4 +1,4 @@
-a// frontend/src/pages/FileToolPage.jsx
+// frontend/src/pages/FileToolPage.jsx
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
