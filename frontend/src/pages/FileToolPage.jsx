@@ -6,6 +6,7 @@ import FileUpload from "../components/FileUpload";
 import FileList from "../components/FileList";
 import PdfMerge from "./PdfMerge";
 import GenericConvert from "./GenericConvert";
+import PdfCompress from "./PdfCompress";
 import ExportPanel from "../components/ExportPanel";
 
 export default function FileToolPage() {
