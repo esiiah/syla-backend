@@ -140,7 +140,7 @@ function App() {
               ) : (
                 <>
                   <h1 className="font-display text-4xl md:text-5xl tracking-wide mb-6 text-gray-800 dark:text-slate-200">
-                    Welcome! Here I can help you with <br />
+                    Welcome! I can help you with <br />
                     <span className="text-neonBlue">Cleaning</span>, 
                     <span className="text-neonYellow"> Visualization</span>, and 
                     <span className="text-green-500"> Conversion</span>.
