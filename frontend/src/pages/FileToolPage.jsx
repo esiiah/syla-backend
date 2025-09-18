@@ -1,3 +1,4 @@
+// frontend/src/pages/FileToolPage.jsx
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
@@ -5,9 +6,10 @@ import FileUpload from "../components/FileUpload";
 import FileList from "../components/FileList";
 import PdfMerge from "./PdfMerge";
 import GenericConvert from "./GenericConvert";
+import ExportPanel from "../components/ExportPanel";
 
 export default function FileToolPage() {
-  const { action } = useParams(); 
+  const { action } = useParams();
   const [searchParams] = useSearchParams();
   const [theme, setTheme] = useState("light");
   const [stashedFile, setStashedFile] = useState(null);
@@ -48,7 +50,6 @@ export default function FileToolPage() {
   const config = mapping[action] || null;
   const formattedAction = action ? action.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Tool";
 
-  // called by child when conversion completes and backend gives a download link
   const handleDownloadReady = (url) => {
     setDownloadUrl(url || "");
   };
@@ -59,10 +60,37 @@ export default function FileToolPage() {
       setError("No processed file available yet.");
       return;
     }
-    // for now all options (PNG, JPEG, JSON, CSV, Download) just open same link,
-    // you can extend with format-specific logic if backend supports it.
     window.open(downloadUrl, "_blank");
   };
+
+  // primary action for ExportPanel - this function dispatches depending on tool
+  const handlePrimaryAction = () => {
+    setError("");
+    // For merge/compress: if subcomponent provides onDownloadReady, we expect it to set downloadUrl
+    // So here we just attempt to trigger an action - for GenericConvert and PdfMerge they've already implemented their own buttons
+    // But if the page uses FileUpload (default view), call its upload endpoint by simulating click via DOM or better: provide a ref.
+    // For simplicity here, we show a message asking the user to use the page's button if no auto-action wired.
+    if (config?.component === "merge") {
+      // Merge page has its own Merge button; we rely on it.
+      alert("Use the Merge button in the main panel to start merging PDFs. The download link appears here when ready.");
+      return;
+    }
+    if (config?.component === "compress") {
+      alert("Use the Compress button in the main panel. The download link will appear here when ready.");
+      return;
+    }
+    if (config?.component === "convert") {
+      alert("Use the Convert button in the main panel. The download link will appear here when ready.");
+      return;
+    }
+    // fallback
+    alert("Use the primary control in the main panel to process the file. The download appears here.");
+  };
+
+  // Determine primary action label for panel
+  const primaryLabel = config
+    ? (config.component === "merge" ? "Merge" : config.component === "compress" ? "Compress" : "Convert")
+    : "Process";
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-slate-950">
@@ -113,43 +141,18 @@ export default function FileToolPage() {
           )}
         </div>
 
-        {/* Floating export panel */}
-        <div
-          style={{
-            position: "fixed",
-            right: "20px",
-            top: "35%",
-            width: "220px",
-            zIndex: 60,
+        {/* ExportPanel usage */}
+        <ExportPanel
+          mode="filetool"
+          actionLabel={primaryLabel}
+          onPrimaryAction={handlePrimaryAction}
+          downloadUrl={downloadUrl}
+          onDownload={() => {
+            if (!downloadUrl) return setError("No processed file available yet.");
+            window.open(downloadUrl, "_blank");
           }}
-        >
-          <div className="p-3 rounded-lg bg-white border border-gray-200 shadow-sm dark:bg-black/60 dark:border-white/10">
-            <div className="text-sm font-medium mb-2">Export</div>
-            <select
-              value={exportType}
-              onChange={(e) => setExportType(e.target.value)}
-              className="w-full px-3 py-2 rounded border text-sm mb-2"
-            >
-              <option value="">Choose export</option>
-              <option value="download">Download processed file</option>
-              <option value="png">PNG</option>
-              <option value="jpeg">JPEG</option>
-              <option value="json">JSON</option>
-              <option value="csv">CSV</option>
-            </select>
-            <button
-              onClick={confirmExport}
-              className="w-full px-3 py-2 rounded bg-neonBlue text-white text-sm"
-            >
-              Confirm
-            </button>
-            {error && (
-              <div className="mt-2 text-xs text-red-500">
-                {error}
-              </div>
-            )}
-          </div>
-        </div>
+          error={error}
+        />
       </div>
     </div>
   );
