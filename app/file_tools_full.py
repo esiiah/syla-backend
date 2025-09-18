@@ -137,11 +137,11 @@ SOFFICE_EXEC = find_executable(["soffice", "soffice.bin"])
 QPDF_EXEC = find_executable(["qpdf"])
 
 # ---------- PDF compression (preview + compress) ----------
-# Uses Ghostscript if available for good presets, else falls back to pikepdf if installed.
+# FIXED: Better error handling and fallback compression
 
 GS_SETTINGS = {
-    "strong": "/ebook",   # instead of /screen, safer for colors
-    "medium": "/ebook",
+    "strong": "/ebook",
+    "medium": "/ebook", 
     "light": "/printer"
 }
 
@@ -154,23 +154,36 @@ def _gs_compress(input_path: str, output_path: str, pdfsetting: str):
         f"-dPDFSETTINGS={pdfsetting}",
         "-dColorImageDownsampleType=/Bicubic",
         "-dColorImageResolution=150",
-        "-dGrayImageDownsampleType=/Bicubic",
+        "-dGrayImageDownsampleType=/Bicubic", 
         "-dGrayImageResolution=150",
         "-dMonoImageDownsampleType=/Subsample",
         "-dMonoImageResolution=300",
         "-dNOPAUSE", "-dQUIET", "-dBATCH",
         f"-sOutputFile={output_path}", input_path
     ]
-    subprocess.check_call(cmd)
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"Ghostscript failed: {result.stderr}")
 
 def _pikepdf_compress(input_path: str, output_path: str, level: str):
     try:
         import pikepdf
+        pdf = pikepdf.Pdf.open(input_path)
+        
+        # Set compression level based on input
+        compression_map = {
+            "light": pikepdf.CompressionLevel.low,
+            "medium": pikepdf.CompressionLevel.medium,
+            "strong": pikepdf.CompressionLevel.high
+        }
+        comp_level = compression_map.get(level, pikepdf.CompressionLevel.medium)
+        
+        pdf.save(output_path, optimize_streams=True, compression=comp_level)
+        pdf.close()
     except ImportError:
-        raise RuntimeError("pikepdf not available")
-    pdf = pikepdf.Pdf.open(input_path)
-    pdf.save(output_path, optimize_streams=True, compression=pikepdf.CompressionLevel.medium)
-    pdf.close()
+        raise RuntimeError("pikepdf not available - install with: pip install pikepdf")
+    except Exception as e:
+        raise RuntimeError(f"PDF compression failed: {str(e)}")
 
 @router.post("/pdf/compress-preview")
 async def pdf_compress_preview(file: UploadFile = File(...)):
@@ -179,20 +192,44 @@ async def pdf_compress_preview(file: UploadFile = File(...)):
 
     in_path = write_upload_to_temp(file, prefix="preview_in_")
     results = {}
+    
     try:
+        original_size = os.path.getsize(in_path)
+        results["original"] = {
+            "size_bytes": original_size,
+            "size_readable": human_readable_size(original_size)
+        }
+        
         for level, gs_setting in GS_SETTINGS.items():
             out_tmp = None
             try:
                 fd, out_tmp = tempfile.mkstemp(prefix=f"preview_{level}_", suffix=".pdf", dir=TMP_DIR)
                 os.close(fd)
 
-                if GS_EXEC:
-                    _gs_compress(in_path, out_tmp, gs_setting)
-                else:
-                    _pikepdf_compress(in_path, out_tmp, level)
+                # Try Ghostscript first, fallback to pikepdf
+                try:
+                    if GS_EXEC:
+                        _gs_compress(in_path, out_tmp, gs_setting)
+                    else:
+                        _pikepdf_compress(in_path, out_tmp, level)
+                except Exception as gs_error:
+                    # Fallback to pikepdf if GS fails
+                    try:
+                        _pikepdf_compress(in_path, out_tmp, level)
+                    except Exception as pdf_error:
+                        raise RuntimeError(f"Both compression methods failed. GS: {gs_error}, pikepdf: {pdf_error}")
 
-                size = os.path.getsize(out_tmp)
-                results[level] = {"size_bytes": size, "size_readable": human_readable_size(size)}
+                if os.path.exists(out_tmp):
+                    size = os.path.getsize(out_tmp)
+                    reduction = ((original_size - size) / original_size) * 100 if original_size > 0 else 0
+                    results[level] = {
+                        "size_bytes": size,
+                        "size_readable": human_readable_size(size),
+                        "reduction_percent": round(reduction, 1)
+                    }
+                else:
+                    results[level] = {"error": "Output file not created"}
+                    
             except Exception as e:
                 results[level] = {"error": str(e)}
             finally:
@@ -210,48 +247,86 @@ async def pdf_compress_preview(file: UploadFile = File(...)):
 
     return {"results": results}
 
-
 @router.post("/pdf/compress")
 async def pdf_compress(file: UploadFile = File(...), level: str = Form("medium")):
     level = (level or "medium").lower()
     if level not in GS_SETTINGS:
-        raise HTTPException(status_code=400, detail=f"Invalid level {level}")
+        raise HTTPException(status_code=400, detail=f"Invalid level {level}. Must be one of: {list(GS_SETTINGS.keys())}")
+    
     if not (file.filename or "").lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF allowed for compression")
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed for compression")
 
     in_path = write_upload_to_temp(file, prefix="compress_in_")
     fd, out_tmp = tempfile.mkstemp(prefix=f"compressed_{level}_", suffix=".pdf", dir=TMP_DIR)
     os.close(fd)
+    
     try:
+        # Try compression methods with proper error handling
+        compression_success = False
+        error_messages = []
+        
+        # Method 1: Try Ghostscript
         if GS_EXEC:
-            _gs_compress(in_path, out_tmp, GS_SETTINGS[level])
-        else:
-            _pikepdf_compress(in_path, out_tmp, level)
-
+            try:
+                _gs_compress(in_path, out_tmp, GS_SETTINGS[level])
+                compression_success = True
+            except Exception as e:
+                error_messages.append(f"Ghostscript failed: {str(e)}")
+        
+        # Method 2: Fallback to pikepdf if GS failed or unavailable
+        if not compression_success:
+            try:
+                _pikepdf_compress(in_path, out_tmp, level)
+                compression_success = True
+            except Exception as e:
+                error_messages.append(f"pikepdf failed: {str(e)}")
+        
+        if not compression_success:
+            raise HTTPException(
+                status_code=500, 
+                detail=f"All compression methods failed: {'; '.join(error_messages)}"
+            )
+        
+        # Verify output file exists and has content
+        if not os.path.exists(out_tmp) or os.path.getsize(out_tmp) == 0:
+            raise HTTPException(status_code=500, detail="Compression produced empty or missing file")
+        
         size_before = os.path.getsize(in_path)
         size_after = os.path.getsize(out_tmp)
+        reduction = ((size_before - size_after) / size_before) * 100 if size_before > 0 else 0
+        
+        # Generate unique output filename
         orig_name = Path(file.filename).stem if file.filename else "document"
         out_name = f"{orig_name}_compressed_{level}.pdf"
         final_name = unique_filename(out_name)
-        shutil.move(out_tmp, os.path.join(UPLOAD_DIR, final_name))
+        final_path = os.path.join(UPLOAD_DIR, final_name)
+        
+        # Move to final location
+        shutil.move(out_tmp, final_path)
 
         return {
-            "message": "Compressed",
+            "message": f"PDF compressed successfully ({level} level)",
             "download_url": f"/api/files/{final_name}",
+            "filename": final_name,
             "size_before": size_before,
             "size_after": size_after,
             "size_before_readable": human_readable_size(size_before),
-            "size_after_readable": human_readable_size(size_after)
+            "size_after_readable": human_readable_size(size_after),
+            "reduction_percent": round(reduction, 1)
         }
 
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=500, detail=f"Compression failed: {e}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Compression failed: {str(e)}")
     finally:
-        try:
-            if os.path.exists(in_path):
-                os.remove(in_path)
-        except Exception:
-            pass
+        # Cleanup temp files
+        for path in [in_path, out_tmp]:
+            try:
+                if path and os.path.exists(path):
+                    os.remove(path)
+            except Exception:
+                pass
 
 # ---------- PDF merge (PDF only, max 15 files) ----------
 @router.post("/pdf/merge")
@@ -265,26 +340,41 @@ async def pdf_merge(files: List[UploadFile] = File(...)):
     try:
         for f in files:
             if not (f.filename or "").lower().endswith(".pdf"):
-                raise HTTPException(status_code=400, detail="All files must be PDF")
+                raise HTTPException(status_code=400, detail=f"All files must be PDF format. Found: {f.filename}")
             p = write_upload_to_temp(f, prefix="merge_in_")
             temp_paths.append(p)
 
-        # Use PyPDF2 for merging (pure-python)
+        # Use PyPDF2 for merging
         try:
             from PyPDF2 import PdfMerger
-        except Exception as e:
-            raise HTTPException(status_code=500, detail="PyPDF2 required for merging; pip install PyPDF2")
+        except ImportError:
+            raise HTTPException(status_code=500, detail="PyPDF2 required for merging. Install with: pip install PyPDF2")
 
         merger = PdfMerger()
-        for p in temp_paths:
-            merger.append(p)
-        out_name = f"merged_{int(time.time()*1000)}.pdf"
-        out_path = os.path.join(UPLOAD_DIR, out_name)
-        with open(out_path, "wb") as fh:
-            merger.write(fh)
-        merger.close()
+        try:
+            for p in temp_paths:
+                merger.append(p)
+            
+            out_name = f"merged_{int(time.time()*1000)}.pdf"
+            out_path = os.path.join(UPLOAD_DIR, out_name)
+            
+            with open(out_path, "wb") as fh:
+                merger.write(fh)
+            
+            merger.close()
+            
+            if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
+                raise HTTPException(status_code=500, detail="Merge produced empty file")
 
-        return {"message": f"Merged {len(temp_paths)} files", "download_url": f"/api/files/{out_name}"}
+            return {
+                "message": f"Successfully merged {len(temp_paths)} PDF files",
+                "download_url": f"/api/files/{out_name}",
+                "filename": out_name
+            }
+        except Exception as e:
+            merger.close()
+            raise HTTPException(status_code=500, detail=f"PDF merge failed: {str(e)}")
+            
     finally:
         for p in temp_paths:
             try:
@@ -298,53 +388,62 @@ async def pdf_merge(files: List[UploadFile] = File(...)):
 @router.post("/convert/csv-to-excel")
 async def csv_to_excel(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Only CSV allowed for CSV->Excel")
+        raise HTTPException(status_code=400, detail="Only CSV files allowed for CSV->Excel conversion")
     try:
         import pandas as pd
-    except Exception:
+    except ImportError:
         raise HTTPException(status_code=500, detail="pandas required: pip install pandas openpyxl")
 
     saved = save_upload_file(file)
     saved_path = os.path.join(UPLOAD_DIR, saved)
     try:
-        df = pd.read_csv(saved_path)
+        df = pd.read_csv(saved_path, encoding='utf-8', errors='replace')
         out_name = f"converted_{int(time.time()*1000)}.xlsx"
         out_path = os.path.join(UPLOAD_DIR, out_name)
-        df.to_excel(out_path, index=False)
-        return {"message": "CSV -> Excel", "download_url": f"/api/files/{out_name}"}
+        df.to_excel(out_path, index=False, engine='openpyxl')
+        return {
+            "message": "CSV successfully converted to Excel",
+            "download_url": f"/api/files/{out_name}",
+            "filename": out_name
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
 
 # 2) Excel -> CSV
 @router.post("/convert/excel-to-csv")
 async def excel_to_csv(file: UploadFile = File(...)):
     ext = (file.filename or "").lower()
     if not (ext.endswith(".xls") or ext.endswith(".xlsx")):
-        raise HTTPException(status_code=400, detail="Only .xls/.xlsx allowed for Excel->CSV")
+        raise HTTPException(status_code=400, detail="Only .xls/.xlsx files allowed for Excel->CSV conversion")
     try:
         import pandas as pd
-    except Exception:
+    except ImportError:
         raise HTTPException(status_code=500, detail="pandas required: pip install pandas openpyxl")
+    
     saved = save_upload_file(file)
     saved_path = os.path.join(UPLOAD_DIR, saved)
     try:
-        df = pd.read_excel(saved_path)
+        df = pd.read_excel(saved_path, engine='openpyxl')
         out_name = f"converted_{int(time.time()*1000)}.csv"
         out_path = os.path.join(UPLOAD_DIR, out_name)
-        df.to_csv(out_path, index=False)
-        return {"message": "Excel -> CSV", "download_url": f"/api/files/{out_name}"}
+        df.to_csv(out_path, index=False, encoding='utf-8')
+        return {
+            "message": "Excel successfully converted to CSV", 
+            "download_url": f"/api/files/{out_name}",
+            "filename": out_name
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
 
 # 3) PDF -> CSV (table extraction using pdfplumber)
 @router.post("/convert/pdf-to-csv")
 async def pdf_to_csv(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF allowed for PDF->CSV")
+        raise HTTPException(status_code=400, detail="Only PDF files allowed for PDF->CSV conversion")
     try:
         import pdfplumber
         import csv
-    except Exception:
+    except ImportError:
         raise HTTPException(status_code=500, detail="pdfplumber required: pip install pdfplumber")
 
     in_path = write_upload_to_temp(file, prefix="pdf2csv_in_")
@@ -354,14 +453,20 @@ async def pdf_to_csv(file: UploadFile = File(...)):
             for page in pdf.pages:
                 tables = page.extract_tables()
                 for table in tables:
-                    # table is list of rows
                     for r in table:
                         rows.append([("" if c is None else str(c)).strip() for c in r])
+        
         if not rows:
             # fallback to raw text -> single column
-            with open(in_path, "rb") as fh:
-                text = pdfplumber.open(in_path).pages[0].extract_text() or ""
-            rows = [[line] for line in (text.splitlines() if text else [])]
+            with pdfplumber.open(in_path) as pdf:
+                text_lines = []
+                for page in pdf.pages:
+                    text = page.extract_text() or ""
+                    text_lines.extend(text.splitlines())
+                rows = [[line] for line in text_lines if line.strip()]
+
+        if not rows:
+            raise HTTPException(status_code=400, detail="No extractable content found in PDF")
 
         out_name = f"extracted_{int(time.time()*1000)}.csv"
         out_path = os.path.join(UPLOAD_DIR, out_name)
@@ -369,9 +474,15 @@ async def pdf_to_csv(file: UploadFile = File(...)):
             writer = csv.writer(fh)
             for r in rows:
                 writer.writerow(r)
-        return {"message": "PDF -> CSV (extracted)", "download_url": f"/api/files/{out_name}"}
+        return {
+            "message": "PDF content successfully extracted to CSV",
+            "download_url": f"/api/files/{out_name}",
+            "filename": out_name
+        }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"PDF extraction failed: {str(e)}")
     finally:
         try:
             if os.path.exists(in_path):
@@ -383,13 +494,13 @@ async def pdf_to_csv(file: UploadFile = File(...)):
 @router.post("/convert/csv-to-pdf")
 async def csv_to_pdf(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Only CSV allowed for CSV->PDF")
+        raise HTTPException(status_code=400, detail="Only CSV files allowed for CSV->PDF conversion")
     try:
         import csv
         from reportlab.lib.pagesizes import letter
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
         from reportlab.lib import colors
-    except Exception:
+    except ImportError:
         raise HTTPException(status_code=500, detail="reportlab required: pip install reportlab")
 
     in_path = write_upload_to_temp(file, prefix="csv2pdf_in_")
@@ -399,6 +510,10 @@ async def csv_to_pdf(file: UploadFile = File(...)):
             reader = csv.reader(fh)
             for r in reader:
                 rows.append([c for c in r])
+        
+        if not rows:
+            raise HTTPException(status_code=400, detail="CSV file is empty")
+            
         out_name = f"csv_print_{int(time.time()*1000)}.pdf"
         out_path = os.path.join(UPLOAD_DIR, out_name)
         doc = SimpleDocTemplate(out_path, pagesize=letter)
@@ -409,9 +524,15 @@ async def csv_to_pdf(file: UploadFile = File(...)):
             ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
         ]))
         doc.build([table])
-        return {"message": "CSV -> PDF", "download_url": f"/api/files/{out_name}"}
+        return {
+            "message": "CSV successfully converted to PDF table",
+            "download_url": f"/api/files/{out_name}",
+            "filename": out_name
+        }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
     finally:
         try:
             if os.path.exists(in_path):
@@ -422,13 +543,12 @@ async def csv_to_pdf(file: UploadFile = File(...)):
 # 5) PDF -> Excel: run PDF->CSV then CSV->Excel
 @router.post("/convert/pdf-to-excel")
 async def pdf_to_excel(file: UploadFile = File(...)):
-    # We'll reuse the pdf->csv function logic inline to avoid duplicate temp moves
     if not (file.filename or "").lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF allowed for PDF->Excel")
+        raise HTTPException(status_code=400, detail="Only PDF files allowed for PDF->Excel conversion")
     try:
         import pdfplumber
         import pandas as pd
-    except Exception:
+    except ImportError:
         raise HTTPException(status_code=500, detail="pdfplumber & pandas required: pip install pdfplumber pandas openpyxl")
 
     in_path = write_upload_to_temp(file, prefix="pdf2xls_in_")
@@ -440,20 +560,27 @@ async def pdf_to_excel(file: UploadFile = File(...)):
                 for table in tables:
                     for r in table:
                         rows.append([("" if c is None else str(c)).strip() for c in r])
+        
         if not rows:
             raise HTTPException(status_code=400, detail="No tabular data found in PDF")
+        
         # Create DataFrame (pad uneven rows)
-        max_cols = max(len(r) for r in rows)
+        max_cols = max(len(r) for r in rows) if rows else 0
         normalized = [r + [""]*(max_cols-len(r)) for r in rows]
         df = pd.DataFrame(normalized[1:], columns=normalized[0]) if len(normalized) > 1 else pd.DataFrame(normalized)
+        
         out_name = f"converted_{int(time.time()*1000)}.xlsx"
         out_path = os.path.join(UPLOAD_DIR, out_name)
-        df.to_excel(out_path, index=False)
-        return {"message": "PDF -> Excel (extracted)", "download_url": f"/api/files/{out_name}"}
+        df.to_excel(out_path, index=False, engine='openpyxl')
+        return {
+            "message": "PDF table data successfully converted to Excel",
+            "download_url": f"/api/files/{out_name}",
+            "filename": out_name
+        }
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
     finally:
         try:
             if os.path.exists(in_path):
@@ -466,18 +593,18 @@ async def pdf_to_excel(file: UploadFile = File(...)):
 async def excel_to_pdf(file: UploadFile = File(...)):
     ext = (file.filename or "").lower()
     if not (ext.endswith(".xls") or ext.endswith(".xlsx")):
-        raise HTTPException(status_code=400, detail="Only .xls/.xlsx allowed for Excel->PDF")
+        raise HTTPException(status_code=400, detail="Only .xls/.xlsx files allowed for Excel->PDF conversion")
     try:
         import pandas as pd
         from reportlab.lib.pagesizes import letter
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
         from reportlab.lib import colors
-    except Exception:
+    except ImportError:
         raise HTTPException(status_code=500, detail="pandas & reportlab required: pip install pandas reportlab openpyxl")
 
     in_path = write_upload_to_temp(file, prefix="xls2pdf_in_")
     try:
-        df = pd.read_excel(in_path)
+        df = pd.read_excel(in_path, engine='openpyxl')
         data = [df.columns.tolist()] + df.values.tolist()
 
         out_name = f"excel_print_{int(time.time()*1000)}.pdf"
@@ -492,7 +619,13 @@ async def excel_to_pdf(file: UploadFile = File(...)):
         ]))
         doc.build([table])
 
-        return {"message": "Excel -> PDF", "download_url": f"/api/files/{out_name}"}
+        return {
+            "message": "Excel successfully converted to PDF",
+            "download_url": f"/api/files/{out_name}",
+            "filename": out_name
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
     finally:
         try:
             if os.path.exists(in_path):
@@ -500,11 +633,11 @@ async def excel_to_pdf(file: UploadFile = File(...)):
         except Exception:
             pass
 
-# 7) pdf -> word
+# 7) PDF -> Word
 @router.post("/convert/pdf-to-word")
 async def pdf_to_word(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF allowed for PDF->Word")
+        raise HTTPException(status_code=400, detail="Only PDF files allowed for PDF->Word conversion")
     try:
         from pdf2docx import Converter
     except ImportError:
@@ -512,7 +645,6 @@ async def pdf_to_word(file: UploadFile = File(...)):
 
     in_path = write_upload_to_temp(file, prefix="pdf2word_in_")
     try:
-        base_name = Path(file.filename).stem
         out_name = f"pdf2word_{int(time.time() * 1000)}.docx"
         out_path = os.path.join(UPLOAD_DIR, out_name)
 
@@ -520,10 +652,18 @@ async def pdf_to_word(file: UploadFile = File(...)):
         cv.convert(out_path, start=0, end=None)
         cv.close()
 
-        if not os.path.exists(out_path):
-            raise HTTPException(status_code=500, detail="Conversion failed: output DOCX not found")
+        if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
+            raise HTTPException(status_code=500, detail="Conversion failed: output DOCX not created")
 
-        return {"message": "PDF -> Word", "download_url": f"/api/files/{out_name}"}
+        return {
+            "message": "PDF successfully converted to Word document",
+            "download_url": f"/api/files/{out_name}",
+            "filename": out_name
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF to Word conversion failed: {str(e)}")
     finally:
         try:
             if os.path.exists(in_path):
