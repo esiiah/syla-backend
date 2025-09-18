@@ -5,7 +5,6 @@ import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
 import FileToolUploadPanel from "../components/upload/FileToolUploadPanel";
 import FileToolExportPanel from "../components/export/FileToolExportPanel";
-import FileList from "../components/FileList";
 import PdfMerge from "./PdfMerge";
 import PdfCompress from "./PdfCompress";
 import GenericConvert from "./GenericConvert";
@@ -15,19 +14,34 @@ export default function FileToolPage() {
   const [searchParams] = useSearchParams();
   const [downloadUrl, setDownloadUrl] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [conversionComplete, setConversionComplete] = useState(false);
+  const [fileName, setFileName] = useState("");
   const [stashedFile, setStashedFile] = useState(null);
   const [theme, setTheme] = useState("light");
+  const [files, setFiles] = useState([]);
+  const [viewMode, setViewMode] = useState("grid");
 
-  // User state (null = not logged in)
+  // User state
   const [user, setUser] = useState(null);
 
-  // Apply theme to body
+  // Load user and theme
   useEffect(() => {
-    if (typeof window !== "undefined" && document && document.body) {
-      document.body.classList.remove("dark", "light");
-      document.body.classList.add(theme === "light" ? "light" : "dark");
+    const savedUser = localStorage.getItem("user");
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+      }
     }
-  }, [theme]);
+    
+    const savedTheme = localStorage.getItem("theme") || "light";
+    setTheme(savedTheme);
+    document.body.classList.remove("dark", "light");
+    document.body.classList.add(savedTheme);
+  }, []);
 
   // Restore stashed file if present
   useEffect(() => {
@@ -41,6 +55,7 @@ export default function FileToolPage() {
           type: blob.type || "application/octet-stream",
         });
         setStashedFile(f);
+        setFiles([f]);
       })
       .catch(console.warn);
   }, [searchParams]);
@@ -82,7 +97,7 @@ export default function FileToolPage() {
       component: "convert",
       endpoint: "/api/filetools/convert/pdf-to-csv",
       accept: ".pdf",
-      label: "PDF → CSV (table extraction)",
+      label: "PDF → CSV",
     },
     "csv-to-pdf": {
       component: "convert",
@@ -94,53 +109,143 @@ export default function FileToolPage() {
 
   const config = mapping[action] || null;
 
+  const handleUpload = async () => {
+    if (!files.length) {
+      setError("Please select a file first.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setConversionComplete(false);
+
+    try {
+      const fd = new FormData();
+      if (config.component === "merge") {
+        // Multiple files for merge
+        files.forEach(f => fd.append("files", f));
+      } else {
+        // Single file for others
+        fd.append("file", files[0]);
+      }
+
+      const endpoint = config.component === "compress" 
+        ? "/api/filetools/pdf/compress"
+        : config.component === "merge"
+        ? "/api/filetools/pdf/merge"
+        : config.endpoint;
+
+      const res = await fetch(endpoint, { method: "POST", body: fd });
+      const json = await res.json();
+
+      if (!res.ok) throw new Error(json.detail || json.error || "Conversion failed");
+
+      // Set conversion complete and download URL but DON'T auto-download
+      setDownloadUrl(json.download_url);
+      setFileName(json.filename || "converted_file");
+      setConversionComplete(true);
+      
+      // Clear the error
+      setError("");
+
+    } catch (e) {
+      setError(e.message || "Conversion failed");
+      setConversionComplete(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownload = () => {
+    if (downloadUrl) {
+      window.open(downloadUrl, "_blank");
+    }
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-slate-950">
       <Sidebar theme={theme} setTheme={setTheme} onReportChange={() => {}} />
 
       <div className="flex-1 transition-all duration-300">
-        {/* Navbar */}
-        {user ? <Navbar user={user} /> : <Navbar />}
+        <Navbar user={user} />
 
-        {/* Main Content */}
         <div className="flex-1 flex flex-col p-6 space-y-6">
           {config ? (
-            config.component === "compress" ? (
-              <PdfCompress
-                initialFile={stashedFile}
-                onDownloadReady={(url) => setDownloadUrl(url)}
-              />
-            ) : config.component === "merge" ? (
-              <PdfMerge onDownloadReady={(url) => setDownloadUrl(url)} />
-            ) : (
-              <GenericConvert
-                endpoint={config.endpoint}
-                accept={config.accept}
-                label={config.label}
-                initialFile={stashedFile}
-                onDownloadReady={(url) => setDownloadUrl(url)}
-              />
-            )
+            <>
+              {/* Tool specific upload panel */}
+              {config.component === "merge" ? (
+                <div className="max-w-6xl mx-auto">
+                  <h2 className="text-3xl font-bold text-gray-800 dark:text-slate-200 mb-8 text-center">
+                    Merge PDFs (max 15)
+                  </h2>
+                  <FileToolUploadPanel
+                    title="Select PDFs to Merge"
+                    accept=".pdf"
+                    multiple={true}
+                    files={files}
+                    setFiles={setFiles}
+                    viewMode={viewMode}
+                    setViewMode={setViewMode}
+                    onUpload={handleUpload}
+                    uploadLabel="Merge PDFs"
+                    loading={loading}
+                  />
+                </div>
+              ) : config.component === "compress" ? (
+                <div className="max-w-6xl mx-auto">
+                  <h2 className="text-3xl font-bold text-gray-800 dark:text-slate-200 mb-8 text-center">
+                    PDF Compression
+                  </h2>
+                  <FileToolUploadPanel
+                    title="Select PDF to Compress"
+                    accept=".pdf"
+                    multiple={false}
+                    files={files}
+                    setFiles={setFiles}
+                    viewMode={viewMode}
+                    setViewMode={setViewMode}
+                    onUpload={handleUpload}
+                    uploadLabel="Compress PDF"
+                    loading={loading}
+                  />
+                </div>
+              ) : (
+                <div className="max-w-6xl mx-auto">
+                  <h2 className="text-3xl font-bold text-gray-800 dark:text-slate-200 mb-8 text-center">
+                    {config.label}
+                  </h2>
+                  <FileToolUploadPanel
+                    title={`Select file for ${config.label}`}
+                    accept={config.accept}
+                    multiple={false}
+                    files={files}
+                    setFiles={setFiles}
+                    viewMode={viewMode}
+                    setViewMode={setViewMode}
+                    onUpload={handleUpload}
+                    uploadLabel="Convert"
+                    loading={loading}
+                  />
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center text-gray-600 dark:text-gray-300">
               <p>Unknown tool: {action}</p>
             </div>
           )}
 
+          {/* Export Panel - only show when file is selected */}
           <FileToolExportPanel
+            showPanel={files.length > 0}
             downloadUrl={downloadUrl}
-            onDownload={() => {
-              if (!downloadUrl) {
-                setError("No processed file available yet.");
-                return;
-              }
-              window.open(downloadUrl, "_blank");
-            }}
-            onUpload={() => {
-              const uploadBtn = document.querySelector('button[data-upload-trigger]');
-              if (uploadBtn) uploadBtn.click();
-            }}
+            onDownload={handleDownload}
+            onUpload={handleUpload}
             error={error}
+            loading={loading}
+            uploadLabel="Convert"
+            conversionComplete={conversionComplete}
+            fileName={fileName}
           />
         </div>
       </div>
