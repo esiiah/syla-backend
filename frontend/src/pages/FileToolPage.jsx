@@ -2,23 +2,24 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
-import FileUpload from "../components/FileUpload";
 import FileList from "../components/FileList";
 import PdfMerge from "./PdfMerge";
 import GenericConvert from "./GenericConvert";
 import PdfCompress from "./PdfCompress";
 import ExportPanel from "../components/ExportPanel";
+import UploadPanel from "../components/UploadPanel";
 
 export default function FileToolPage() {
   const { action } = useParams();
   const [searchParams] = useSearchParams();
   const [theme, setTheme] = useState("light");
-  const [stashedFile, setStashedFile] = useState(null);
 
-  // floating-panel export state
-  const [exportType, setExportType] = useState("");
+  const [files, setFiles] = useState([]);
+  const [viewMode, setViewMode] = useState("grid");
   const [downloadUrl, setDownloadUrl] = useState("");
   const [error, setError] = useState("");
+
+  const [stashedFile, setStashedFile] = useState(null);
 
   useEffect(() => {
     const token = searchParams.get("token");
@@ -30,68 +31,99 @@ export default function FileToolPage() {
         return res.blob();
       })
       .then((blob) => {
-        const f = new File([blob], "stashed_file", { type: blob.type || "application/octet-stream" });
+        const f = new File([blob], "stashed_file", {
+          type: blob.type || "application/octet-stream"
+        });
         setStashedFile(f);
+        setFiles([f]);
       })
       .catch((err) => console.warn("Failed to retrieve stashed file:", err));
   }, [searchParams]);
 
   const mapping = {
-    "compress": { component: "compress" },
-    "merge": { component: "merge" },
-    "pdf-to-word": { component: "convert", endpoint: "/api/filetools/convert/pdf-to-word", accept: ".pdf", label: "PDF → Word" },
-    "pdf-to-excel": { component: "convert", endpoint: "/api/filetools/convert/pdf-to-excel", accept: ".pdf", label: "PDF → Excel" },
-    "excel-to-pdf": { component: "convert", endpoint: "/api/filetools/convert/excel-to-pdf", accept: ".xls,.xlsx", label: "Excel → PDF" },
-    "csv-to-excel": { component: "convert", endpoint: "/api/filetools/convert/csv-to-excel", accept: ".csv", label: "CSV → Excel" },
-    "excel-to-csv": { component: "convert", endpoint: "/api/filetools/convert/excel-to-csv", accept: ".xls,.xlsx", label: "Excel → CSV" },
-    "pdf-to-csv": { component: "convert", endpoint: "/api/filetools/convert/pdf-to-csv", accept: ".pdf", label: "PDF → CSV (table extraction)" },
-    "csv-to-pdf": { component: "convert", endpoint: "/api/filetools/convert/csv-to-pdf", accept: ".csv", label: "CSV → PDF" },
+    compress: { component: "compress" },
+    merge: { component: "merge" },
+    "pdf-to-word": {
+      component: "convert",
+      endpoint: "/api/filetools/convert/pdf-to-word",
+      accept: ".pdf",
+      label: "PDF → Word"
+    },
+    "pdf-to-excel": {
+      component: "convert",
+      endpoint: "/api/filetools/convert/pdf-to-excel",
+      accept: ".pdf",
+      label: "PDF → Excel"
+    },
+    "excel-to-pdf": {
+      component: "convert",
+      endpoint: "/api/filetools/convert/excel-to-pdf",
+      accept: ".xls,.xlsx",
+      label: "Excel → PDF"
+    },
+    "csv-to-excel": {
+      component: "convert",
+      endpoint: "/api/filetools/convert/csv-to-excel",
+      accept: ".csv",
+      label: "CSV → Excel"
+    },
+    "excel-to-csv": {
+      component: "convert",
+      endpoint: "/api/filetools/convert/excel-to-csv",
+      accept: ".xls,.xlsx",
+      label: "Excel → CSV"
+    },
+    "pdf-to-csv": {
+      component: "convert",
+      endpoint: "/api/filetools/convert/pdf-to-csv",
+      accept: ".pdf",
+      label: "PDF → CSV (table extraction)"
+    },
+    "csv-to-pdf": {
+      component: "convert",
+      endpoint: "/api/filetools/convert/csv-to-pdf",
+      accept: ".csv",
+      label: "CSV → PDF"
+    }
   };
 
   const config = mapping[action] || null;
-  const formattedAction = action ? action.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "Tool";
+  const formattedAction = action
+    ? action.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+    : "Tool";
 
   const handleDownloadReady = (url) => {
     setDownloadUrl(url || "");
   };
 
-  const confirmExport = () => {
-    setError("");
-    if (!downloadUrl) {
-      setError("No processed file available yet.");
+  // Upload handler for ExportPanel
+  const handleUpload = async () => {
+    if (!files || files.length === 0) {
+      alert("Please select a file first.");
       return;
     }
-    window.open(downloadUrl, "_blank");
-  };
+    if (!config?.endpoint) {
+      alert("No endpoint configured for this tool.");
+      return;
+    }
 
-  // primary action for ExportPanel - this function dispatches depending on tool
-  const handlePrimaryAction = () => {
     setError("");
-    // For merge/compress: if subcomponent provides onDownloadReady, we expect it to set downloadUrl
-    // So here we just attempt to trigger an action - for GenericConvert and PdfMerge they've already implemented their own buttons
-    // But if the page uses FileUpload (default view), call its upload endpoint by simulating click via DOM or better: provide a ref.
-    // For simplicity here, we show a message asking the user to use the page's button if no auto-action wired.
-    if (config?.component === "merge") {
-      // Merge page has its own Merge button; we rely on it.
-      alert("Use the Merge button in the main panel to start merging PDFs. The download link appears here when ready.");
-      return;
-    }
-    if (config?.component === "compress") {
-      alert("Use the Compress button in the main panel. The download link will appear here when ready.");
-      return;
-    }
-    if (config?.component === "convert") {
-      alert("Use the Convert button in the main panel. The download link will appear here when ready.");
-      return;
-    }
-    // fallback
-    alert("Use the primary control in the main panel to process the file. The download appears here.");
-  };
+    const fd = new FormData();
+    fd.append("file", files[0]);
 
-  // Determine primary action label for panel
-  const primaryLabel = config
-    ? (config.component === "merge" ? "Merge" : config.component === "compress" ? "Compress" : "Convert")
-    : "Process";
+    try {
+      const res = await fetch(config.endpoint, { method: "POST", body: fd });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Upload failed (${res.status})`);
+      }
+      const data = await res.json();
+      setDownloadUrl(data.download_url || "");
+    } catch (err) {
+      console.error(err);
+      setError(err.message);
+    }
+  };
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-slate-950">
@@ -111,7 +143,10 @@ export default function FileToolPage() {
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {config ? (
             config.component === "compress" ? (
-              <PdfCompress initialFile={stashedFile} onDownloadReady={handleDownloadReady} />
+              <PdfCompress
+                initialFile={stashedFile}
+                onDownloadReady={handleDownloadReady}
+              />
             ) : config.component === "merge" ? (
               <PdfMerge onDownloadReady={handleDownloadReady} />
             ) : (
@@ -125,34 +160,34 @@ export default function FileToolPage() {
             )
           ) : (
             <>
-              <section className="rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 neon-border p-6">
-                <FileUpload action={action} initialFile={stashedFile} />
-              </section>
+              <UploadPanel
+                accept={config?.accept || "*/*"}
+                multiple={false}
+                files={files}
+                setFiles={setFiles}
+                viewMode={viewMode}
+                setViewMode={setViewMode}
+              />
 
               <section className="rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 neon-border p-6">
                 <FileList />
-              </section>
-
-              <section className="text-sm text-gray-500 dark:text-gray-400 mt-6">
-                <p>
-                  Uploaded files for <span className="font-medium">{formattedAction}</span> are listed above.
-                </p>
               </section>
             </>
           )}
         </div>
 
-        {/* ExportPanel usage */}
+        {/* Floating panel for upload + download */}
         <ExportPanel
-          mode="filetool"
-          actionLabel={primaryLabel}
-          onPrimaryAction={handlePrimaryAction}
+          context="filetool"
+          onUpload={handleUpload}
           downloadUrl={downloadUrl}
           onDownload={() => {
-            if (!downloadUrl) return setError("No processed file available yet.");
+            if (!downloadUrl) {
+              setError("No processed file available yet.");
+              return;
+            }
             window.open(downloadUrl, "_blank");
           }}
-          error={error}
         />
       </div>
     </div>
