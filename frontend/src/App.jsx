@@ -5,11 +5,15 @@ import ChartView from "./components/ChartView.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import Features from "./components/Features.jsx";
 import Footer from "./components/Footer.jsx";
+import Navbar from "./components/Navbar";
 import ChartOptions from "./components/ChartOptions.jsx";
 import { Settings } from "lucide-react";
 import "./App.css";
 
 function App() {
+  // User state (null = not logged in)
+  const [user, setUser] = useState(null);
+
   const [data, setData] = useState([]);            // array of objects (CSV rows)
   const [columns, setColumns] = useState([]);      // array of column names
   const [types, setTypes] = useState({});          // inferred types
@@ -20,64 +24,41 @@ function App() {
 
   const [theme, setTheme] = useState("light");
 
-  // central chart options state (passed to ChartView and ChartOptions)
+  // central chart options state
   const [chartOptions, setChartOptions] = useState({
     type: "bar",
     color: "#2563eb",
     gradient: false,
-    gradientStops: ["#2563eb", "#ff6b6b"], // default 2 stops
-    showLabels: false,   // default: no data labels
+    gradientStops: ["#2563eb", "#ff6b6b"],
+    showLabels: false,
     trendline: false,
     sort: "none",
     logScale: false,
     logMin: 1,
-    compareField: "",    // second metric for comparison
+    compareField: "",
   });
 
   const [showOptions, setShowOptions] = useState(false);
 
+  // Apply theme to body
   useEffect(() => {
     if (typeof window !== "undefined" && document && document.body) {
       document.body.classList.remove("dark", "light");
       document.body.classList.add(theme === "light" ? "light" : "dark");
     }
   }, [theme]);
-
+  
   return (
     <div className="flex min-h-screen overflow-x-hidden relative">
       <Sidebar theme={theme} setTheme={setTheme} onReportChange={() => {}} />
       <div className="flex-1 transition-all duration-300">
+
         {/* Navbar */}
-        <nav className="sticky top-0 z-20 backdrop-blur bg-white/80 border-b border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft">
-          <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img src="/favicon.png" alt="Syla logo" className="w-8 h-8 animate-float" />
-              <div className="flex flex-col leading-none">
-                <span className="font-display text-lg tracking-wide">
-                  Syla <span className="text-neonBlue">Analytics</span>
-                </span>
-                <span className="text-xs text-gray-500 dark:text-slate-400 -mt-0.5">
-                  Futuristic Data Intelligence
-                </span>
-              </div>
-            </div>
-
-            <div className="hidden md:flex items-center gap-6">
-              <a href="#" className="text-gray-700 hover:text-neonYellow dark:text-slate-300 dark:hover:text-neonYellow">Docs</a>
-              <a href="#" className="text-gray-700 hover:text-neonYellow dark:text-slate-300 dark:hover:text-neonYellow">Templates</a>
-              <a href="#" className="text-gray-700 hover:text-neonYellow dark:text-slate-300 dark:hover:text-neonYellow">Pricing</a>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button className="px-3 py-1.5 rounded-xl border border-gray-300 text-gray-700 hover:text-black hover:border-neonBlue/60 dark:border-white/10 dark:text-slate-200 dark:hover:text-white">
-                Log in
-              </button>
-              <button className="px-4 py-1.5 rounded-xl bg-neonBlue text-white shadow-neon hover:animate-glow transition">
-                Sign up
-              </button>
-            </div>
-          </div>
-        </nav>
+        {user ? (
+          <Navbar user={user} />   // post-login navbar with profile
+        ) : (
+          <Navbar />               // pre-login navbar
+        )}
 
         {/* Main Content */}
         <main className="mx-auto max-w-7xl px-4 pb-16 pt-8">
