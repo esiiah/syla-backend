@@ -124,7 +124,10 @@ function App() {
           {/* Dashboard Greeting Section */}
           <div className="mb-8 relative">
             {/* Background gradient */}
-            <div className="absolute inset-0 bg-gradient-to-b from-sky-100 via-white to-white dark:from-blue-900/20 dark:via-blue-800/10 dark:to-transparent rounded-2xl -z-10"></div>
+            <div className="absolute inset-0 bg-gradient-to-b 
+                            from-sky-300 via-sky-100 to-white 
+                            dark:from-blue-800/50 dark:via-blue-700/30 dark:to-blue-900/0 
+                            rounded-2xl -z-10"></div>
             
             {/* Content */}
             <div className="text-center py-12 px-6">
@@ -140,10 +143,10 @@ function App() {
                 </>
               ) : (
                 <>
-                  <h1 className="font-display text-4xl md:text-5xl tracking-wide mb-6 text-gray-800 dark:text-slate-200">
-                    From raw data to <span className="text-neonBlue">smart decisions</span> —
+                  <h1 className="font-body text-4xl md:text-5xl tracking-wide mb-6 text-gray-800 dark:text-slate-200">
+                    From raw data to <span className="text-neonBlue font-semibold">smart decisions</span> —
                     <br />
-                    all powered by <span className="text-neonYellow">Syla</span>.
+                    all powered by <span className="text-neonYellow font-semibold">Syla</span>.
                   </h1>
                   <p className="text-xl text-gray-600 dark:text-slate-300 mb-8 max-w-4xl mx-auto">
                     Clean, visualize, and convert your data with intelligent automation.
