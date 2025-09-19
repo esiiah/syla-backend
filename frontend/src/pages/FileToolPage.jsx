@@ -220,11 +220,12 @@ export default function FileToolPage() {
             downloadUrl={downloadUrl}
             onDownload={handleDownload}
             onUpload={handleUpload}
+            uploadLabel="Convert"
             error={error}
             loading={loading}
-            uploadLabel="Convert"
             conversionComplete={conversionComplete}
             fileName={fileName}
+            toolType={config?.component || "convert"}   // ✅ add this
           />
         </div>
       </div>
