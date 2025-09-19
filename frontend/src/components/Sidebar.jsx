@@ -1,3 +1,4 @@
+// frontend/src/components/Sidebar.jsx
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -29,9 +30,14 @@ function Sidebar({ onReportChange, theme, setTheme }) {
     { title: "Excel → CSV", path: "/tools/excel-to-csv", icon: FileText },
     { title: "CSV → PDF", path: "/tools/csv-to-pdf", icon: FileText },
     { title: "Excel → PDF", path: "/tools/excel-to-pdf", icon: FileText },
-    { title: "PDF → Excel (alt)", path: "/tools/pdf-to-excel", icon: FileSpreadsheet },
     { title: "PDF → CSV", path: "/tools/pdf-to-csv", icon: FileText },
   ];
+
+  const handleThemeToggle = () => {
+    const newTheme = theme === "dark" ? "light" : "dark";
+    setTheme(newTheme);
+    localStorage.setItem("theme", newTheme);
+  };
 
   return (
     <aside
@@ -113,13 +119,13 @@ function Sidebar({ onReportChange, theme, setTheme }) {
           )}
         </div>
 
-        {/* Settings + Help */}
+        {/* Settings + Help - Fixed with proper Links */}
         <div className="mt-4 px-3">
-          <div className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 group">
+          <Link to="/settings" className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 group">
             <Settings className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300" />
             {!collapsed && <span>Settings</span>}
-          </div>
-          <div className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 group">
+          </Link>
+          <div className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 group cursor-pointer">
             <HelpCircle className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300" />
             {!collapsed && <span>Help</span>}
           </div>
@@ -130,7 +136,7 @@ function Sidebar({ onReportChange, theme, setTheme }) {
       <div className="px-3 py-4 border-t border-gray-200 dark:border-white/10 space-y-2">
         {/* Theme toggle */}
         <button
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          onClick={handleThemeToggle}
           className="w-full flex items-center justify-center px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm text-gray-800 dark:bg-black/40 dark:hover:bg-white/5 dark:text-slate-200 transition"
         >
           {theme === "dark" ? (
@@ -151,7 +157,9 @@ function Sidebar({ onReportChange, theme, setTheme }) {
           to="/login"
           className="w-full flex items-center justify-center px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm text-gray-800 dark:bg-black/40 dark:hover:bg-white/5 dark:text-slate-200 transition"
         >
-          <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24"><path d="M12 12m-10 0a10 10 0 1 0 20 0a10 10 0 1 0 -20 0"/></svg>
+          <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+          </svg>
           {!collapsed && "Log in"}
         </Link>
 
@@ -159,7 +167,9 @@ function Sidebar({ onReportChange, theme, setTheme }) {
           to="/signup"
           className="w-full flex items-center justify-center px-3 py-2 rounded-lg bg-neonBlue text-white shadow-neon hover:animate-glow text-sm transition"
         >
-          <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24"><path d="M12 2v20"/></svg>
+          <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+          </svg>
           {!collapsed && "Sign up"}
         </Link>
       </div>
