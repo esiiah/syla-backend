@@ -26,20 +26,22 @@ export default function FileToolPage() {
   const [user, setUser] = useState(null);
   
   // Load user and theme
-  useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
-      }
-    const savedTheme = localStorage.getItem("theme") || "light";
-    setTheme(savedTheme);
-    document.body.classList.remove("dark", "light");
-    document.body.classList.add(savedTheme);
-  }, []);
+useEffect(() => {
+  const savedUser = localStorage.getItem("user");
+  if (savedUser) {
+    try {
+      setUser(JSON.parse(savedUser));
+    } catch (e) {
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+    }
+  }
+
+  const savedTheme = localStorage.getItem("theme") || "light";
+  setTheme(savedTheme);
+  document.body.classList.remove("dark", "light");
+  document.body.classList.add(savedTheme);
+}, []);
   
   // Restore stashed file if present
     const token = searchParams.get("token");
