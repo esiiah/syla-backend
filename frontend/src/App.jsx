@@ -124,7 +124,7 @@ function App() {
           {/* Dashboard Greeting Section */}
           <div className="mb-8 relative">
             {/* Background gradient */}
-            <div className="absolute inset-0 bg-gradient-to-b from-blue-100 via-blue-50 to-white dark:from-blue-900/20 dark:via-blue-800/10 dark:to-transparent rounded-2xl -z-10"></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-sky-100 via-white to-white dark:from-blue-900/20 dark:via-blue-800/10 dark:to-transparent rounded-2xl -z-10"></div>
             
             {/* Content */}
             <div className="text-center py-12 px-6">
@@ -134,26 +134,32 @@ function App() {
                     Hi, <span className="text-neonBlue">{user.name}</span>. Welcome Back!
                   </h1>
                   <p className="text-lg text-gray-600 dark:text-slate-300 max-w-3xl mx-auto">
-                    Ready to dive into your data? Upload files for cleaning and visualization, or use our powerful file conversion tools.
+                    Ready to dive into your data? Upload files for cleaning and visualization, 
+                    or use our powerful file conversion tools.
                   </p>
                 </>
               ) : (
                 <>
                   <h1 className="font-display text-4xl md:text-5xl tracking-wide mb-6 text-gray-800 dark:text-slate-200">
-                    Welcome! I can help you with <br />
-                    <span className="text-neonBlue">Cleaning</span>, 
-                    <span className="text-neonYellow"> Visualization</span>, and 
-                    <span className="text-green-500"> Conversion</span>.
+                    From raw data to <span className="text-neonBlue">smart decisions</span> —
+                    <br />
+                    all powered by <span className="text-neonYellow">Syla</span>.
                   </h1>
                   <p className="text-xl text-gray-600 dark:text-slate-300 mb-8 max-w-4xl mx-auto">
-                    What do you wanna do today?
+                    Clean, visualize, and convert your data with intelligent automation.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <a href="/signup" className="px-8 py-3 bg-neonBlue text-white rounded-xl font-semibold hover:bg-blue-600 shadow-lg hover:shadow-neon transition-all duration-300">
+                    <a
+                      href="/signup"
+                      className="px-8 py-3 bg-neonBlue text-white rounded-xl font-semibold hover:bg-blue-600 shadow-lg hover:shadow-neon transition-all duration-300"
+                    >
                       Get Started - Sign Up
                     </a>
-                    <a href="/login" className="px-8 py-3 border-2 border-neonBlue text-neonBlue rounded-xl font-semibold hover:bg-neonBlue hover:text-white transition-all duration-300">
-                      Already have account? Log In
+                    <a
+                      href="/login"
+                      className="px-8 py-3 border-2 border-neonBlue text-neonBlue rounded-xl font-semibold hover:bg-neonBlue hover:text-white transition-all duration-300"
+                    >
+                      Already have an account? Log In
                     </a>
                   </div>
                 </>
