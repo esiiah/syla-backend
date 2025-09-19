@@ -1,15 +1,14 @@
 # app/auth.py
 import os
 import re
-import jwt
-import bcrypt
 import sqlite3
-import requests
 from datetime import datetime, timedelta
 from typing import Optional
 
+import bcrypt
+import jwt
 from fastapi import APIRouter, HTTPException, Depends, Response, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer
 from pydantic import BaseModel, validator
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -20,11 +19,7 @@ SECRET_KEY = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
-# Google OAuth Configuration
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-
-# Database setup
+# Database path
 DB_PATH = os.path.join(os.path.dirname(__file__), "users.db")
 
 
@@ -54,7 +49,7 @@ def init_db() -> None:
 init_db()
 
 
-# Pydantic models
+# ---------------- Pydantic models ----------------
 class SignupRequest(BaseModel):
     name: str
     contact: str  # email or phone
@@ -74,11 +69,10 @@ class SignupRequest(BaseModel):
         contact_type = values.get("contact_type", "email")
         v = v.strip()
         if contact_type == "email":
-            email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+            email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$"
             if not re.match(email_pattern, v):
                 raise ValueError("Invalid email format")
         elif contact_type == "phone":
-            # Normalize and validate digits + optional + - spaces parentheses
             cleaned = re.sub(r"[ \-\(\)]", "", v)
             phone_pattern = r"^\+?\d{10,15}$"
             if not re.match(phone_pattern, cleaned):
@@ -113,18 +107,17 @@ class UserResponse(BaseModel):
     avatar_url: Optional[str] = None
 
 
-class GoogleAuthRequest(BaseModel):
-    token: str  # Google ID token
-
-
-# Utilities
+# ---------------- Utilities ----------------
 def hash_password(password: str) -> str:
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
 
 def verify_password(password: str, hashed: str) -> bool:
-    return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
+    try:
+        return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        return False
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -133,168 +126,72 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire, "sub": data.get("sub")})
+    to_encode.update({"exp": expire})
     token = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    # In PyJWT >=2.0 jwt.encode returns a str. If bytes, decode.
+    # PyJWT returns str for >=2.x
     if isinstance(token, bytes):
         token = token.decode("utf-8")
     return token
 
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    return conn
+    return sqlite3.connect(DB_PATH)
 
 
 def get_user_by_contact(contact: str):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE email = ? OR phone = ?", (contact, contact))
-    user = cursor.fetchone()
+    cursor.execute("SELECT id, name, email, phone, password_hash, auth_provider, avatar_url, created_at FROM users WHERE email = ? OR phone = ?", (contact, contact))
+    row = cursor.fetchone()
     conn.close()
-    if not user:
+    if not row:
         return None
-    return {
-        "id": user[0],
-        "name": user[1],
-        "email": user[2],
-        "phone": user[3],
-        "password_hash": user[4],
-        "google_id": user[5],
-        "avatar_url": user[6],
-        "auth_provider": user[7],
-        "created_at": user[8],
-        "updated_at": user[9] if len(user) > 9 else None,
-    }
+    keys = ["id", "name", "email", "phone", "password_hash", "auth_provider", "avatar_url", "created_at"]
+    return dict(zip(keys, row))
 
 
 def get_user_by_id(user_id: int):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
-    user = cursor.fetchone()
+    cursor.execute("SELECT id, name, email, phone, auth_provider, avatar_url, created_at FROM users WHERE id = ?", (user_id,))
+    row = cursor.fetchone()
     conn.close()
-    if not user:
+    if not row:
         return None
-    return {
-        "id": user[0],
-        "name": user[1],
-        "email": user[2],
-        "phone": user[3],
-        "password_hash": user[4],
-        "google_id": user[5],
-        "avatar_url": user[6],
-        "auth_provider": user[7],
-        "created_at": user[8],
-        "updated_at": user[9] if len(user) > 9 else None,
-    }
+    keys = ["id", "name", "email", "phone", "auth_provider", "avatar_url", "created_at"]
+    return dict(zip(keys, row))
 
 
-def get_user_by_google_id(google_id: str):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE google_id = ?", (google_id,))
-    user = cursor.fetchone()
-    conn.close()
-    if not user:
-        return None
-    return {
-        "id": user[0],
-        "name": user[1],
-        "email": user[2],
-        "phone": user[3],
-        "password_hash": user[4],
-        "google_id": user[5],
-        "avatar_url": user[6],
-        "auth_provider": user[7],
-        "created_at": user[8],
-        "updated_at": user[9] if len(user) > 9 else None,
-    }
-
-
-def verify_google_token(token: str):
-    """
-    Verify a Google ID token via Google's tokeninfo endpoint.
-    Returns dict with 'google_id','email','name','avatar_url' on success, otherwise None.
-    """
-    try:
-        # tokeninfo endpoint is simple and doesn't require client secret for ID token validation.
-        url = f"https://oauth2.googleapis.com/tokeninfo?id_token={token}"
-        resp = requests.get(url, timeout=5)
-        if resp.status_code != 200:
-            return None
-        data = resp.json()
-        # Validate audience if a client id is configured
-        if GOOGLE_CLIENT_ID and data.get("aud") != GOOGLE_CLIENT_ID:
-            return None
-        return {
-            "google_id": data.get("sub"),
-            "email": data.get("email"),
-            "name": data.get("name") or data.get("email").split("@")[0],
-            "avatar_url": data.get("picture"),
-        }
-    except Exception:
-        return None
-
-
-# Dependency to get current user from Authorization header (Bearer token)
-def get_current_user_from_token(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-):
-    if not credentials or not credentials.credentials:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    try:
-        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-    except jwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    user_id = payload.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid token payload")
-
-    user = get_user_by_id(int(user_id))
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-
-    return user
-
-
-# Helper: read token from cookies or Authorization header
-def get_current_user_from_request(request: Request):
-    # check cookie first
+def get_current_user_from_token(request: Request):
     token = request.cookies.get("auth_token")
     if not token:
         auth = request.headers.get("Authorization")
         if auth and auth.startswith("Bearer "):
             token = auth[len("Bearer ") :]
-
     if not token:
         return None
-
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except jwt.PyJWTError:
         return None
-
-    user_id = payload.get("sub")
+    user_id = payload.get("sub") or payload.get("id") or payload.get("user_id")
     if not user_id:
         return None
-
-    user = get_user_by_id(int(user_id))
+    try:
+        user = get_user_by_id(int(user_id))
+    except Exception:
+        return None
     return user
 
 
-# Routes
+# ---------------- Routes ----------------
 @router.post("/signup")
 async def signup(request: SignupRequest, response: Response):
     # ensure contact uniqueness
     existing = get_user_by_contact(request.contact)
     if existing:
         raise HTTPException(status_code=400, detail="User with this email/phone already exists")
-
     password_hash = hash_password(request.password)
-
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -320,8 +217,7 @@ async def signup(request: SignupRequest, response: Response):
         raise HTTPException(status_code=500, detail="Failed to create user")
     conn.close()
 
-    access_token = create_access_token({"sub": user_id})
-    # Set HTTP-only cookie (secure flag should be True in production with HTTPS)
+    access_token = create_access_token({"sub": user_id, "id": user_id})
     response.set_cookie(
         key="auth_token",
         value=access_token,
@@ -330,7 +226,6 @@ async def signup(request: SignupRequest, response: Response):
         secure=(os.getenv("ENV") == "production"),
         samesite="lax",
     )
-
     user = get_user_by_id(user_id)
     return {"access_token": access_token, "token_type": "bearer", "user": user}
 
@@ -340,11 +235,9 @@ async def login(request: LoginRequest, response: Response):
     user = get_user_by_contact(request.contact)
     if not user or not user.get("password_hash"):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-
     if not verify_password(request.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    access_token = create_access_token({"sub": user["id"]})
+    access_token = create_access_token({"sub": user["id"], "id": user["id"]})
     response.set_cookie(
         key="auth_token",
         value=access_token,
@@ -353,86 +246,13 @@ async def login(request: LoginRequest, response: Response):
         secure=(os.getenv("ENV") == "production"),
         samesite="lax",
     )
-
-    # Return user object (omit password_hash)
     user_resp = get_user_by_id(user["id"])
     return {"access_token": access_token, "token_type": "bearer", "user": user_resp}
 
 
 @router.get("/me")
-async def get_current_user_info(user=Depends(get_current_user_from_token)):
-    # Using dependency that requires a bearer token
-    return user
-
-
-@router.post("/logout")
-async def logout(response: Response):
-    # Clear the auth cookie
-    response.delete_cookie(key="auth_token")
-    return {"message": "Successfully logged out"}
-
-
-@router.post("/google")
-async def google_auth(request: GoogleAuthRequest, response: Response):
-    google_user = verify_google_token(request.token)
-    if not google_user:
-        raise HTTPException(status_code=401, detail="Invalid Google token")
-
-    # Check existing user by google_id or email
-    user = None
-    if google_user.get("google_id"):
-        user = get_user_by_google_id(google_user["google_id"])
-    if not user and google_user.get("email"):
-        # maybe previously signed up with same email (local)
-        existing = get_user_by_contact(google_user["email"])
-        if existing:
-            # attach google id if not already set
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            try:
-                cursor.execute(
-                    "UPDATE users SET google_id = ?, avatar_url = ?, auth_provider = 'google' WHERE id = ?",
-                    (google_user["google_id"], google_user.get("avatar_url"), existing["id"]),
-                )
-                conn.commit()
-            except Exception:
-                conn.rollback()
-            finally:
-                conn.close()
-            user = get_user_by_id(existing["id"])
-
-    # If still not found, create a new user record using google info
+async def get_current_user_info(request: Request):
+    user = get_current_user_from_token(request)
     if not user:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        try:
-            cursor.execute(
-                "INSERT INTO users (name, email, google_id, avatar_url, auth_provider) VALUES (?, ?, ?, ?, 'google')",
-                (
-                    google_user.get("name"),
-                    google_user.get("email"),
-                    google_user.get("google_id"),
-                    google_user.get("avatar_url"),
-                ),
-            )
-            user_id = cursor.lastrowid
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            conn.close()
-            raise HTTPException(status_code=500, detail="Failed to create user")
-        conn.close()
-        user = get_user_by_id(user_id)
-
-    # Issue token & set cookie
-    access_token = create_access_token({"sub": user["id"]})
-    response.set_cookie(
-        key="auth_token",
-        value=access_token,
-        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        httponly=True,
-        secure=(os.getenv("ENV") == "production"),
-        samesite="lax",
-    )
-
-    return {"access_token": access_token, "token_type": "bearer", "user": user}
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
