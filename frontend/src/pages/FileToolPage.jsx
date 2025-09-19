@@ -5,13 +5,11 @@ import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
 import FileToolUploadPanel from "../components/upload/FileToolUploadPanel";
 import FileToolExportPanel from "../components/export/FileToolExportPanel";
-import PdfMerge from "./PdfMerge";
-import PdfCompress from "./PdfCompress";
-import GenericConvert from "./GenericConvert";
 
 export default function FileToolPage() {
   const { action } = useParams();
   const [searchParams] = useSearchParams();
+
   const [downloadUrl, setDownloadUrl] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,31 +19,31 @@ export default function FileToolPage() {
   const [theme, setTheme] = useState("light");
   const [files, setFiles] = useState([]);
   const [viewMode, setViewMode] = useState("grid");
-  
-  // User state
   const [user, setUser] = useState(null);
-  
-  // Load user and theme
-useEffect(() => {
-  const savedUser = localStorage.getItem("user");
-  if (savedUser) {
-    try {
-      setUser(JSON.parse(savedUser));
-    } catch (e) {
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
-    }
-  }
 
-  const savedTheme = localStorage.getItem("theme") || "light";
-  setTheme(savedTheme);
-  document.body.classList.remove("dark", "light");
-  document.body.classList.add(savedTheme);
-}, []);
-  
-  // Restore stashed file if present
+  // Load user + theme
+  useEffect(() => {
+    const savedUser = localStorage.getItem("user");
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch {
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+      }
+    }
+
+    const savedTheme = localStorage.getItem("theme") || "light";
+    setTheme(savedTheme);
+    document.body.classList.remove("dark", "light");
+    document.body.classList.add(savedTheme);
+  }, []);
+
+  // Restore stashed file if token exists
+  useEffect(() => {
     const token = searchParams.get("token");
     if (!token) return;
+
     fetch(`/api/filetools/retrieve/${token}`)
       .then((res) => res.blob())
       .then((blob) => {
@@ -57,9 +55,11 @@ useEffect(() => {
       })
       .catch(console.warn);
   }, [searchParams]);
+
+  // Mapping of tools
   const mapping = {
-    compress: { component: "compress" },
-    merge: { component: "merge" },
+    compress: { component: "compress", label: "PDF → Compressed PDF", accept: ".pdf" },
+    merge: { component: "merge", label: "Merge PDFs", accept: ".pdf" },
     "pdf-to-word": {
       component: "convert",
       endpoint: "/api/filetools/convert/pdf-to-word",
@@ -67,65 +67,94 @@ useEffect(() => {
       label: "PDF → Word",
     },
     "pdf-to-excel": {
+      component: "convert",
       endpoint: "/api/filetools/convert/pdf-to-excel",
+      accept: ".pdf",
       label: "PDF → Excel",
+    },
     "excel-to-pdf": {
+      component: "convert",
       endpoint: "/api/filetools/convert/excel-to-pdf",
       accept: ".xls,.xlsx",
       label: "Excel → PDF",
+    },
     "csv-to-excel": {
+      component: "convert",
       endpoint: "/api/filetools/convert/csv-to-excel",
       accept: ".csv",
       label: "CSV → Excel",
+    },
     "excel-to-csv": {
+      component: "convert",
       endpoint: "/api/filetools/convert/excel-to-csv",
+      accept: ".xls,.xlsx",
       label: "Excel → CSV",
+    },
     "pdf-to-csv": {
+      component: "convert",
       endpoint: "/api/filetools/convert/pdf-to-csv",
+      accept: ".pdf",
       label: "PDF → CSV",
+    },
     "csv-to-pdf": {
+      component: "convert",
       endpoint: "/api/filetools/convert/csv-to-pdf",
+      accept: ".csv",
       label: "CSV → PDF",
+    },
   };
+
   const config = mapping[action] || null;
+
+  // Upload handler
   const handleUpload = async () => {
     if (!files.length) {
       setError("Please select a file first.");
       return;
+    }
+
     setLoading(true);
     setError("");
     setConversionComplete(false);
+
     try {
       const fd = new FormData();
       if (config.component === "merge") {
-        // Multiple files for merge
-        files.forEach(f => fd.append("files", f));
+        files.forEach((f) => fd.append("files", f));
       } else {
-        // Single file for others
         fd.append("file", files[0]);
-      const endpoint = config.component === "compress" 
-        ? "/api/filetools/pdf/compress"
-        : config.component === "merge"
-        ? "/api/filetools/pdf/merge"
-        : config.endpoint;
+      }
+
+      const endpoint =
+        config.component === "compress"
+          ? "/api/filetools/pdf/compress"
+          : config.component === "merge"
+          ? "/api/filetools/pdf/merge"
+          : config.endpoint;
+
       const res = await fetch(endpoint, { method: "POST", body: fd });
       const json = await res.json();
+
       if (!res.ok) throw new Error(json.detail || json.error || "Conversion failed");
-      // Set conversion complete and download URL but DON'T auto-download
+
       setDownloadUrl(json.download_url);
       setFileName(json.filename || "converted_file");
       setConversionComplete(true);
-      
-      // Clear the error
-      setError("");
     } catch (e) {
       setError(e.message || "Conversion failed");
       setConversionComplete(false);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Download handler
   const handleDownload = () => {
     if (downloadUrl) {
       window.open(downloadUrl, "_blank");
+    }
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-slate-950">
       <Sidebar theme={theme} setTheme={setTheme} onReportChange={() => {}} />
@@ -134,7 +163,6 @@ useEffect(() => {
         <div className="flex-1 flex flex-col p-6 space-y-6">
           {config ? (
             <>
-              {/* Tool specific upload panel */}
               {config.component === "merge" ? (
                 <div className="max-w-6xl mx-auto">
                   <h2 className="text-3xl font-bold text-gray-800 dark:text-slate-200 mb-8 text-center">
@@ -154,15 +182,31 @@ useEffect(() => {
                   />
                 </div>
               ) : config.component === "compress" ? (
-                    PDF Compression
-                    title="Select PDF to Compress"
-                    multiple={false}
-                    uploadLabel="Compress PDF"
+                <FileToolUploadPanel
+                  title="Select PDF to Compress"
+                  accept=".pdf"
+                  multiple={false}
+                  files={files}
+                  setFiles={setFiles}
+                  viewMode={viewMode}
+                  setViewMode={setViewMode}
+                  onUpload={handleUpload}
+                  uploadLabel="Compress PDF"
+                  loading={loading}
+                />
               ) : (
-                    {config.label}
-                    title={`Select file for ${config.label}`}
-                    accept={config.accept}
-                    uploadLabel="Convert"
+                <FileToolUploadPanel
+                  title={`Select file for ${config.label}`}
+                  accept={config.accept}
+                  multiple={false}
+                  files={files}
+                  setFiles={setFiles}
+                  viewMode={viewMode}
+                  setViewMode={setViewMode}
+                  onUpload={handleUpload}
+                  uploadLabel="Convert"
+                  loading={loading}
+                />
               )}
             </>
           ) : (
@@ -170,7 +214,7 @@ useEffect(() => {
               <p>Unknown tool: {action}</p>
             </div>
           )}
-          {/* Export Panel - only show when file is selected */}
+
           <FileToolExportPanel
             showPanel={files.length > 0}
             downloadUrl={downloadUrl}
@@ -186,3 +230,4 @@ useEffect(() => {
       </div>
     </div>
   );
+}
