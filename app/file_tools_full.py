@@ -5,16 +5,20 @@ import uuid
 import shutil
 import tempfile
 import subprocess
-import pikepdf
 from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
+
+try:
+    import pikepdf
+except ImportError:
+    pikepdf = None
 
 router = APIRouter(prefix="/api/filetools", tags=["filetools"])
 
-# Directories
+# ---------- Directories ----------
 BASE_DIR = os.path.dirname(__file__)
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 STASH_DIR = os.path.join(BASE_DIR, "stash")
@@ -23,20 +27,16 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(STASH_DIR, exist_ok=True)
 os.makedirs(TMP_DIR, exist_ok=True)
 
-
 # ---------- Helpers ----------
 def sanitize_filename(name: str) -> str:
     import re
     base = os.path.basename(name or "file")
     base = base.replace(" ", "_")
-    base = re.sub(r"[^A-Za-z0-9._-]", "_", base)
-    return base
-
+    return re.sub(r"[^A-Za-z0-9._-]", "_", base)
 
 def unique_filename(name: str) -> str:
     ts = int(time.time() * 1000)
     return f"{ts}_{sanitize_filename(name)}"
-
 
 def save_upload_file(upload: UploadFile, folder: str = UPLOAD_DIR) -> str:
     saved_name = unique_filename(upload.filename or "file")
@@ -48,7 +48,6 @@ def save_upload_file(upload: UploadFile, folder: str = UPLOAD_DIR) -> str:
     except Exception:
         pass
     return saved_name
-
 
 def write_upload_to_temp(upload: UploadFile, prefix="tmp_") -> str:
     ext = Path(upload.filename or "").suffix or ".bin"
@@ -63,7 +62,6 @@ def write_upload_to_temp(upload: UploadFile, prefix="tmp_") -> str:
         pass
     return tmp_path
 
-
 def human_readable_size(n: Optional[int]) -> str:
     if n is None:
         return "-"
@@ -74,17 +72,15 @@ def human_readable_size(n: Optional[int]) -> str:
         n /= 1024.0
     return f"{n:.1f} PB"
 
-
 # ---------- Stash ----------
 stash_map = {}  # token -> (saved_filename, timestamp)
 STASH_EXPIRY = 10 * 60  # seconds
-
 
 def cleanup_stash():
     now = time.time()
     expired = [t for t, (_, ts) in stash_map.items() if now - ts > STASH_EXPIRY]
     for t in expired:
-        fname, _ = stash_map.get(t, (None, None))
+        fname, _ = stash_map.pop(t, (None, None))
         if fname:
             p = os.path.join(STASH_DIR, fname)
             if os.path.exists(p):
@@ -92,8 +88,6 @@ def cleanup_stash():
                     os.remove(p)
                 except Exception:
                     pass
-        stash_map.pop(t, None)
-
 
 @router.post("/stash")
 async def stash_file(file: UploadFile = File(...)):
@@ -102,7 +96,6 @@ async def stash_file(file: UploadFile = File(...)):
     saved = save_upload_file(file, folder=STASH_DIR)
     stash_map[token] = (saved, time.time())
     return {"token": token, "filename": file.filename}
-
 
 @router.get("/retrieve/{token}")
 async def retrieve_file(token: str):
@@ -114,7 +107,6 @@ async def retrieve_file(token: str):
         raise HTTPException(status_code=404, detail="File not found")
     return FileResponse(path, filename=saved_fname)
 
-
 # ---------- Listing / Deleting ----------
 @router.get("/list")
 async def list_uploaded_files():
@@ -123,16 +115,14 @@ async def list_uploaded_files():
         path = os.path.join(UPLOAD_DIR, fn)
         if not os.path.isfile(path):
             continue
-        items.append(
-            {
-                "name": fn,
-                "size": os.path.getsize(path),
-                "size_readable": human_readable_size(os.path.getsize(path)),
-                "download_url": f"/api/files/{fn}",
-            }
-        )
+        size = os.path.getsize(path)
+        items.append({
+            "name": fn,
+            "size": size,
+            "size_readable": human_readable_size(size),
+            "download_url": f"/api/files/{fn}",
+        })
     return {"files": items}
-
 
 @router.delete("/delete/{saved_filename}")
 async def delete_uploaded_file(saved_filename: str):
@@ -147,8 +137,7 @@ async def delete_uploaded_file(saved_filename: str):
         raise HTTPException(status_code=500, detail=f"Failed to delete file: {str(e)}")
     return {"message": "Deleted", "name": saved_filename}
 
-
-# ---------- External binaries detection ----------
+# ---------- External binaries ----------
 def find_executable(names: List[str]) -> Optional[str]:
     for n in names:
         path = shutil.which(n)
@@ -156,134 +145,69 @@ def find_executable(names: List[str]) -> Optional[str]:
             return path
     return None
 
-
 GS_EXEC = find_executable(["gs", "gswin64c", "gswin32c"])
 SOFFICE_EXEC = find_executable(["soffice", "soffice.bin"])
 QPDF_EXEC = find_executable(["qpdf"])
 
-
-# ---------- PDF compression helpers ----------
+# ---------- PDF Compression Helpers ----------
 GS_SETTINGS = {"strong": "/ebook", "medium": "/ebook", "light": "/printer"}
 
-
 def _gs_compress(input_path: str, output_path: str, pdfsetting: str):
-    if GS_EXEC is None:
+    if not GS_EXEC:
         raise RuntimeError("Ghostscript not available")
     cmd = [
-        GS_EXEC,
-        "-sDEVICE=pdfwrite",
-        "-dCompatibilityLevel=1.4",
-        f"-dPDFSETTINGS={pdfsetting}",
-        "-dColorImageDownsampleType=/Bicubic",
-        "-dColorImageResolution=150",
-        "-dGrayImageDownsampleType=/Bicubic",
-        "-dGrayImageResolution=150",
-        "-dMonoImageDownsampleType=/Subsample",
-        "-dMonoImageResolution=300",
-        "-dNOPAUSE",
-        "-dQUIET",
-        "-dBATCH",
-        f"-sOutputFile={output_path}",
-        input_path,
+        GS_EXEC, "-sDEVICE=pdfwrite", "-dCompatibilityLevel=1.4",
+        f"-dPDFSETTINGS={pdfsetting}", "-dColorImageDownsampleType=/Bicubic",
+        "-dColorImageResolution=150", "-dGrayImageDownsampleType=/Bicubic",
+        "-dGrayImageResolution=150", "-dMonoImageDownsampleType=/Subsample",
+        "-dMonoImageResolution=300", "-dNOPAUSE", "-dQUIET", "-dBATCH",
+        f"-sOutputFile={output_path}", input_path
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(f"Ghostscript failed: {result.stderr or result.stdout}")
 
-
 def _pikepdf_compress(input_path: str, output_path: str, level: str):
+    if pikepdf is None:
+        raise RuntimeError("pikepdf not installed: pip install pikepdf")
     pdf = pikepdf.Pdf.open(input_path)
-
-    # String-based compression levels for pikepdf >=7
-    string_levels = {
-        "light": "fast",
-        "medium": "default",
-        "strong": "maximum",
-    }
-
-    # Enum-based compression levels for older versions (<7)
-    enum_levels = {
-        "light": getattr(getattr(pikepdf, "CompressionLevel", None), "low", None),
-        "medium": getattr(getattr(pikepdf, "CompressionLevel", None), "medium", None),
-        "strong": getattr(getattr(pikepdf, "CompressionLevel", None), "high", None),
-    }
-
     try:
-        # Try string-based compression (newer versions)
-        pdf.save(output_path, compression=string_levels[level])
-    except TypeError:
-        # Fallback: enum-based (older versions)
-        if enum_levels[level] is not None:
-            pdf.save(output_path, compression=enum_levels[level])
-        else:
-            # If all else fails, just save without compression
-            pdf.save(output_path)
-    except Exception as e:
+        string_levels = {"light": "fast", "medium": "default", "strong": "maximum"}
+        pdf.save(output_path, compression=string_levels.get(level, "default"))
+    finally:
         pdf.close()
-        raise RuntimeError(f"PDF compression failed: {str(e)}")
-
-    pdf.close()
-
-    except ImportError:
-        raise RuntimeError("pikepdf not available - install with: pip install pikepdf")
-    except Exception as e:
-        raise RuntimeError(f"PDF compression failed: {str(e)}")
-
 
 # ---------- PDF compress preview ----------
 @router.post("/pdf/compress-preview")
 async def pdf_compress_preview(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF allowed for compression preview")
+        raise HTTPException(status_code=400, detail="Only PDF allowed")
     in_path = write_upload_to_temp(file, prefix="preview_in_")
     results = {}
     try:
         original_size = os.path.getsize(in_path)
-        results["original"] = {
-            "size_bytes": original_size,
-            "size_readable": human_readable_size(original_size),
-        }
+        results["original"] = {"size_bytes": original_size, "size_readable": human_readable_size(original_size)}
         for level, gs_setting in GS_SETTINGS.items():
-            out_tmp = None
+            out_tmp = tempfile.mktemp(prefix=f"preview_{level}_", suffix=".pdf", dir=TMP_DIR)
             try:
-                fd, out_tmp = tempfile.mkstemp(prefix=f"preview_{level}_", suffix=".pdf", dir=TMP_DIR)
-                os.close(fd)
-                # Try Ghostscript first, fallback to pikepdf
-                try:
-                    if GS_EXEC:
-                        _gs_compress(in_path, out_tmp, gs_setting)
-                    else:
-                        _pikepdf_compress(in_path, out_tmp, level)
-                except Exception as gs_error:
-                    # fallback to pikepdf if GS failed
-                    try:
-                        _pikepdf_compress(in_path, out_tmp, level)
-                    except Exception as pdf_error:
-                        raise RuntimeError(f"Both compression methods failed. GS: {gs_error}, pikepdf: {pdf_error}")
-                if os.path.exists(out_tmp):
-                    size = os.path.getsize(out_tmp)
-                    reduction = ((original_size - size) / original_size) * 100 if original_size > 0 else 0
-                    results[level] = {
-                        "size_bytes": size,
-                        "size_readable": human_readable_size(size),
-                        "reduction_percent": round(reduction, 1),
-                    }
+                if GS_EXEC:
+                    _gs_compress(in_path, out_tmp, gs_setting)
                 else:
-                    results[level] = {"error": "Output file not created"}
+                    _pikepdf_compress(in_path, out_tmp, level)
+                size = os.path.getsize(out_tmp)
+                results[level] = {
+                    "size_bytes": size,
+                    "size_readable": human_readable_size(size),
+                    "reduction_percent": round((original_size - size) / original_size * 100, 1)
+                }
             except Exception as e:
                 results[level] = {"error": str(e)}
             finally:
-                if out_tmp and os.path.exists(out_tmp):
-                    try:
-                        os.remove(out_tmp)
-                    except Exception:
-                        pass
+                if os.path.exists(out_tmp):
+                    os.remove(out_tmp)
     finally:
         if os.path.exists(in_path):
-            try:
-                os.remove(in_path)
-            except Exception:
-                pass
+            os.remove(in_path)
     return {"results": results}
 
 
