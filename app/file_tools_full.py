@@ -5,6 +5,7 @@ import uuid
 import shutil
 import tempfile
 import subprocess
+import pikepdf
 from pathlib import Path
 from typing import List, Optional
 
@@ -191,42 +192,37 @@ def _gs_compress(input_path: str, output_path: str, pdfsetting: str):
 
 
 def _pikepdf_compress(input_path: str, output_path: str, level: str):
+    pdf = pikepdf.Pdf.open(input_path)
+
+    # String-based compression levels for pikepdf >=7
+    string_levels = {
+        "light": "fast",
+        "medium": "default",
+        "strong": "maximum",
+    }
+
+    # Enum-based compression levels for older versions (<7)
+    enum_levels = {
+        "light": getattr(getattr(pikepdf, "CompressionLevel", None), "low", None),
+        "medium": getattr(getattr(pikepdf, "CompressionLevel", None), "medium", None),
+        "strong": getattr(getattr(pikepdf, "CompressionLevel", None), "high", None),
+    }
+
     try:
-        import pikepdf
-
-        pdf = pikepdf.Pdf.open(input_path)
-
-        # For newer versions of pikepdf (>=7): use string-based compression
-        string_levels = {
-            "light": "fast",
-            "medium": "default",
-            "strong": "maximum",
-        }
-
-        # For older versions (<7): CompressionLevel enum still exists
-        enum_levels = {
-            "light": getattr(getattr(pikepdf, "CompressionLevel", None), "low", None),
-            "medium": getattr(getattr(pikepdf, "CompressionLevel", None), "medium", None),
-            "strong": getattr(getattr(pikepdf, "CompressionLevel", None), "high", None),
-        }
-
-        comp_level = None
-
-        # Prefer string-based compression if supported
-        try:
-            pdf.save(output_path, optimize_streams=True, compression=string_levels[level])
-            pdf.close()
-            return
-        except Exception:
-            pass
-
-        # Fallback: use enum if available
+        # Try string-based compression (newer versions)
+        pdf.save(output_path, compression=string_levels[level])
+    except TypeError:
+        # Fallback: enum-based (older versions)
         if enum_levels[level] is not None:
-            pdf.save(output_path, optimize_streams=True, compression=enum_levels[level])
+            pdf.save(output_path, compression=enum_levels[level])
         else:
-            pdf.save(output_path, optimize_streams=True)
-
+            # If all else fails, just save without compression
+            pdf.save(output_path)
+    except Exception as e:
         pdf.close()
+        raise RuntimeError(f"PDF compression failed: {str(e)}")
+
+    pdf.close()
 
     except ImportError:
         raise RuntimeError("pikepdf not available - install with: pip install pikepdf")
