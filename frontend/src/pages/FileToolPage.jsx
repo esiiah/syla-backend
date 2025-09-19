@@ -20,6 +20,7 @@ export default function FileToolPage() {
   const [files, setFiles] = useState([]);
   const [viewMode, setViewMode] = useState("grid");
   const [user, setUser] = useState(null);
+  const [compressionLevel, setCompressionLevel] = useState("medium");
 
   // Load user + theme
   useEffect(() => {
@@ -38,6 +39,16 @@ export default function FileToolPage() {
     document.body.classList.remove("dark", "light");
     document.body.classList.add(savedTheme);
   }, []);
+
+  // Reset state when switching between different tools
+  useEffect(() => {
+    setDownloadUrl("");
+    setError("");
+    setLoading(false);
+    setConversionComplete(false);
+    setFileName("");
+    setCompressionLevel("medium");
+  }, [action]);
 
   // Restore stashed file if token exists
   useEffect(() => {
@@ -107,7 +118,7 @@ export default function FileToolPage() {
   const config = mapping[action] || null;
 
   // Upload handler
-  const handleUpload = async () => {
+  const handleUpload = async (levelOverride = null) => {
     if (!files.length) {
       setError("Please select a file first.");
       return;
@@ -125,6 +136,12 @@ export default function FileToolPage() {
         fd.append("file", files[0]);
       }
 
+      // Add compression level for PDF compression
+      if (config.component === "compress") {
+        const level = levelOverride || compressionLevel;
+        fd.append("level", level);
+      }
+
       const endpoint =
         config.component === "compress"
           ? "/api/filetools/pdf/compress"
@@ -140,6 +157,12 @@ export default function FileToolPage() {
       setDownloadUrl(json.download_url);
       setFileName(json.filename || "converted_file");
       setConversionComplete(true);
+      
+      // Show size reduction info for compression
+      if (config.component === "compress" && json.reduction_percent) {
+        setError(""); // Clear any previous errors
+        console.log(`File size reduced by ${json.reduction_percent}%`);
+      }
     } catch (e) {
       setError(e.message || "Conversion failed");
       setConversionComplete(false);
@@ -155,6 +178,18 @@ export default function FileToolPage() {
     }
   };
 
+  // Handle compression level changes
+  const handleCompressionLevelChange = (level) => {
+    setCompressionLevel(level);
+    // Reset conversion state when level changes
+    if (conversionComplete) {
+      setConversionComplete(false);
+      setDownloadUrl("");
+      setFileName("");
+      setError("");
+    }
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-slate-950">
       <Sidebar theme={theme} setTheme={setTheme} onReportChange={() => {}} />
@@ -163,13 +198,25 @@ export default function FileToolPage() {
         <div className="flex-1 flex flex-col p-6 space-y-6">
           {config ? (
             <>
+              {/* Header */}
+              <div className="text-center mb-6">
+                <h1 className="text-3xl font-bold text-gray-800 dark:text-slate-200 mb-2">
+                  {config.label}
+                </h1>
+                <p className="text-gray-600 dark:text-slate-400">
+                  {config.component === "compress" 
+                    ? "Reduce PDF file size with customizable compression levels"
+                    : config.component === "merge" 
+                    ? "Combine multiple PDF files into a single document (max 15 files)"
+                    : "Convert your files quickly and securely"}
+                </p>
+              </div>
+
               {config.component === "merge" ? (
                 <div className="max-w-6xl mx-auto">
-                  <h2 className="text-3xl font-bold text-gray-800 dark:text-slate-200 mb-8 text-center">
-                    Merge PDFs (max 15)
-                  </h2>
                   <FileToolUploadPanel
                     title="Select PDFs to Merge"
+                    hint="You can select up to 15 PDF files to merge into one document"
                     accept=".pdf"
                     multiple={true}
                     files={files}
@@ -182,36 +229,52 @@ export default function FileToolPage() {
                   />
                 </div>
               ) : config.component === "compress" ? (
-                <FileToolUploadPanel
-                  title="Select PDF to Compress"
-                  accept=".pdf"
-                  multiple={false}
-                  files={files}
-                  setFiles={setFiles}
-                  viewMode={viewMode}
-                  setViewMode={setViewMode}
-                  onUpload={handleUpload}
-                  uploadLabel="Compress PDF"
-                  loading={loading}
-                />
+                <div className="max-w-4xl mx-auto">
+                  <FileToolUploadPanel
+                    title="Select PDF to Compress"
+                    hint="Choose a PDF file and select your preferred compression level"
+                    accept=".pdf"
+                    multiple={false}
+                    files={files}
+                    setFiles={setFiles}
+                    viewMode={viewMode}
+                    setViewMode={setViewMode}
+                    onUpload={handleUpload}
+                    uploadLabel={`Compress PDF (${compressionLevel})`}
+                    loading={loading}
+                  />
+                </div>
               ) : (
-                <FileToolUploadPanel
-                  title={`Select file for ${config.label}`}
-                  accept={config.accept}
-                  multiple={false}
-                  files={files}
-                  setFiles={setFiles}
-                  viewMode={viewMode}
-                  setViewMode={setViewMode}
-                  onUpload={handleUpload}
-                  uploadLabel="Convert"
-                  loading={loading}
-                />
+                <div className="max-w-4xl mx-auto">
+                  <FileToolUploadPanel
+                    title={`Select file for ${config.label}`}
+                    hint={`Upload ${config.accept.replace(/\./g, '').toUpperCase()} file for conversion`}
+                    accept={config.accept}
+                    multiple={false}
+                    files={files}
+                    setFiles={setFiles}
+                    viewMode={viewMode}
+                    setViewMode={setViewMode}
+                    onUpload={handleUpload}
+                    uploadLabel="Convert"
+                    loading={loading}
+                  />
+                </div>
               )}
             </>
           ) : (
             <div className="text-center text-gray-600 dark:text-gray-300">
-              <p>Unknown tool: {action}</p>
+              <div className="max-w-md mx-auto p-8 bg-white dark:bg-ink/80 rounded-2xl border border-gray-200 dark:border-white/5 shadow-soft">
+                <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <h2 className="text-xl font-semibold text-gray-800 dark:text-slate-200 mb-2">
+                  Tool Not Found
+                </h2>
+                <p className="text-gray-600 dark:text-slate-400">
+                  The requested tool "{action}" is not available.
+                </p>
+              </div>
             </div>
           )}
 
@@ -220,12 +283,14 @@ export default function FileToolPage() {
             downloadUrl={downloadUrl}
             onDownload={handleDownload}
             onUpload={handleUpload}
-            uploadLabel="Convert"
+            uploadLabel={config?.component === "compress" ? `Compress PDF (${compressionLevel})` : config?.component === "merge" ? "Merge PDFs" : "Convert"}
             error={error}
             loading={loading}
             conversionComplete={conversionComplete}
             fileName={fileName}
-            toolType={config?.component || "convert"}   // ✅ add this
+            toolType={config?.component || "convert"}
+            compressionLevel={compressionLevel}
+            onCompressionLevelChange={handleCompressionLevelChange}
           />
         </div>
       </div>
