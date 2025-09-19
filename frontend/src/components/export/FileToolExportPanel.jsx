@@ -1,9 +1,9 @@
 // frontend/src/components/export/FileToolExportPanel.jsx
-import React from "react";
+import React, { useState, useEffect } from "react";
 
 export default function FileToolExportPanel({ 
   onUpload,
-  uploadLabel = "Convert",   // ✅ add this
+  uploadLabel = "Convert",
   downloadUrl = "",
   onDownload,
   error = "",
@@ -11,14 +11,38 @@ export default function FileToolExportPanel({
   showPanel = false,
   conversionComplete = false,
   fileName = "",
-  toolType = "convert",      // ✅ keep this
-  compressionLevel = "medium",
+  toolType = "convert",
   onCompressionLevelChange = () => {}
 }) {
+  const [compressionLevel, setCompressionLevel] = useState("medium");
+  
+  // Reset compression level and conversion state when tool type changes
+  useEffect(() => {
+    if (toolType !== "compress") {
+      setCompressionLevel("medium");
+    }
+  }, [toolType]);
+
+  // Reset conversion state when switching between tools
+  useEffect(() => {
+    // This will be handled by parent component
+  }, [toolType]);
+
   if (!showPanel) return null;
 
   const handleUpload = () => {
-    if (typeof onUpload === "function") onUpload();
+    if (typeof onUpload === "function") {
+      if (toolType === "compress") {
+        onUpload(compressionLevel);
+      } else {
+        onUpload();
+      }
+    }
+  };
+
+  const handleCompressionLevelChange = (level) => {
+    setCompressionLevel(level);
+    onCompressionLevelChange(level);
   };
 
   const handleDownload = () => {
@@ -35,7 +59,7 @@ export default function FileToolExportPanel({
       if (toolType === "merge") return "Merging...";
       return "Processing...";
     }
-    if (toolType === "compress") return "Compress PDF";
+    if (toolType === "compress") return `Compress PDF (${compressionLevel})`;
     if (toolType === "merge") return "Merge PDFs";
     return "Convert";
   };
@@ -46,13 +70,22 @@ export default function FileToolExportPanel({
     return "File Processing";
   };
 
+  const getCompressionDescription = (level) => {
+    const descriptions = {
+      light: "Minimal compression - Better quality, larger file size",
+      medium: "Balanced compression - Good quality, moderate reduction",
+      strong: "Maximum compression - Smaller file, some quality loss"
+    };
+    return descriptions[level] || "";
+  };
+
   return (
     <div
       style={{
         position: "fixed",
         right: 20,
         top: "35%",
-        width: 300,
+        width: 320,
         zIndex: 80,
       }}
     >
@@ -74,30 +107,53 @@ export default function FileToolExportPanel({
           {getProcessingTitle()}
         </div>
 
-        {/* Compression selector */}
+        {/* Compression Level Selector - Only show for compress tool and when not completed */}
         {toolType === "compress" && !conversionComplete && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
-            <label className="block text-sm font-medium text-blue-700 dark:text-blue-400 mb-2">
+          <div className="mb-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg dark:bg-gradient-to-r dark:from-blue-900/20 dark:to-indigo-900/20 dark:border-blue-800">
+            <label className="block text-sm font-medium text-blue-700 dark:text-blue-400 mb-3">
               Compression Level
             </label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-2">
               {[
-                { value: "light", label: "Light", desc: "~25%" },
-                { value: "medium", label: "Medium", desc: "~50%" },
-                { value: "strong", label: "Strong", desc: "~75%" },
+                { value: "light", label: "Light", reduction: "~25%" },
+                { value: "medium", label: "Medium", reduction: "~50%" },
+                { value: "strong", label: "Strong", reduction: "~75%" },
               ].map((option) => (
-                <button
+                <label
                   key={option.value}
-                  onClick={() => onCompressionLevelChange(option.value)}
-                  className={`p-2 text-xs rounded border transition-all duration-200 ${
+                  className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
                     compressionLevel === option.value
-                      ? "bg-neonBlue text-white border-neonBlue"
-                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600 dark:hover:bg-slate-600"
+                      ? "border-neonBlue bg-neonBlue/10 text-neonBlue"
+                      : "border-gray-200 hover:border-gray-300 text-gray-700 dark:border-slate-600 dark:hover:border-slate-500 dark:text-slate-300"
                   }`}
                 >
-                  <div className="font-medium">{option.label}</div>
-                  <div className="text-xs opacity-75">{option.desc}</div>
-                </button>
+                  <input
+                    type="radio"
+                    name="compressionLevel"
+                    value={option.value}
+                    checked={compressionLevel === option.value}
+                    onChange={(e) => handleCompressionLevelChange(e.target.value)}
+                    className="sr-only"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{option.label}</span>
+                      <span className="text-sm opacity-75">{option.reduction}</span>
+                    </div>
+                    <div className="text-xs opacity-75 mt-1">
+                      {getCompressionDescription(option.value)}
+                    </div>
+                  </div>
+                  <div className={`w-4 h-4 rounded-full border-2 ml-3 ${
+                    compressionLevel === option.value 
+                      ? "border-neonBlue bg-neonBlue" 
+                      : "border-gray-300 dark:border-slate-500"
+                  }`}>
+                    {compressionLevel === option.value && (
+                      <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>
+                    )}
+                  </div>
+                </label>
               ))}
             </div>
           </div>
@@ -122,7 +178,7 @@ export default function FileToolExportPanel({
               </svg>
               <span className="text-sm font-medium">
                 {toolType === "compress"
-                  ? "Compression Complete!"
+                  ? `Compression Complete! (${compressionLevel})`
                   : toolType === "merge"
                   ? "Merge Complete!"
                   : "Conversion Complete!"}
@@ -154,6 +210,7 @@ export default function FileToolExportPanel({
             </div>
             <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
               Ready to process
+              {toolType === "compress" && ` with ${compressionLevel} compression`}
             </p>
           </div>
         )}
