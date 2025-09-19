@@ -1,8 +1,9 @@
 // frontend/src/components/export/FileToolExportPanel.jsx
 import React from "react";
 
-export default function FileToolExportPanel({
+export default function FileToolExportPanel({ 
   onUpload,
+  uploadLabel = "Convert",   // ✅ add this
   downloadUrl = "",
   onDownload,
   error = "",
@@ -10,9 +11,9 @@ export default function FileToolExportPanel({
   showPanel = false,
   conversionComplete = false,
   fileName = "",
-  toolType = "convert", // "convert" | "compress" | "merge"
-  compressionLevel = "medium", // only for compress
-  onCompressionLevelChange = () => {},
+  toolType = "convert",      // ✅ keep this
+  compressionLevel = "medium",
+  onCompressionLevelChange = () => {}
 }) {
   if (!showPanel) return null;
 
