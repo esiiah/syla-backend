@@ -66,7 +66,7 @@ class SignupRequest(BaseModel):
     def validate_contact(cls, v, values):
         contact_type = values.get('contact_type', 'email')
         if contact_type == 'email':
-            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
 
 # JWT Configuration
 SECRET_KEY = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
