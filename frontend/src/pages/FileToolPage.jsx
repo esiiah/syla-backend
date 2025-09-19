@@ -21,10 +21,10 @@ export default function FileToolPage() {
   const [theme, setTheme] = useState("light");
   const [files, setFiles] = useState([]);
   const [viewMode, setViewMode] = useState("grid");
-
+  
   // User state
   const [user, setUser] = useState(null);
-
+  
   // Load user and theme
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
@@ -35,19 +35,15 @@ export default function FileToolPage() {
         localStorage.removeItem("user");
         localStorage.removeItem("token");
       }
-    }
-    
     const savedTheme = localStorage.getItem("theme") || "light";
     setTheme(savedTheme);
     document.body.classList.remove("dark", "light");
     document.body.classList.add(savedTheme);
   }, []);
-
+  
   // Restore stashed file if present
-  useEffect(() => {
     const token = searchParams.get("token");
     if (!token) return;
-
     fetch(`/api/filetools/retrieve/${token}`)
       .then((res) => res.blob())
       .then((blob) => {
@@ -59,7 +55,6 @@ export default function FileToolPage() {
       })
       .catch(console.warn);
   }, [searchParams]);
-
   const mapping = {
     compress: { component: "compress" },
     merge: { component: "merge" },
@@ -70,55 +65,34 @@ export default function FileToolPage() {
       label: "PDF → Word",
     },
     "pdf-to-excel": {
-      component: "convert",
       endpoint: "/api/filetools/convert/pdf-to-excel",
-      accept: ".pdf",
       label: "PDF → Excel",
-    },
     "excel-to-pdf": {
-      component: "convert",
       endpoint: "/api/filetools/convert/excel-to-pdf",
       accept: ".xls,.xlsx",
       label: "Excel → PDF",
-    },
     "csv-to-excel": {
-      component: "convert",
       endpoint: "/api/filetools/convert/csv-to-excel",
       accept: ".csv",
       label: "CSV → Excel",
-    },
     "excel-to-csv": {
-      component: "convert",
       endpoint: "/api/filetools/convert/excel-to-csv",
-      accept: ".xls,.xlsx",
       label: "Excel → CSV",
-    },
     "pdf-to-csv": {
-      component: "convert",
       endpoint: "/api/filetools/convert/pdf-to-csv",
-      accept: ".pdf",
       label: "PDF → CSV",
-    },
     "csv-to-pdf": {
-      component: "convert",
       endpoint: "/api/filetools/convert/csv-to-pdf",
-      accept: ".csv",
       label: "CSV → PDF",
-    },
   };
-
   const config = mapping[action] || null;
-
   const handleUpload = async () => {
     if (!files.length) {
       setError("Please select a file first.");
       return;
-    }
-
     setLoading(true);
     setError("");
     setConversionComplete(false);
-
     try {
       const fd = new FormData();
       if (config.component === "merge") {
@@ -127,19 +101,14 @@ export default function FileToolPage() {
       } else {
         // Single file for others
         fd.append("file", files[0]);
-      }
-
       const endpoint = config.component === "compress" 
         ? "/api/filetools/pdf/compress"
         : config.component === "merge"
         ? "/api/filetools/pdf/merge"
         : config.endpoint;
-
       const res = await fetch(endpoint, { method: "POST", body: fd });
       const json = await res.json();
-
       if (!res.ok) throw new Error(json.detail || json.error || "Conversion failed");
-
       // Set conversion complete and download URL but DON'T auto-download
       setDownloadUrl(json.download_url);
       setFileName(json.filename || "converted_file");
@@ -147,28 +116,19 @@ export default function FileToolPage() {
       
       // Clear the error
       setError("");
-
     } catch (e) {
       setError(e.message || "Conversion failed");
       setConversionComplete(false);
     } finally {
       setLoading(false);
-    }
-  };
-
   const handleDownload = () => {
     if (downloadUrl) {
       window.open(downloadUrl, "_blank");
-    }
-  };
-
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-slate-950">
       <Sidebar theme={theme} setTheme={setTheme} onReportChange={() => {}} />
-
       <div className="flex-1 transition-all duration-300">
         <Navbar user={user} />
-
         <div className="flex-1 flex flex-col p-6 space-y-6">
           {config ? (
             <>
@@ -192,41 +152,15 @@ export default function FileToolPage() {
                   />
                 </div>
               ) : config.component === "compress" ? (
-                <div className="max-w-6xl mx-auto">
-                  <h2 className="text-3xl font-bold text-gray-800 dark:text-slate-200 mb-8 text-center">
                     PDF Compression
-                  </h2>
-                  <FileToolUploadPanel
                     title="Select PDF to Compress"
-                    accept=".pdf"
                     multiple={false}
-                    files={files}
-                    setFiles={setFiles}
-                    viewMode={viewMode}
-                    setViewMode={setViewMode}
-                    onUpload={handleUpload}
                     uploadLabel="Compress PDF"
-                    loading={loading}
-                  />
-                </div>
               ) : (
-                <div className="max-w-6xl mx-auto">
-                  <h2 className="text-3xl font-bold text-gray-800 dark:text-slate-200 mb-8 text-center">
                     {config.label}
-                  </h2>
-                  <FileToolUploadPanel
                     title={`Select file for ${config.label}`}
                     accept={config.accept}
-                    multiple={false}
-                    files={files}
-                    setFiles={setFiles}
-                    viewMode={viewMode}
-                    setViewMode={setViewMode}
-                    onUpload={handleUpload}
                     uploadLabel="Convert"
-                    loading={loading}
-                  />
-                </div>
               )}
             </>
           ) : (
@@ -234,7 +168,6 @@ export default function FileToolPage() {
               <p>Unknown tool: {action}</p>
             </div>
           )}
-
           {/* Export Panel - only show when file is selected */}
           <FileToolExportPanel
             showPanel={files.length > 0}
@@ -251,4 +184,3 @@ export default function FileToolPage() {
       </div>
     </div>
   );
-}
