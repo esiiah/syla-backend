@@ -1,5 +1,6 @@
 // frontend/src/App.jsx
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import FileUpload from "./components/FileUpload.jsx";
 import ChartView from "./components/ChartView.jsx";
 import Sidebar from "./components/Sidebar.jsx";
@@ -45,6 +46,8 @@ const LoginRequiredModal = ({ onClose, onSignup, onLogin }) => (
 );
 
 function App() {
+  const navigate = useNavigate();
+  
   // User state (null = not logged in)
   const [user, setUser] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -109,6 +112,17 @@ function App() {
     // Process the upload normally if user is logged in
     setData(uploadData);
   };
+
+  // Fixed navigation handlers
+  const handleSignupNavigation = () => {
+    navigate('/signup');
+    setShowLoginModal(false);
+  };
+
+  const handleLoginNavigation = () => {
+    navigate('/login');
+    setShowLoginModal(false);
+  };
   
   return (
     <div className="flex min-h-screen overflow-x-hidden relative">
@@ -121,22 +135,26 @@ function App() {
         {/* Main Content */}
         <main className="mx-auto max-w-7xl px-4 pb-16 pt-8">
           
-          {/* Dashboard Greeting Section */}
+          {/* Dashboard Greeting Section with Fixed Gradient */}
           <div className="mb-8 relative">
-            {/* Background gradient */}
-            <div className="absolute inset-0 bg-gradient-to-b 
-                            from-sky-300 via-sky-100 to-white 
-                            dark:from-blue-800/50 dark:via-blue-700/30 dark:to-blue-900/0 
-                            rounded-2xl -z-10"></div>
+            {/* Enhanced Background gradient */}
+            <div 
+              className="absolute inset-0 rounded-2xl -z-10"
+              style={{
+                background: theme === 'light' 
+                  ? 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 25%, #93c5fd 50%, #dbeafe 75%, #ffffff 100%)'
+                  : 'linear-gradient(135deg, rgba(59, 130, 246, 0.6) 0%, rgba(96, 165, 250, 0.4) 25%, rgba(147, 197, 253, 0.3) 50%, rgba(219, 234, 254, 0.2) 75%, rgba(0, 0, 0, 0) 100%)',
+              }}
+            ></div>
             
             {/* Content */}
-            <div className="text-center py-12 px-6">
+            <div className="text-center py-12 px-6 relative z-10">
               {user ? (
                 <>
                   <h1 className="font-display text-4xl md:text-5xl tracking-wide mb-4 text-gray-800 dark:text-slate-200">
-                    Hi, <span className="text-neonBlue">{user.name}</span>. Welcome Back!
+                    Hi, <span className="text-neonBlue font-bold">{user.name}</span>. Welcome Back!
                   </h1>
-                  <p className="text-lg text-gray-600 dark:text-slate-300 max-w-3xl mx-auto">
+                  <p className="text-lg text-gray-700 dark:text-slate-300 max-w-3xl mx-auto">
                     Ready to dive into your data? Upload files for cleaning and visualization, 
                     or use our powerful file conversion tools.
                   </p>
@@ -148,22 +166,22 @@ function App() {
                     <br />
                     all powered by <span className="text-neonYellow font-semibold">Syla</span>.
                   </h1>
-                  <p className="text-xl text-gray-600 dark:text-slate-300 mb-8 max-w-4xl mx-auto">
+                  <p className="text-xl text-gray-700 dark:text-slate-300 mb-8 max-w-4xl mx-auto">
                     Clean, visualize, and convert your data with intelligent automation.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <a
-                      href="/signup"
+                    <button
+                      onClick={handleSignupNavigation}
                       className="px-8 py-3 bg-neonBlue text-white rounded-xl font-semibold hover:bg-blue-600 shadow-lg hover:shadow-neon transition-all duration-300"
                     >
                       Get Started - Sign Up
-                    </a>
-                    <a
-                      href="/login"
+                    </button>
+                    <button
+                      onClick={handleLoginNavigation}
                       className="px-8 py-3 border-2 border-neonBlue text-neonBlue rounded-xl font-semibold hover:bg-neonBlue hover:text-white transition-all duration-300"
                     >
                       Already have an account? Log In
-                    </a>
+                    </button>
                   </div>
                 </>
               )}
@@ -302,8 +320,8 @@ function App() {
       {showLoginModal && (
         <LoginRequiredModal
           onClose={() => setShowLoginModal(false)}
-          onSignup={() => window.location.href = "/signup"}
-          onLogin={() => window.location.href = "/login"}
+          onSignup={handleSignupNavigation}
+          onLogin={handleLoginNavigation}
         />
       )}
     </div>
