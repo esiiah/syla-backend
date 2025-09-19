@@ -43,7 +43,7 @@ def write_upload_to_temp(upload: UploadFile, prefix="tmp_") -> str:
     fd, tmp_path = tempfile.mkstemp(prefix=prefix, suffix=ext, dir=TMP_DIR)
     os.close(fd)
     with open(tmp_path, "wb") as fh:
-    return tmp_path
+        return tmp_path
 def human_readable_size(n: int) -> str:
     if n is None:
         return "-"
