@@ -1,5 +1,5 @@
 // frontend/src/components/export/ChartExportPanel.jsx
-import React from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 export default function ChartExportPanel({ 
   onExportImage, 
@@ -8,6 +8,76 @@ export default function ChartExportPanel({
   chartData = null,
   chartTitle = "Chart"
 }) {
+  const [position, setPosition] = useState({ x: window.innerWidth - 280, y: window.innerHeight * 0.35 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const panelRef = useRef(null);
+
+  // Handle window resize
+  useEffect(() => {
+    const handleResize = () => {
+      const maxX = window.innerWidth - 260;
+      const maxY = window.innerHeight - 300;
+      setPosition(prev => ({
+        x: Math.min(prev.x, maxX),
+        y: Math.min(prev.y, maxY)
+      }));
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Drag handlers
+  const handleMouseDown = (e) => {
+    if (e.target.closest('.drag-handle')) {
+      setIsDragging(true);
+      const rect = panelRef.current.getBoundingClientRect();
+      setDragOffset({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      });
+      e.preventDefault();
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (isDragging) {
+      const newX = e.clientX - dragOffset.x;
+      const newY = e.clientY - dragOffset.y;
+      
+      // Constrain to viewport
+      const maxX = window.innerWidth - 260;
+      const maxY = window.innerHeight - 300;
+      
+      setPosition({
+        x: Math.max(0, Math.min(newX, maxX)),
+        y: Math.max(0, Math.min(newY, maxY))
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = 'none';
+    } else {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
+    };
+  }, [isDragging, dragOffset]);
   
   const exportAsImage = (format) => {
     try {
@@ -131,39 +201,91 @@ export default function ChartExportPanel({
   };
 
   return (
-    <div style={{ position: "fixed", right: 20, top: "35%", width: 260, zIndex: 80 }}>
-      <div className="p-4 rounded-lg bg-white border border-gray-200 shadow-lg dark:bg-slate-800/90 dark:border-white/10 backdrop-blur-sm">
-        <div className="text-sm font-medium mb-3 text-gray-800 dark:text-slate-200">Export Chart</div>
-        
-        <div className="grid grid-cols-2 gap-2 mb-3">
-          <button 
-            onClick={() => exportAsImage('png')} 
-            className="px-3 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-800 text-sm font-medium transition-colors dark:bg-blue-900/30 dark:hover:bg-blue-800/40 dark:text-blue-300"
-          >
-            PNG
-          </button>
-          <button 
-            onClick={() => exportAsImage('jpeg')} 
-            className="px-3 py-2 rounded-lg bg-green-100 hover:bg-green-200 text-green-800 text-sm font-medium transition-colors dark:bg-green-900/30 dark:hover:bg-green-800/40 dark:text-green-300"
-          >
-            JPEG
-          </button>
-          <button 
-            onClick={exportAsCSV} 
-            className="px-3 py-2 rounded-lg bg-orange-100 hover:bg-orange-200 text-orange-800 text-sm font-medium transition-colors dark:bg-orange-900/30 dark:hover:bg-orange-800/40 dark:text-orange-300"
-          >
-            CSV
-          </button>
-          <button 
-            onClick={exportAsJSON} 
-            className="px-3 py-2 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-800 text-sm font-medium transition-colors dark:bg-purple-900/30 dark:hover:bg-purple-800/40 dark:text-purple-300"
-          >
-            JSON
-          </button>
+    <div
+      ref={panelRef}
+      style={{
+        position: "fixed",
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        width: 260,
+        zIndex: 1000,
+        cursor: isDragging ? 'grabbing' : 'default'
+      }}
+      onMouseDown={handleMouseDown}
+    >
+      <div className="rounded-xl bg-white border-2 border-blue-200/50 shadow-2xl dark:bg-slate-800/95 dark:border-blue-400/30 backdrop-blur-sm">
+        {/* Draggable Header */}
+        <div className="drag-handle p-3 border-b border-gray-200 dark:border-white/10 cursor-move bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-xl dark:bg-gradient-to-r dark:from-blue-900/20 dark:to-indigo-900/20">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold text-gray-800 dark:text-slate-200 flex items-center">
+              <svg className="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Export Chart
+            </div>
+            <div className="flex space-x-1">
+              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+            </div>
+          </div>
         </div>
-        
-        <div className="text-xs text-gray-500 dark:text-slate-400 text-center">
-          Click to download chart or data
+
+        {/* Panel Content */}
+        <div className="p-4">
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <button 
+              onClick={() => exportAsImage('png')} 
+              className="px-3 py-2 rounded-lg bg-blue-100 hover:bg-blue-200 text-blue-800 text-sm font-medium transition-all duration-200 hover:shadow-md dark:bg-blue-900/30 dark:hover:bg-blue-800/40 dark:text-blue-300"
+            >
+              <div className="flex items-center justify-center">
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                PNG
+              </div>
+            </button>
+            <button 
+              onClick={() => exportAsImage('jpeg')} 
+              className="px-3 py-2 rounded-lg bg-green-100 hover:bg-green-200 text-green-800 text-sm font-medium transition-all duration-200 hover:shadow-md dark:bg-green-900/30 dark:hover:bg-green-800/40 dark:text-green-300"
+            >
+              <div className="flex items-center justify-center">
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                JPEG
+              </div>
+            </button>
+            <button 
+              onClick={exportAsCSV} 
+              className="px-3 py-2 rounded-lg bg-orange-100 hover:bg-orange-200 text-orange-800 text-sm font-medium transition-all duration-200 hover:shadow-md dark:bg-orange-900/30 dark:hover:bg-orange-800/40 dark:text-orange-300"
+            >
+              <div className="flex items-center justify-center">
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                CSV
+              </div>
+            </button>
+            <button 
+              onClick={exportAsJSON} 
+              className="px-3 py-2 rounded-lg bg-purple-100 hover:bg-purple-200 text-purple-800 text-sm font-medium transition-all duration-200 hover:shadow-md dark:bg-purple-900/30 dark:hover:bg-purple-800/40 dark:text-purple-300"
+            >
+              <div className="flex items-center justify-center">
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                </svg>
+                JSON
+              </div>
+            </button>
+          </div>
+          
+          <div className="text-xs text-gray-500 dark:text-slate-400 text-center bg-gray-50 dark:bg-slate-700/50 rounded-lg p-2">
+            <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Click to download chart or data
+          </div>
         </div>
       </div>
     </div>
