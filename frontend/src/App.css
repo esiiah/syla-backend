@@ -167,9 +167,8 @@ select, input, textarea {
   pointer-events: none;    /* so content is clickable */
 }
 
-/* Light theme gradient */
 .light .hero-gradient-bg {
-  background: linear-gradient(135deg, 
+  background: linear-gradient(to bottom, 
     #3b82f6 0%, 
     #60a5fa 20%, 
     #93c5fd 40%, 
@@ -178,9 +177,8 @@ select, input, textarea {
     #ffffff 100%);
 }
 
-/* Dark theme gradient */
 .dark .hero-gradient-bg {
-  background: linear-gradient(135deg, 
+  background: linear-gradient(to bottom, 
     rgba(59, 130, 246, 0.8) 0%, 
     rgba(96, 165, 250, 0.6) 20%, 
     rgba(147, 197, 253, 0.4) 40%, 
