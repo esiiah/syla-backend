@@ -133,50 +133,53 @@ function App() {
         <Navbar user={user} />
 
         {/* Main Content */}
-        <div className="hero-section w-full">
-          {/* Fixed Background gradient */}
-          <div className="hero-gradient-bg"></div>
+        <main className="mx-auto max-w-7xl px-4 pb-16 pt-8">
           
-          <main className="mx-auto max-w-7xl px-4 pb-16 pt-8 hero-content">
-            {/* Content */}
-            {user ? (
-              <>
-                <h1 className="font-display text-4xl md:text-5xl tracking-wide mb-4 text-gray-800 dark:text-slate-200">
-                  Hi, <span className="text-neonBlue font-bold">{user.name}</span>. Welcome Back!
-                </h1>
-                <p className="text-lg text-gray-700 dark:text-slate-300 max-w-3xl mx-auto">
-                  Ready to dive into your data? Upload files for cleaning and visualization, 
-                  or use our powerful file conversion tools.
-                </p>
-              </>
-            ) : (
-              <>
-                <h1 className="font-body text-4xl md:text-5xl tracking-wide mb-6 text-gray-800 dark:text-slate-200">
-                  From raw data to <span className="text-neonBlue font-semibold">smart decisions</span> 
-                  <br />
-                  all powered by <span className="text-neonYellow font-semibold">Syla</span>.
-                </h1>
-                <p className="text-xl text-gray-700 dark:text-slate-300 mb-8 max-w-4xl mx-auto">
-                  Clean, visualize, and convert your data with intelligent automation.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                  <button
-                    onClick={handleSignupNavigation}
-                    className="px-8 py-3 bg-neonBlue text-white rounded-xl font-semibold hover:bg-blue-600 shadow-lg hover:shadow-neon transition-all duration-300"
-                  >
-                    Get Started - Sign Up
-                  </button>
-                  <button
-                    onClick={handleLoginNavigation}
-                    className="px-8 py-3 border-2 border-neonBlue text-neonBlue rounded-xl font-semibold hover:bg-neonBlue hover:text-white transition-all duration-300"
-                  >
-                    Already have an account? Log In
-                  </button>
-                </div>
-              </>
-            )}
-          </main>
-        </div>
+          {/* Dashboard Greeting Section with Fixed Gradient */}
+          <div className="hero-section w-screen -mx-4 relative">
+            {/* Fixed Background gradient */}
+            <div className="hero-gradient-bg"></div>
+            
+            {/* Hero Content */}
+            <div className="hero-content">
+              {user ? (
+                <>
+                  <h1 className="font-display text-4xl md:text-5xl tracking-wide mb-4 text-gray-800 dark:text-slate-200">
+                    Hi, <span className="text-neonBlue font-bold">{user.name}</span>. Welcome Back!
+                  </h1>
+                  <p className="text-lg text-gray-700 dark:text-slate-300 max-w-3xl mx-auto">
+                    Ready to dive into your data? Upload files for cleaning and visualization, 
+                    or use our powerful file conversion tools.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h1 className="font-body text-4xl md:text-5xl tracking-wide mb-6 text-gray-800 dark:text-slate-200">
+                    From raw data to <span className="text-neonBlue font-semibold">smart decisions</span> 
+                    <br />
+                    all powered by <span className="text-neonYellow font-semibold">Syla</span>.
+                  </h1>
+                  <p className="text-xl text-gray-700 dark:text-slate-300 mb-8 max-w-4xl mx-auto">
+                    Clean, visualize, and convert your data with intelligent automation.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button
+                      onClick={handleSignupNavigation}
+                      className="px-8 py-3 bg-neonBlue text-white rounded-xl font-semibold hover:bg-blue-600 shadow-lg hover:shadow-neon transition-all duration-300"
+                    >
+                      Get Started - Sign Up
+                    </button>
+                    <button
+                      onClick={handleLoginNavigation}
+                      className="px-8 py-3 border-2 border-neonBlue text-neonBlue rounded-xl font-semibold hover:bg-neonBlue hover:text-white transition-all duration-300"
+                    >
+                      Already have an account? Log In
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Upload Panel */}
