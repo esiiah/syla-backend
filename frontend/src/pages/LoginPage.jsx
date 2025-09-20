@@ -34,14 +34,19 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      // if you already integrated Google Identity Services,
-      // obtain the id_token here and POST it:
+      // ---- NEW ----
+      // If you have a client-side id_token from Google Identity Services,
+      // you can POST it instead of redirect:
+      //
       // const id_token = await yourGoogleGetIdToken();
-      // await fetch("/api/auth/google",{method:"POST",
-      //  headers:{"Content-Type":"application/json"},
-      //  body:JSON.stringify({id_token}),credentials:"include"});
-
-      // fallback: server-side redirect flow
+      // await fetch("/api/auth/google", {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify({ id_token }),
+      //   credentials: "include",
+      // });
+      //
+      // ---- fallback server-side OAuth redirect:
       window.location.href = "/api/auth/google";
     } catch (err) {
       setError(err.message || "Google authentication failed");
@@ -50,59 +55,85 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-slate-950">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white dark:bg-ink p-8 rounded-2xl shadow-soft w-full max-w-md space-y-4"
-      >
-        <h1 className="text-2xl font-display text-center mb-2">Login</h1>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-950">
+      <div className="max-w-md w-full space-y-8 p-10 bg-white dark:bg-ink rounded-2xl shadow-soft">
+        <div>
+          <h2 className="mt-2 text-center text-3xl font-extrabold text-gray-900 dark:text-gray-100 font-display">
+            Sign in to your account
+          </h2>
+        </div>
 
         {error && (
           <div className="text-red-500 text-sm text-center">{error}</div>
         )}
 
-        <input
-          type="text"
-          placeholder="Email or phone"
-          value={contact}
-          onChange={(e) => setContact(e.target.value)}
-          className="w-full rounded-md border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100"
-          required
-        />
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="rounded-md shadow-sm -space-y-px">
+            <div>
+              <input
+                name="contact"
+                type="text"
+                autoComplete="email"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300
+                           placeholder-gray-500 text-gray-900 rounded-t-md
+                           focus:outline-none focus:ring-neonBlue focus:border-neonBlue
+                           dark:bg-slate-900 dark:border-slate-700 dark:text-gray-100"
+                placeholder="Email or phone"
+                value={contact}
+                onChange={(e) => setContact(e.target.value)}
+              />
+            </div>
+            <div>
+              <input
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300
+                           placeholder-gray-500 text-gray-900 rounded-b-md
+                           focus:outline-none focus:ring-neonBlue focus:border-neonBlue
+                           dark:bg-slate-900 dark:border-slate-700 dark:text-gray-100"
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+          </div>
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-md border-gray-300 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-100"
-          required
-        />
+          <button
+            type="submit"
+            disabled={loading}
+            className="group relative w-full flex justify-center py-2 px-4 border border-transparent
+                       text-sm font-medium rounded-md text-white bg-neonBlue hover:bg-blue-700
+                       focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neonBlue
+                       button-glow"
+          >
+            {loading ? "Signing in…" : "Sign in"}
+          </button>
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-2 bg-neonBlue text-white rounded-md button-glow"
-        >
-          {loading ? "Signing in…" : "Login"}
-        </button>
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+            className="group relative w-full flex justify-center py-2 px-4 border border-transparent
+                       text-sm font-medium rounded-md text-white bg-red-500 hover:bg-red-600
+                       focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-400"
+          >
+            Continue with Google
+          </button>
 
-        <button
-          type="button"
-          onClick={handleGoogleSignIn}
-          disabled={loading}
-          className="w-full py-2 mt-2 bg-red-500 text-white rounded-md hover:bg-red-600"
-        >
-          Continue with Google
-        </button>
-
-        <p className="text-center text-sm text-gray-600 dark:text-gray-300">
-          No account?{" "}
-          <Link to="/signup" className="text-neonBlue hover:underline">
-            Sign up
-          </Link>
-        </p>
-      </form>
+          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-300">
+            Or{" "}
+            <Link
+              to="/signup"
+              className="font-medium text-neonBlue hover:underline"
+            >
+              create an account
+            </Link>
+          </p>
+        </form>
+      </div>
     </div>
   );
 }
