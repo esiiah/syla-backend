@@ -14,9 +14,10 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
+
 from .utils import clean_dataframe, detect_column_types, summarize_numeric
 from .file_tools_full import router as file_tools_full_router, UPLOAD_DIR
-from app.auth import router as auth_router
+from app.routers import auth as auth_router   # ✅ import from routers
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("syla-backend")
@@ -31,9 +32,9 @@ app.add_middleware(
     allow_credentials=False,
 )
 
-# 🔗 include your router
+# 🔗 include routers
 app.include_router(file_tools_full_router)
-app.include_router(auth_router)
+app.include_router(auth_router.router)   # ✅ use .router
 
 # Mount uploaded files directory so download_url /api/files/<name> works
 app.mount("/api/files", StaticFiles(directory=UPLOAD_DIR), name="files")
