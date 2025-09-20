@@ -108,8 +108,9 @@ function App() {
       <div className="flex-1 transition-all duration-300">
         <Navbar user={user} />
 
-        <div className="hero-section fixed inset-0 -z-10">
-          <div className="hero-gradient-bg w-full h-full bg-gradient-to-b from-blue-500 to-white" />
+        {/* Full-screen hero gradient behind everything */}
+        <div className="fixed top-0 left-0 w-screen h-screen -z-20">
+          <div className="hero-gradient-bg w-full h-full" />
         </div>
 
         <main className="relative z-10 flex">
