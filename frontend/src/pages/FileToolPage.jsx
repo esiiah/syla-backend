@@ -152,7 +152,13 @@ export default function FileToolPage() {
       const res = await fetch(endpoint, { method: "POST", body: fd });
       const json = await res.json();
 
-      if (!res.ok) throw new Error(json.detail || json.error || "Conversion failed");
+      if (!res.ok) {
+        let actionFailMsg = "Conversion failed"; // default
+        if (config.component === "compress") actionFailMsg = "Compress failed";
+        else if (config.component === "merge") actionFailMsg = "Merge failed";
+        else if (config.component === "convert") actionFailMsg = "Conversion failed"; // explicit for clarity
+        throw new Error(json.detail || json.error || actionFailMsg);
+      }
 
       setDownloadUrl(json.download_url);
       setFileName(json.filename || "converted_file");
