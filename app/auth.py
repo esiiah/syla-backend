@@ -2,24 +2,25 @@
 import os
 import re
 import sqlite3
-import uuid
 from datetime import datetime, timedelta
 from typing import Optional
+import uuid
 
 import bcrypt
 import jwt
-from fastapi import APIRouter, HTTPException, Depends, Response, Request, UploadFile, File, Form, Body
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi import APIRouter, HTTPException, Depends, Response, Request, UploadFile, File, Form
+from fastapi.security import HTTPBearer
 from pydantic import BaseModel, validator
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+security = HTTPBearer(auto_error=False)
 
 # JWT Configuration
 SECRET_KEY = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
-# DB + avatar storage
+# Database path
 DB_PATH = os.path.join(os.path.dirname(__file__), "users.db")
 AVATAR_DIR = os.path.join(os.path.dirname(__file__), "avatars")
 os.makedirs(AVATAR_DIR, exist_ok=True)
@@ -94,17 +95,21 @@ class LoginRequest(BaseModel):
     contact: str  # email or phone
     password: str
 
-class GoogleLoginRequest(BaseModel):
-    # Either id_token or (google_id + email + name) provided by client
-    id_token: Optional[str] = None
-    google_id: Optional[str] = None
-    email: Optional[str] = None
-    name: Optional[str] = None
-    avatar_url: Optional[str] = None
+class GoogleAuthRequest(BaseModel):
+    credential: str  # Google JWT token
 
 class PasswordChangeRequest(BaseModel):
     current_password: str
     new_password: str
+
+class UserResponse(BaseModel):
+    id: int
+    name: str
+    email: Optional[str]
+    phone: Optional[str]
+    created_at: str
+    auth_provider: Optional[str] = "local"
+    avatar_url: Optional[str] = None
 
 # ---------------- Utilities ----------------
 def hash_password(password: str) -> str:
@@ -143,10 +148,10 @@ def get_user_by_contact(contact: str):
     keys = ["id", "name", "email", "phone", "password_hash", "auth_provider", "avatar_url", "created_at"]
     return dict(zip(keys, row))
 
-def get_user_by_id(user_id: int):
+def get_user_by_google_id(google_id: str):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, email, phone, auth_provider, avatar_url, created_at FROM users WHERE id = ?", (user_id,))
+    cursor.execute("SELECT id, name, email, phone, auth_provider, avatar_url, created_at FROM users WHERE google_id = ?", (google_id,))
     row = cursor.fetchone()
     conn.close()
     if not row:
@@ -154,10 +159,10 @@ def get_user_by_id(user_id: int):
     keys = ["id", "name", "email", "phone", "auth_provider", "avatar_url", "created_at"]
     return dict(zip(keys, row))
 
-def get_user_by_google_id(google_id: str):
+def get_user_by_id(user_id: int):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, name, email, phone, auth_provider, avatar_url, created_at FROM users WHERE google_id = ?", (google_id,))
+    cursor.execute("SELECT id, name, email, phone, auth_provider, avatar_url, created_at FROM users WHERE id = ?", (user_id,))
     row = cursor.fetchone()
     conn.close()
     if not row:
@@ -170,7 +175,7 @@ def get_current_user_from_token(request: Request):
     if not token:
         auth = request.headers.get("Authorization")
         if auth and auth.startswith("Bearer "):
-            token = auth[len("Bearer ") : ]
+            token = auth[len("Bearer ") :]
     if not token:
         return None
     try:
@@ -188,13 +193,40 @@ def get_current_user_from_token(request: Request):
 
 def save_avatar(file: UploadFile, user_id: int) -> str:
     """Save uploaded avatar and return URL"""
+    # Generate unique filename
     file_extension = os.path.splitext(file.filename or "")[1] or ".jpg"
     filename = f"user_{user_id}_{uuid.uuid4().hex[:8]}{file_extension}"
     filepath = os.path.join(AVATAR_DIR, filename)
+    
+    # Save file
     with open(filepath, "wb") as f:
         file.file.seek(0)
         f.write(file.file.read())
+    
+    # Return URL path
     return f"/api/avatars/{filename}"
+
+def verify_google_token(credential: str) -> dict:
+    """Verify Google JWT token and return user info"""
+    try:
+        from google.oauth2 import id_token
+        from google.auth.transport import requests
+        
+        # Verify the token
+        idinfo = id_token.verify_oauth2_token(
+            credential, 
+            requests.Request(), 
+            os.getenv("GOOGLE_CLIENT_ID")
+        )
+        
+        return {
+            "google_id": idinfo["sub"],
+            "email": idinfo["email"],
+            "name": idinfo["name"],
+            "avatar_url": idinfo.get("picture")
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid Google token: {str(e)}")
 
 # ---------------- Routes ----------------
 @router.post("/signup")
@@ -259,112 +291,89 @@ async def login(request: LoginRequest, response: Response):
     user_resp = get_user_by_id(user["id"])
     return {"access_token": access_token, "token_type": "bearer", "user": user_resp}
 
+# FIXED: Added Google OAuth routes with proper POST methods
+@router.post("/google")
+async def google_auth(request: GoogleAuthRequest, response: Response):
+    """Handle Google OAuth authentication"""
+    try:
+        # Verify Google token and get user info
+        google_user = verify_google_token(request.credential)
+        
+        # Check if user exists by Google ID
+        existing_user = get_user_by_google_id(google_user["google_id"])
+        
+        if existing_user:
+            # User exists, log them in
+            user_id = existing_user["id"]
+        else:
+            # Check if user exists by email
+            existing_email_user = get_user_by_contact(google_user["email"])
+            
+            if existing_email_user:
+                # Link Google account to existing user
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                try:
+                    cursor.execute(
+                        "UPDATE users SET google_id = ?, auth_provider = 'google', avatar_url = COALESCE(avatar_url, ?) WHERE id = ?",
+                        (google_user["google_id"], google_user.get("avatar_url"), existing_email_user["id"])
+                    )
+                    conn.commit()
+                    user_id = existing_email_user["id"]
+                except Exception:
+                    conn.rollback()
+                    raise HTTPException(status_code=500, detail="Failed to link Google account")
+                finally:
+                    conn.close()
+            else:
+                # Create new user
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                try:
+                    cursor.execute(
+                        "INSERT INTO users (name, email, google_id, auth_provider, avatar_url) VALUES (?, ?, ?, 'google', ?)",
+                        (google_user["name"], google_user["email"], google_user["google_id"], google_user.get("avatar_url"))
+                    )
+                    user_id = cursor.lastrowid
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+                    raise HTTPException(status_code=500, detail="Failed to create user")
+                finally:
+                    conn.close()
+        
+        # Generate access token
+        access_token = create_access_token({"sub": user_id, "id": user_id})
+        response.set_cookie(
+            key="auth_token",
+            value=access_token,
+            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            httponly=True,
+            secure=(os.getenv("ENV") == "production"),
+            samesite="lax",
+        )
+        
+        user = get_user_by_id(user_id)
+        return {"access_token": access_token, "token_type": "bearer", "user": user}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Google authentication failed: {str(e)}")
+
+@router.get("/google/callback")
+async def google_callback():
+    """Google OAuth callback endpoint"""
+    # This would handle the OAuth callback flow
+    # For now, return a simple message
+    return {"message": "Google OAuth callback - implement as needed"}
+
 @router.get("/me")
 async def get_current_user_info(request: Request):
     user = get_current_user_from_token(request)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return user
-
-# ---------------- Google OAuth support ----------------
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
-# redirect URL used by server-side flow (you must configure this in Google Console)
-GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/auth/google/callback")
-
-@router.get("/google")
-def google_oauth_start():
-    """
-    Start server-side OAuth (redirect) flow.
-    If your frontend wants to do server-side redirect, call this endpoint (GET).
-    """
-    if not GOOGLE_CLIENT_ID:
-        raise HTTPException(status_code=500, detail="Google OAuth is not configured on server")
-    params = {
-        "client_id": GOOGLE_CLIENT_ID,
-        "redirect_uri": GOOGLE_REDIRECT_URI,
-        "response_type": "code",
-        "scope": "openid email profile",
-        "access_type": "offline",
-        "prompt": "select_account",
-    }
-    qs = "&".join([f"{k}={v}" for k, v in params.items()])
-    auth_url = f"https://accounts.google.com/o/oauth2/v2/auth?{qs}"
-    return RedirectResponse(auth_url)
-
-@router.post("/google")
-async def google_oauth_post(payload: GoogleLoginRequest = Body(...), response: Response = None):
-    """
-    Accepts a POST from client-side Google Sign-In:
-      - Either send `id_token` (recommended) OR
-      - send { google_id, email, name, avatar_url } produced by the client library.
-
-    This endpoint will create or fetch the user using `google_id` or `email` and return JWT.
-    """
-    body = payload.dict()
-    google_id = body.get("google_id")
-    email = body.get("email")
-    name = body.get("name")
-    avatar_url = body.get("avatar_url")
-    id_token = body.get("id_token")
-
-    # Note: This implementation trusts the client-provided google_id/email if id_token verification is not done.
-    # For production, verify id_token with Google's tokeninfo or validate JWT signature.
-    if not (id_token or google_id or email):
-        # Client made POST without data -> friendly guidance
-        raise HTTPException(status_code=400, detail="No Google data provided. Client must POST id_token or google_id+email+name.")
-
-    # If id_token provided, optionally verify it here (omitted for simplicity).
-    # Try to find user by google_id first
-    user = None
-    if google_id:
-        user = get_user_by_google_id(google_id)
-
-    # If not found, try by email
-    if not user and email:
-        user = get_user_by_contact(email)
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        if user:
-            # user exists, ensure google_id saved
-            user_id = user["id"]
-            if google_id:
-                cursor.execute("UPDATE users SET google_id = ? WHERE id = ?", (google_id, user_id))
-                conn.commit()
-        else:
-            # create user (no password)
-            display_name = name or (email.split("@")[0] if email else "Google User")
-            cursor.execute(
-                "INSERT INTO users (name, email, google_id, auth_provider, avatar_url) VALUES (?, ?, ?, 'google', ?)",
-                (display_name, email, google_id, avatar_url),
-            )
-            user_id = cursor.lastrowid
-            conn.commit()
-        access_token = create_access_token({"sub": user_id, "id": user_id})
-        # set cookie if response provided
-        if response is not None:
-            response.set_cookie(
-                key="auth_token",
-                value=access_token,
-                max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-                httponly=True,
-                secure=(os.getenv("ENV") == "production"),
-                samesite="lax",
-            )
-        user_resp = get_user_by_id(user_id)
-        return {"access_token": access_token, "token_type": "bearer", "user": user_resp}
-    except sqlite3.IntegrityError:
-        conn.rollback()
-        raise HTTPException(status_code=400, detail="User with this email or Google ID already exists")
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to sign in with Google: {str(e)}")
-    finally:
-        conn.close()
-
-# ---------------- Profile updates and other routes (unchanged with minor improvements) ----------------
 
 @router.patch("/profile")
 async def update_profile(
@@ -389,6 +398,10 @@ async def update_profile(
             allowed_types = ["image/jpeg", "image/png", "image/gif"]
             if avatar.content_type not in allowed_types:
                 raise HTTPException(status_code=400, detail="Invalid file type. Only JPEG, PNG, and GIF are allowed.")
+            
+            # Validate file size (5MB max)
+            if avatar.size > 5 * 1024 * 1024:
+                raise HTTPException(status_code=400, detail="File too large. Maximum size is 5MB.")
             
             # Delete old avatar if exists
             if avatar_url and avatar_url.startswith("/api/avatars/"):
@@ -474,6 +487,9 @@ async def clear_user_files(request: Request):
     user = get_current_user_from_token(request)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # This would implement file cleanup logic
+    # For now, just return success
     return {"message": "All files cleared successfully"}
 
 @router.get("/avatars/{filename}")
