@@ -16,109 +16,27 @@ export default function FileToolExportPanel({
   onCompressionLevelChange = () => {}
 }) {
   const [compressionLevel, setCompressionLevel] = useState("medium");
-  const [position, setPosition] = useState({ x: window.innerWidth - 360, y: window.innerHeight * 0.35 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [panelWidth, setPanelWidth] = useState(340);
   const panelRef = useRef(null);
 
   // Reset compression level when tool type changes
   useEffect(() => {
-    if (toolType !== "compress") {
-      setCompressionLevel("medium");
-    }
+    if (toolType !== "compress") setCompressionLevel("medium");
   }, [toolType]);
-
-  // Set initial position when panel shows
-  useEffect(() => {
-    if (showPanel) {
-      setPosition({ x: window.innerWidth - 360, y: window.innerHeight * 0.35 });
-    }
-  }, [showPanel]);
 
   // Adjust width based on tool type
   useEffect(() => {
-    if (toolType === "compress" && !conversionComplete) {
-      setPanelWidth(400);
-    } else if (toolType === "merge") {
-      setPanelWidth(360);
-    } else {
-      setPanelWidth(320);
-    }
+    if (toolType === "compress" && !conversionComplete) setPanelWidth(400);
+    else if (toolType === "merge") setPanelWidth(360);
+    else setPanelWidth(320);
   }, [toolType, conversionComplete]);
-
-  // Handle window resize
-  useEffect(() => {
-    const handleResize = () => {
-      const maxX = window.innerWidth - panelWidth;
-      const maxY = window.innerHeight - 300;
-      setPosition(prev => ({
-        x: Math.min(prev.x, maxX),
-        y: Math.min(prev.y, maxY)
-      }));
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [panelWidth]);
-
-  // Drag handlers
-  const handleMouseDown = (e) => {
-    if (e.target.closest(".drag-handle")) {
-      setIsDragging(true);
-      const rect = panelRef.current.getBoundingClientRect();
-      setDragOffset({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-      });
-      e.preventDefault();
-    }
-  };
-
-  const handleMouseMove = (e) => {
-    if (isDragging) {
-      const newX = e.clientX - dragOffset.x;
-      const newY = e.clientY - dragOffset.y;
-
-      const maxX = window.innerWidth - panelWidth;
-      const maxY = window.innerHeight - 300;
-
-      setPosition({
-        x: Math.max(0, Math.min(newX, maxX)),
-        y: Math.max(0, Math.min(newY, maxY)),
-      });
-    }
-  };
-
-  const handleMouseUp = () => setIsDragging(false);
-
-  useEffect(() => {
-    if (isDragging) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-      document.body.style.userSelect = "none";
-    } else {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-      document.body.style.userSelect = "";
-    }
-
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-      document.body.style.userSelect = "";
-    };
-  }, [isDragging, dragOffset]);
 
   if (!showPanel) return null;
 
   const handleUpload = () => {
     if (typeof onUpload === "function") {
-      if (toolType === "compress") {
-        onUpload(compressionLevel);
-      } else {
-        onUpload();
-      }
+      if (toolType === "compress") onUpload(compressionLevel);
+      else onUpload();
     }
   };
 
@@ -128,11 +46,8 @@ export default function FileToolExportPanel({
   };
 
   const handleDownload = () => {
-    if (typeof onDownload === "function") {
-      onDownload();
-    } else if (downloadUrl) {
-      window.open(downloadUrl, "_blank");
-    }
+    if (typeof onDownload === "function") onDownload();
+    else if (downloadUrl) window.open(downloadUrl, "_blank");
   };
 
   const getUploadButtonText = () => {
@@ -166,37 +81,29 @@ export default function FileToolExportPanel({
       ref={panelRef}
       style={{
         position: "fixed",
-        left: `${position.x}px`,
-        top: `${position.y}px`,
+        right: 24,
+        top: "50%",
+        transform: "translateY(-50%)",
         width: panelWidth,
-        maxHeight: "400px",   // ✅ compact floating panel
+        maxHeight: "calc(100vh - 72px)", // vertical centering with scrollable body
         zIndex: 1000,
-        cursor: isDragging ? "grabbing" : "default",
         display: "flex",
         flexDirection: "column",
       }}
-      onMouseDown={handleMouseDown}
     >
       <div className="rounded-xl bg-white border-2 border-neonBlue/20 shadow-2xl dark:bg-slate-800/95 dark:border-neonBlue/30 backdrop-blur-sm neon-border flex flex-col h-full">
         
         {/* Header */}
-        <div className="drag-handle p-3 border-b border-gray-200 dark:border-white/10 cursor-move bg-gradient-to-r from-neonBlue/5 to-indigo-500/5 rounded-t-xl flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-gray-800 dark:text-slate-200 flex items-center">
-              <svg className="w-4 h-4 mr-2 text-neonBlue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              {getProcessingTitle()}
-            </div>
-            <div className="flex space-x-1">
-              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-            </div>
+        <div className="p-3 border-b border-gray-200 dark:border-white/10 bg-gradient-to-r from-neonBlue/5 to-indigo-500/5 rounded-t-xl">
+          <div className="text-sm font-semibold text-gray-800 dark:text-slate-200 flex items-center">
+            <svg className="w-4 h-4 mr-2 text-neonBlue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            {getProcessingTitle()}
           </div>
         </div>
 
-        {/* ✅ Scrollable Body */}
+        {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
           
           {/* Compression Level Selector */}
