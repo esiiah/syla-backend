@@ -30,4 +30,9 @@ python-docx==1.1.2      # Read/write Word (.docx)
 pdf2docx==0.5.8         # PDF -> DOCX conversion
 docx2pdf==0.1.8         # DOCX -> PDF conversion (needs MS Word on Windows/Mac)
 
-# Note: Using Python libraries instead of LibreOffice/soffice for document processing
+# Database
+SQLAlchemy==2.0.20      # ORM / Database toolkit
+# Optional: PostgreSQL driver (uncomment if using Postgres)
+# psycopg2-binary==2.9.9
+# Optional: MySQL driver (uncomment if using MySQL)
+# mysqlclient==2.3.1
