@@ -182,6 +182,8 @@ select, input, textarea {
 .hero-section {
   position: relative !important;
   margin-bottom: 2rem !important;
+  border-radius: 1rem !important;  /* NEW */
+  overflow: hidden !important;     /* NEW */
 }
 
 /* Hero content */
