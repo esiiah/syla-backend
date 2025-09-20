@@ -2,7 +2,9 @@
 from fastapi import APIRouter, HTTPException, Response, Request
 from pydantic import BaseModel, validator
 from typing import Optional
-from . import db, utils
+from app import utils  # ✅ points to utils.py in the parent app folder
+from . import db       # ✅ db.py is in the same folder, this is fine
+
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
