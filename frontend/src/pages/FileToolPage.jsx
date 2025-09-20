@@ -6,51 +6,22 @@ import Navbar from "../components/Navbar";
 import FileToolUploadPanel from "../components/upload/FileToolUploadPanel";
 import FileToolExportPanel from "../components/export/FileToolExportPanel";
 
-export default function FileToolPage() {
+export default function FileToolPage({ theme, setTheme }) {
   const { action } = useParams();
   const [searchParams] = useSearchParams();
 
+  // File tool states
+  const [files, setFiles] = useState([]);
   const [downloadUrl, setDownloadUrl] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [conversionComplete, setConversionComplete] = useState(false);
   const [fileName, setFileName] = useState("");
   const [stashedFile, setStashedFile] = useState(null);
-  const [theme, setTheme] = useState("light");
-  const [files, setFiles] = useState([]);
-  const [viewMode, setViewMode] = useState("grid");
-  const [user, setUser] = useState(null);
   const [compressionLevel, setCompressionLevel] = useState("medium");
+  const [viewMode, setViewMode] = useState("grid");
 
-  // Load user + theme
-  useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch {
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
-      }
-    }
-
-    const savedTheme = localStorage.getItem("theme") || "light";
-    setTheme(savedTheme);
-    document.body.classList.remove("dark", "light");
-    document.body.classList.add(savedTheme);
-  }, []);
-
-  // Reset state when switching between different tools
-  useEffect(() => {
-    setDownloadUrl("");
-    setError("");
-    setLoading(false);
-    setConversionComplete(false);
-    setFileName("");
-    setCompressionLevel("medium");
-  }, [action]);
-
-  // Restore stashed file if token exists
+  // Load stashed file if token exists
   useEffect(() => {
     const token = searchParams.get("token");
     if (!token) return;
@@ -67,55 +38,30 @@ export default function FileToolPage() {
       .catch(console.warn);
   }, [searchParams]);
 
-  // Mapping of tools
-  const mapping = {
+  // Reset state when switching tools
+  useEffect(() => {
+    setDownloadUrl("");
+    setError("");
+    setLoading(false);
+    setConversionComplete(false);
+    setFileName("");
+    setCompressionLevel("medium");
+  }, [action]);
+
+  // Tool configuration mapping
+  const toolMapping = {
     compress: { component: "compress", label: "PDF → Compressed PDF", accept: ".pdf" },
     merge: { component: "merge", label: "Merge PDFs", accept: ".pdf" },
-    "pdf-to-word": {
-      component: "convert",
-      endpoint: "/api/filetools/convert/pdf-to-word",
-      accept: ".pdf",
-      label: "PDF → Word",
-    },
-    "pdf-to-excel": {
-      component: "convert",
-      endpoint: "/api/filetools/convert/pdf-to-excel",
-      accept: ".pdf",
-      label: "PDF → Excel",
-    },
-    "excel-to-pdf": {
-      component: "convert",
-      endpoint: "/api/filetools/convert/excel-to-pdf",
-      accept: ".xls,.xlsx",
-      label: "Excel → PDF",
-    },
-    "csv-to-excel": {
-      component: "convert",
-      endpoint: "/api/filetools/convert/csv-to-excel",
-      accept: ".csv",
-      label: "CSV → Excel",
-    },
-    "excel-to-csv": {
-      component: "convert",
-      endpoint: "/api/filetools/convert/excel-to-csv",
-      accept: ".xls,.xlsx",
-      label: "Excel → CSV",
-    },
-    "pdf-to-csv": {
-      component: "convert",
-      endpoint: "/api/filetools/convert/pdf-to-csv",
-      accept: ".pdf",
-      label: "PDF → CSV",
-    },
-    "csv-to-pdf": {
-      component: "convert",
-      endpoint: "/api/filetools/convert/csv-to-pdf",
-      accept: ".csv",
-      label: "CSV → PDF",
-    },
+    "pdf-to-word": { component: "convert", endpoint: "/api/filetools/convert/pdf-to-word", accept: ".pdf", label: "PDF → Word" },
+    "pdf-to-excel": { component: "convert", endpoint: "/api/filetools/convert/pdf-to-excel", accept: ".pdf", label: "PDF → Excel" },
+    "excel-to-pdf": { component: "convert", endpoint: "/api/filetools/convert/excel-to-pdf", accept: ".xls,.xlsx", label: "Excel → PDF" },
+    "csv-to-excel": { component: "convert", endpoint: "/api/filetools/convert/csv-to-excel", accept: ".csv", label: "CSV → Excel" },
+    "excel-to-csv": { component: "convert", endpoint: "/api/filetools/convert/excel-to-csv", accept: ".xls,.xlsx", label: "Excel → CSV" },
+    "pdf-to-csv": { component: "convert", endpoint: "/api/filetools/convert/pdf-to-csv", accept: ".pdf", label: "PDF → CSV" },
+    "csv-to-pdf": { component: "convert", endpoint: "/api/filetools/convert/csv-to-pdf", accept: ".csv", label: "CSV → PDF" },
   };
 
-  const config = mapping[action] || null;
+  const config = toolMapping[action] || null;
 
   // Upload handler
   const handleUpload = async (levelOverride = null) => {
@@ -123,7 +69,6 @@ export default function FileToolPage() {
       setError("Please select a file first.");
       return;
     }
-
     setLoading(true);
     setError("");
     setConversionComplete(false);
@@ -136,10 +81,8 @@ export default function FileToolPage() {
         fd.append("file", files[0]);
       }
 
-      // Add compression level for PDF compression
       if (config.component === "compress") {
-        const level = levelOverride || compressionLevel;
-        fd.append("level", level);
+        fd.append("level", levelOverride || compressionLevel);
       }
 
       const endpoint =
@@ -152,20 +95,11 @@ export default function FileToolPage() {
       const res = await fetch(endpoint, { method: "POST", body: fd });
       const json = await res.json();
 
-      if (!res.ok) {
-        let actionFailMsg = "Conversion failed";
-        if (config.component === "compress") actionFailMsg = "Compress failed";
-        else if (config.component === "merge") actionFailMsg = "Merge failed";
-        throw new Error(json.detail || json.error || actionFailMsg);
-      }
+      if (!res.ok) throw new Error(json.detail || json.error || "Conversion failed");
 
       setDownloadUrl(json.download_url);
       setFileName(json.filename || "converted_file");
       setConversionComplete(true);
-
-      if (config.component === "compress" && json.reduction_percent) {
-        console.log(`File size reduced by ${json.reduction_percent}%`);
-      }
     } catch (e) {
       setError(e.message || "Conversion failed");
       setConversionComplete(false);
@@ -174,14 +108,10 @@ export default function FileToolPage() {
     }
   };
 
-  // Download handler
   const handleDownload = () => {
-    if (downloadUrl) {
-      window.open(downloadUrl, "_blank");
-    }
+    if (downloadUrl) window.open(downloadUrl, "_blank");
   };
 
-  // Handle compression level changes
   const handleCompressionLevelChange = (level) => {
     setCompressionLevel(level);
     if (conversionComplete) {
@@ -192,7 +122,6 @@ export default function FileToolPage() {
     }
   };
 
-  // Clear all user files
   const handleClearUserFiles = async () => {
     if (!confirm("Are you sure you want to delete all your uploaded files?")) return;
     setLoading(true);
@@ -215,9 +144,11 @@ export default function FileToolPage() {
 
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-slate-950">
+      {/* Sidebar */}
       <Sidebar theme={theme} setTheme={setTheme} onReportChange={() => {}} />
+
       <div className="flex-1 transition-all duration-300">
-        <Navbar user={user} />
+        <Navbar />
 
         <div className="flex-1 flex flex-col p-6 space-y-6">
           {/* Clear Files Button */}
@@ -309,6 +240,7 @@ export default function FileToolPage() {
             </div>
           )}
 
+          {/* Export Panel */}
           <FileToolExportPanel
             showPanel={files.length > 0}
             downloadUrl={downloadUrl}
