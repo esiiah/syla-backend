@@ -197,3 +197,9 @@ select, input, textarea {
   text-align: center;
   padding: 6rem 1.5rem 3rem; /* add extra top padding if navbar overlaps */
 }
+
+/* Ensure floating panel never exceeds viewport */
+.filetool-panel {
+  max-height: calc(100vh - 72px);
+  overflow-y: auto;
+}
