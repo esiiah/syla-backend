@@ -144,3 +144,50 @@ select, input, textarea {
   outline: none;
   transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
+
+
+/* ================= HERO SECTION STYLES ================= */
+
+/* Hero gradient background - high specificity */
+.hero-gradient-bg {
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: 1rem !important;
+  z-index: -1 !important;
+}
+
+/* Light theme gradient */
+.light .hero-gradient-bg {
+  background: linear-gradient(135deg, 
+    #3b82f6 0%, 
+    #60a5fa 20%, 
+    #93c5fd 40%, 
+    #dbeafe 60%, 
+    #f0f9ff 80%, 
+    #ffffff 100%) !important;
+}
+
+/* Dark theme gradient */
+.dark .hero-gradient-bg {
+  background: linear-gradient(135deg, 
+    rgba(59, 130, 246, 0.8) 0%, 
+    rgba(96, 165, 250, 0.6) 20%, 
+    rgba(147, 197, 253, 0.4) 40%, 
+    rgba(219, 234, 254, 0.3) 60%, 
+    rgba(240, 249, 255, 0.2) 80%, 
+    rgba(0, 0, 0, 0.1) 100%) !important;
+}
+
+/* Hero section container */
+.hero-section {
+  position: relative !important;
+  margin-bottom: 2rem !important;
+}
+
+/* Hero content */
+.hero-content {
+  position: relative !important;
+  z-index: 10 !important;
+  text-align: center !important;
+  padding: 3rem 1.5rem !important;
+}
