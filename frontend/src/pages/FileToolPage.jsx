@@ -153,20 +153,17 @@ export default function FileToolPage() {
       const json = await res.json();
 
       if (!res.ok) {
-        let actionFailMsg = "Conversion failed"; // default
+        let actionFailMsg = "Conversion failed";
         if (config.component === "compress") actionFailMsg = "Compress failed";
         else if (config.component === "merge") actionFailMsg = "Merge failed";
-        else if (config.component === "convert") actionFailMsg = "Conversion failed"; // explicit for clarity
         throw new Error(json.detail || json.error || actionFailMsg);
       }
 
       setDownloadUrl(json.download_url);
       setFileName(json.filename || "converted_file");
       setConversionComplete(true);
-      
-      // Show size reduction info for compression
+
       if (config.component === "compress" && json.reduction_percent) {
-        setError(""); // Clear any previous errors
         console.log(`File size reduced by ${json.reduction_percent}%`);
       }
     } catch (e) {
@@ -187,7 +184,6 @@ export default function FileToolPage() {
   // Handle compression level changes
   const handleCompressionLevelChange = (level) => {
     setCompressionLevel(level);
-    // Reset conversion state when level changes
     if (conversionComplete) {
       setConversionComplete(false);
       setDownloadUrl("");
@@ -196,83 +192,112 @@ export default function FileToolPage() {
     }
   };
 
+  // Clear all user files
+  const handleClearUserFiles = async () => {
+    if (!confirm("Are you sure you want to delete all your uploaded files?")) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/files/clear-user-files", {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Failed to clear files");
+      setFiles([]);
+      setDownloadUrl("");
+      alert(data.message);
+    } catch (e) {
+      alert(e.message || "Failed to clear files");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-slate-950">
       <Sidebar theme={theme} setTheme={setTheme} onReportChange={() => {}} />
       <div className="flex-1 transition-all duration-300">
         <Navbar user={user} />
+
         <div className="flex-1 flex flex-col p-6 space-y-6">
+          {/* Clear Files Button */}
+          <div className="flex justify-between items-center mb-4">
+            <h1 className="text-2xl font-bold">File Tools</h1>
+            <button
+              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+              onClick={handleClearUserFiles}
+              disabled={loading}
+            >
+              {loading ? "Processing..." : "Clear All My Files"}
+            </button>
+          </div>
+
           {config ? (
             <>
-              {/* Header */}
+              {/* Tool Header */}
               <div className="text-center mb-6">
                 <h1 className="text-3xl font-bold text-gray-800 dark:text-slate-200 mb-2">
                   {config.label}
                 </h1>
                 <p className="text-gray-600 dark:text-slate-400">
-                  {config.component === "compress" 
+                  {config.component === "compress"
                     ? "Reduce PDF file size with customizable compression levels"
-                    : config.component === "merge" 
+                    : config.component === "merge"
                     ? "Combine multiple PDF files into a single document (max 15 files)"
                     : "Convert your files quickly and securely"}
                 </p>
               </div>
 
-              {config.component === "merge" ? (
-                <div className="max-w-6xl mx-auto">
-                  <FileToolUploadPanel
-                    title="Select PDFs to Merge"
-                    hint="You can select up to 15 PDF files to merge into one document"
-                    accept=".pdf"
-                    multiple={true}
-                    files={files}
-                    setFiles={setFiles}
-                    viewMode={viewMode}
-                    setViewMode={setViewMode}
-                    onUpload={handleUpload}
-                    uploadLabel="Merge PDFs"
-                    loading={loading}
-                  />
-                </div>
-              ) : config.component === "compress" ? (
-                <div className="max-w-4xl mx-auto">
-                  <FileToolUploadPanel
-                    title="Select PDF to Compress"
-                    hint="Choose a PDF file and select your preferred compression level"
-                    accept=".pdf"
-                    multiple={false}
-                    files={files}
-                    setFiles={setFiles}
-                    viewMode={viewMode}
-                    setViewMode={setViewMode}
-                    onUpload={handleUpload}
-                    uploadLabel={`Compress PDF (${compressionLevel})`}
-                    loading={loading}
-                  />
-                </div>
-              ) : (
-                <div className="max-w-4xl mx-auto">
-                  <FileToolUploadPanel
-                    title={`Select file for ${config.label}`}
-                    hint={`Upload ${config.accept.replace(/\./g, '').toUpperCase()} file for conversion`}
-                    accept={config.accept}
-                    multiple={false}
-                    files={files}
-                    setFiles={setFiles}
-                    viewMode={viewMode}
-                    setViewMode={setViewMode}
-                    onUpload={handleUpload}
-                    uploadLabel="Convert"
-                    loading={loading}
-                  />
-                </div>
-              )}
+              {/* Upload Panel */}
+              <div className={config.component === "merge" ? "max-w-6xl mx-auto" : "max-w-4xl mx-auto"}>
+                <FileToolUploadPanel
+                  title={
+                    config.component === "compress"
+                      ? "Select PDF to Compress"
+                      : config.component === "merge"
+                      ? "Select PDFs to Merge"
+                      : `Select file for ${config.label}`
+                  }
+                  hint={
+                    config.component === "compress"
+                      ? "Choose a PDF file and select your preferred compression level"
+                      : config.component === "merge"
+                      ? "You can select up to 15 PDF files to merge into one document"
+                      : `Upload ${config.accept.replace(/\./g, "").toUpperCase()} file for conversion`
+                  }
+                  accept={config.accept}
+                  multiple={config.component === "merge"}
+                  files={files}
+                  setFiles={setFiles}
+                  viewMode={viewMode}
+                  setViewMode={setViewMode}
+                  onUpload={handleUpload}
+                  uploadLabel={
+                    config.component === "compress"
+                      ? `Compress PDF (${compressionLevel})`
+                      : config.component === "merge"
+                      ? "Merge PDFs"
+                      : "Convert"
+                  }
+                  loading={loading}
+                />
+              </div>
             </>
           ) : (
             <div className="text-center text-gray-600 dark:text-gray-300">
               <div className="max-w-md mx-auto p-8 bg-white dark:bg-ink/80 rounded-2xl border border-gray-200 dark:border-white/5 shadow-soft">
-                <svg className="w-16 h-16 mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <svg
+                  className="w-16 h-16 mx-auto mb-4 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
                 </svg>
                 <h2 className="text-xl font-semibold text-gray-800 dark:text-slate-200 mb-2">
                   Tool Not Found
@@ -289,7 +314,13 @@ export default function FileToolPage() {
             downloadUrl={downloadUrl}
             onDownload={handleDownload}
             onUpload={handleUpload}
-            uploadLabel={config?.component === "compress" ? `Compress PDF (${compressionLevel})` : config?.component === "merge" ? "Merge PDFs" : "Convert"}
+            uploadLabel={
+              config?.component === "compress"
+                ? `Compress PDF (${compressionLevel})`
+                : config?.component === "merge"
+                ? "Merge PDFs"
+                : "Convert"
+            }
             error={error}
             loading={loading}
             conversionComplete={conversionComplete}
