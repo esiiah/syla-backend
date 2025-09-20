@@ -136,19 +136,12 @@ function App() {
         <main className="mx-auto max-w-7xl px-4 pb-16 pt-8">
           
           {/* Dashboard Greeting Section with Fixed Gradient */}
-          <div className="mb-8 relative">
-            {/* Enhanced Background gradient */}
-            <div 
-              className="absolute inset-0 rounded-2xl -z-10"
-              style={{
-                background: theme === 'light' 
-                  ? 'linear-gradient(135deg, #3b82f6 0%, #60a5fa 25%, #93c5fd 50%, #dbeafe 75%, #ffffff 100%)'
-                  : 'linear-gradient(135deg, rgba(59, 130, 246, 0.6) 0%, rgba(96, 165, 250, 0.4) 25%, rgba(147, 197, 253, 0.3) 50%, rgba(219, 234, 254, 0.2) 75%, rgba(0, 0, 0, 0) 100%)',
-              }}
-            ></div>
+          <div className="hero-section">
+            {/* Fixed Background gradient */}
+            <div className="hero-gradient-bg"></div>
             
             {/* Content */}
-            <div className="text-center py-12 px-6 relative z-10">
+            <div className="hero-content">
               {user ? (
                 <>
                   <h1 className="font-display text-4xl md:text-5xl tracking-wide mb-4 text-gray-800 dark:text-slate-200">
@@ -162,7 +155,7 @@ function App() {
               ) : (
                 <>
                   <h1 className="font-body text-4xl md:text-5xl tracking-wide mb-6 text-gray-800 dark:text-slate-200">
-                    From raw data to <span className="text-neonBlue font-semibold">smart decisions</span> —
+                    From raw data to <span className="text-neonBlue font-semibold">smart decisions</span> — 
                     <br />
                     all powered by <span className="text-neonYellow font-semibold">Syla</span>.
                   </h1>
