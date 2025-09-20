@@ -136,7 +136,7 @@ function App() {
         <main className="mx-auto max-w-7xl px-4 pb-16 pt-8">
           
           {/* Dashboard Greeting Section with Fixed Gradient */}
-          <div className="hero-section">
+          <div className="hero-section rounded-2xl">
             {/* Fixed Background gradient */}
             <div className="hero-gradient-bg"></div>
             
