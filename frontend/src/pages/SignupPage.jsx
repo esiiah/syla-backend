@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+// frontend/src/pages/SignupPage.jsx
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 export default function SignupPage() {
@@ -7,34 +8,31 @@ export default function SignupPage() {
   const [contact, setContact] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [contactType, setContactType] = useState("email");
+  const [showDetails, setShowDetails] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
+  const handleGoogleSignIn = async () => {
     setLoading(true);
+    setError("");
     try {
-      const isEmail = /\S+@\S+\.\S+/.test(contact);
-      const contact_type = isEmail ? "email" : "phone";
-      const res = await fetch("/api/auth/signup", {
+      if (typeof google === 'undefined') throw new Error("Google Sign-In not loaded");
+      const response = await new Promise((resolve, reject) => {
+        google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed()) reject(new Error("Google Sign-In popup blocked"));
+        });
+        window.handleCredentialResponse = (response) => resolve(response);
+      });
+      const res = await fetch("/api/auth/google", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name,
-          contact,
-          password,
-          confirm_password: confirmPassword,
-          contact_type,
-        }),
         credentials: "include",
+        body: JSON.stringify({ credential: response.credential }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Signup failed");
+      if (!res.ok) throw new Error(data.detail || "Google authentication failed");
+      localStorage.setItem("token", data.access_token);
       localStorage.setItem("user", JSON.stringify(data.user));
       navigate("/");
     } catch (err) {
@@ -44,124 +42,90 @@ export default function SignupPage() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setLoading(true);
+  const handlePhoneVerification = () => setShowDetails(true);
+
+  const handleSignup = async (e) => {
+    e.preventDefault();
     setError("");
+    setLoading(true);
+    if (password !== confirmPassword) return setError("Passwords do not match"), setLoading(false);
+    if (password.length < 6) return setError("Password must be at least 6 characters long"), setLoading(false);
     try {
-      // ---- NEW ----
-      // see LoginPage for notes about id_token
-      window.location.href = "/api/auth/google";
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name, contact, password, confirm_password: confirmPassword, contact_type: contactType }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Signup failed");
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      navigate("/");
     } catch (err) {
-      setError(err.message || "Google authentication failed");
+      setError(err.message);
+    } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.onload = () => google.accounts.id.initialize({
+      client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID,
+      callback: window.handleCredentialResponse
+    });
+    document.body.appendChild(script);
+    return () => document.body.removeChild(script);
+  }, []);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-slate-950">
-      <div className="max-w-md w-full space-y-8 p-10 bg-white dark:bg-ink rounded-2xl shadow-soft">
-        <div>
-          <h2 className="mt-2 text-center text-3xl font-extrabold text-gray-900 dark:text-gray-100 font-display">
-            Create your account
-          </h2>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-950 dark:to-slate-900">
+      <div className="w-full max-w-md bg-white dark:bg-ink/90 rounded-2xl border-2 border-neonBlue/20 shadow-2xl p-8 neon-border">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-display font-bold text-gray-800 dark:text-slate-200 mb-2">Create Account</h1>
+          <p className="text-sm text-gray-600 dark:text-slate-400">Join Syla Analytics today</p>
         </div>
 
-        {error && (
-          <div className="text-red-500 text-sm text-center">{error}</div>
-        )}
+        {/* Error */}
+        {error && <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400">{error}</div>}
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <input
-                name="name"
-                type="text"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300
-                           placeholder-gray-500 text-gray-900 rounded-t-md
-                           focus:outline-none focus:ring-neonBlue focus:border-neonBlue
-                           dark:bg-slate-900 dark:border-slate-700 dark:text-gray-100"
-                placeholder="Full name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <div>
-              <input
-                name="contact"
-                type="text"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300
-                           placeholder-gray-500 text-gray-900
-                           focus:outline-none focus:ring-neonBlue focus:border-neonBlue
-                           dark:bg-slate-900 dark:border-slate-700 dark:text-gray-100"
-                placeholder="Email or phone"
-                value={contact}
-                onChange={(e) => setContact(e.target.value)}
-              />
-            </div>
-            <div>
-              <input
-                name="password"
-                type="password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300
-                           placeholder-gray-500 text-gray-900
-                           focus:outline-none focus:ring-neonBlue focus:border-neonBlue
-                           dark:bg-slate-900 dark:border-slate-700 dark:text-gray-100"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            <div>
-              <input
-                name="confirmPassword"
-                type="password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300
-                           placeholder-gray-500 text-gray-900 rounded-b-md
-                           focus:outline-none focus:ring-neonBlue focus:border-neonBlue
-                           dark:bg-slate-900 dark:border-slate-700 dark:text-gray-100"
-                placeholder="Confirm password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
+        {!showDetails ? (
+          <div className="space-y-4">
+            {/* Google Sign-In */}
+            <button onClick={handleGoogleSignIn} disabled={loading} className="w-full px-4 py-4 border-2 border-gray-300 rounded-lg hover:border-gray-400 transition-all duration-200 flex items-center justify-center space-x-3 bg-white dark:bg-slate-800 dark:border-white/20 disabled:opacity-50 disabled:cursor-not-allowed">
+              <span className="text-gray-700 dark:text-slate-300 font-medium">{loading ? "Loading..." : "Continue with Google"}</span>
+            </button>
+
+            {/* Options Divider */}
+            <div className="flex items-center mb-4"><div className="flex-1 border-t border-gray-300 dark:border-white/20"></div><span className="px-4 text-sm text-gray-500 dark:text-slate-400">or</span><div className="flex-1 border-t border-gray-300 dark:border-white/20"></div></div>
+
+            {/* Email */}
+            <button onClick={() => { setContactType("email"); setShowDetails(true); }} className="w-full px-4 py-4 border-2 border-neonBlue/30 rounded-lg hover:border-neonBlue/60 transition-all duration-200">Continue with Email</button>
+
+            {/* Phone */}
+            <button onClick={() => { setContactType("phone"); handlePhoneVerification(); }} className="w-full px-4 py-4 border-2 border-neonBlue/30 rounded-lg hover:border-neonBlue/60 transition-all duration-200">Continue with Phone</button>
+
+            <div className="mt-8 text-center">
+              <p className="text-sm text-gray-600 dark:text-slate-400">
+                Already have an account? <Link to="/login" className="text-neonBlue hover:text-blue-600 font-semibold hover:underline">Sign in here</Link>
+              </p>
             </div>
           </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="group relative w-full flex justify-center py-2 px-4 border border-transparent
-                       text-sm font-medium rounded-md text-white bg-neonBlue hover:bg-blue-700
-                       focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-neonBlue
-                       button-glow"
-          >
-            {loading ? "Creating…" : "Sign Up"}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={loading}
-            className="group relative w-full flex justify-center py-2 px-4 border border-transparent
-                       text-sm font-medium rounded-md text-white bg-red-500 hover:bg-red-600
-                       focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-400"
-          >
-            Continue with Google
-          </button>
-
-          <p className="mt-2 text-center text-sm text-gray-600 dark:text-gray-300">
-            Already have an account?{" "}
-            <Link
-              to="/login"
-              className="font-medium text-neonBlue hover:underline"
-            >
-              Login
-            </Link>
-          </p>
-        </form>
+        ) : (
+          <div>
+            <button onClick={() => setShowDetails(false)} className="mb-4 flex items-center text-sm text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200">Back to options</button>
+            <form onSubmit={handleSignup} className="space-y-4">
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Full Name" required className="w-full border rounded-lg px-4 py-3"/>
+              <input type={contactType === "email" ? "email" : "tel"} value={contact} onChange={(e) => setContact(e.target.value)} placeholder={contactType === "email" ? "Email" : "Phone"} required className="w-full border rounded-lg px-4 py-3"/>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required className="w-full border rounded-lg px-4 py-3"/>
+              <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm Password" required className="w-full border rounded-lg px-4 py-3"/>
+              <button type="submit" disabled={loading} className={`w-full py-3 rounded-lg font-semibold text-white ${loading ? "bg-gray-400" : "bg-neonBlue"}`}>{loading ? "Creating..." : "Create Account"}</button>
+            </form>
+          </div>
+        )}
       </div>
     </div>
   );
