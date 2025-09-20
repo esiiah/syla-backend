@@ -150,21 +150,24 @@ select, input, textarea {
 
 /* Hero section container */
 .hero-section {
-  position: relative;
-  margin-bottom: 2rem;
-  border-radius: 1rem;      /* clip gradient */
-  overflow: hidden;         /* clip gradient */
+  position: relative;       /* allow absolute gradient inside */
+  width: 100vw;             /* full viewport width */
+  margin: 0;                /* remove spacing from layout */
+  border-radius: 0;         /* no rounded corners, flush edges */
+  overflow: visible;        /* gradient not clipped */
   background: transparent;  /* allow gradient to show */
   z-index: 1;               /* stacking context above page bg */
 }
 
 /* Hero gradient background */
 .hero-gradient-bg {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;  /* match hero-section */
-  z-index: 0;              /* sits below content but above page bg */
-  pointer-events: none;    /* so content is clickable */
+  position: fixed;           /* cover viewport */
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;                /* sits below content */
+  pointer-events: none;      /* so content is clickable */
 }
 
 .light .hero-gradient-bg {
@@ -189,8 +192,8 @@ select, input, textarea {
 
 /* Hero content */
 .hero-content {
-  position: relative;
-  z-index: 2;              /* sits above gradient */
+  position: relative;        /* stays above fixed gradient */
+  z-index: 2;                /* above gradient */
   text-align: center;
-  padding: 3rem 1.5rem;
+  padding: 6rem 1.5rem 3rem; /* add extra top padding if navbar overlaps */
 }
