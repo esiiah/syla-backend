@@ -132,16 +132,19 @@ function App() {
         {/* Navbar */}
         <Navbar user={user} />
 
-        {/* Main Content */}
-        <main className="mx-auto max-w-7xl px-4 pb-16 pt-8">
-          
-          {/* Dashboard Greeting Section with Fixed Gradient */}
-          <div className="hero-section w-screen -mx-4 relative">
-            {/* Fixed Background gradient */}
-            <div className="hero-gradient-bg"></div>
-            
-            {/* Hero Content */}
-            <div className="hero-content">
+        {/* Full-screen hero gradient as background */}
+        <div className="hero-section fixed inset-0 -z-10">
+          <div className="hero-gradient-bg w-full h-full bg-gradient-to-b from-blue-500 to-white"></div>
+        </div>
+
+        <main className="relative z-10 flex">
+          {/* Sidebar */}
+          <Sidebar />
+
+          {/* Page Content */}
+          <div className="flex-1">
+            {/* Hero content */}
+            <div className="hero-content px-8 py-16">
               {user ? (
                 <>
                   <h1 className="font-display text-4xl md:text-5xl tracking-wide mb-4 text-gray-800 dark:text-slate-200">
@@ -179,9 +182,8 @@ function App() {
                 </>
               )}
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Upload Panel */}
             <section className="lg:col-span-1 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
               <div className="p-5">
