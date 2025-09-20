@@ -1,6 +1,14 @@
-// frontend/src/components/upload/FileToolUploadPanel.jsx
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 
+/**
+ * Same visual theme as your original UploadPanel,
+ * but:
+ *   • On first show it floats on the right side of the screen,
+ *     vertically centred between navbar and bottom.
+ *   • Panel content is max-height and scrollable; it never grows
+ *     to overlap navbar or outside viewport.
+ *   • Panel is draggable after it first appears.
+ */
 export default function FileToolUploadPanel({
   title = "Upload File",
   hint = "",
@@ -15,12 +23,91 @@ export default function FileToolUploadPanel({
   loading = false,
 }) {
   const inputRef = useRef(null);
+  const panelRef = useRef(null);
 
+  // ---------- floating / draggable logic ----------
+  const [dragging, setDragging] = useState(false);
+  const dragInfo = useRef({ startX: 0, startY: 0, origX: 0, origY: 0 });
+  const [style, setStyle] = useState({
+    position: "fixed",
+    right: 24,
+    top: "50%",
+    transform: "translateY(-50%)",
+    zIndex: 50,
+  });
+
+  useEffect(() => {
+    // when files first appear, ensure panel is in its default right-side position
+    if (files.length && style.transform) {
+      setStyle({
+        position: "fixed",
+        right: 24,
+        top: "50%",
+        transform: "translateY(-50%)",
+        zIndex: 50,
+      });
+    }
+  }, [files]);
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!dragging) return;
+      const cX = e.touches ? e.touches[0].clientX : e.clientX;
+      const cY = e.touches ? e.touches[0].clientY : e.clientY;
+      const dx = cX - dragInfo.current.startX;
+      const dy = cY - dragInfo.current.startY;
+      const newLeft = dragInfo.current.origX + dx;
+      const newTop = dragInfo.current.origY + dy;
+      const vpW = window.innerWidth;
+      const vpH = window.innerHeight;
+      const rect = panelRef.current.getBoundingClientRect();
+      let clampedLeft = Math.min(Math.max(0, newLeft), vpW - rect.width);
+      let clampedTop = Math.min(
+        Math.max(64, newTop), // 64px ~ navbar height
+        vpH - rect.height - 8
+      );
+      setStyle({
+        position: "fixed",
+        left: clampedLeft,
+        top: clampedTop,
+        transform: "none",
+        right: "auto",
+        zIndex: 50,
+      });
+    };
+    const onUp = () => setDragging(false);
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onMove, { passive: false });
+    window.addEventListener("touchend", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onUp);
+    };
+  }, [dragging]);
+
+  const startDrag = (e) => {
+    e.preventDefault();
+    setDragging(true);
+    const cX = e.touches ? e.touches[0].clientX : e.clientX;
+    const cY = e.touches ? e.touches[0].clientY : e.clientY;
+    const rect = panelRef.current.getBoundingClientRect();
+    dragInfo.current = {
+      startX: cX,
+      startY: cY,
+      origX: rect.left,
+      origY: rect.top,
+    };
+  };
+
+  // ---------- file select / upload logic ----------
   const handleSelect = (e) => {
     const selected = Array.from(e.target.files || []);
     if (!selected.length) return;
     setFiles(multiple ? selected : [selected[0]]);
-    // Reset input so the same file can be re-selected if needed
     e.target.value = "";
   };
 
@@ -32,22 +119,46 @@ export default function FileToolUploadPanel({
   };
 
   const handleUpload = () => {
-    if (typeof onUpload === "function") {
-      onUpload();
-    }
+    if (typeof onUpload === "function") onUpload();
   };
 
   return (
-    <section className="rounded-2xl bg-white border-2 border-neonBlue/20 shadow-lg dark:bg-ink/80 dark:border-neonBlue/40 dark:border-white/5 p-6 max-w-6xl mx-auto neon-border">
-      <h3 className="font-display text-lg mb-2 text-gray-800 dark:text-slate-200">{title}</h3>
-      {hint && <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">{hint}</p>}
+    <section
+      ref={panelRef}
+      style={files.length ? style : {}}
+      className={`rounded-2xl bg-white border-2 border-neonBlue/20 shadow-lg
+                  dark:bg-ink/80 dark:border-neonBlue/40 dark:border-white/5
+                  p-6 max-w-6xl mx-auto neon-border
+                  ${files.length ? "fixed-panel" : ""}`}
+    >
+      {/* Drag handle header */}
+      <div
+        onMouseDown={startDrag}
+        onTouchStart={startDrag}
+        className="cursor-move pb-2 mb-4 border-b border-gray-200 dark:border-white/10 flex justify-between items-center select-none"
+      >
+        <h3 className="font-display text-lg text-gray-800 dark:text-slate-200">
+          {title}
+        </h3>
+        {hint && (
+          <p className="text-sm text-gray-500 dark:text-slate-400">{hint}</p>
+        )}
+      </div>
 
-      <div className="flex flex-col lg:flex-row gap-6 items-center">
+      <div className="flex flex-col lg:flex-row gap-6 items-center"
+           style={{maxHeight: "calc(100vh - 72px)", overflowY: "auto"}}>
         {/* Dropzone */}
         <div
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
-          className="flex-1 rounded-xl p-6 text-center transition-all duration-300 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-dashed border-neonBlue/30 hover:border-neonBlue/60 hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 dark:bg-gradient-to-r dark:from-slate-800/50 dark:to-slate-900/50 dark:border-neonBlue/40 dark:hover:border-neonBlue/70"
+          className="flex-1 rounded-xl p-6 text-center transition-all duration-300
+                     bg-gradient-to-r from-blue-50 to-indigo-50
+                     border-2 border-dashed border-neonBlue/30
+                     hover:border-neonBlue/60 hover:bg-gradient-to-r
+                     hover:from-blue-100 hover:to-indigo-100
+                     dark:bg-gradient-to-r dark:from-slate-800/50
+                     dark:to-slate-900/50 dark:border-neonBlue/40
+                     dark:hover:border-neonBlue/70"
           style={{
             boxShadow: "0 8px 32px rgba(59, 130, 246, 0.1)",
             minHeight: "140px",
@@ -82,7 +193,11 @@ export default function FileToolUploadPanel({
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="px-4 py-2 rounded-lg border-2 border-neonBlue/30 bg-white text-neonBlue hover:bg-neonBlue hover:text-white hover:border-neonBlue transition-all duration-300 font-medium shadow-md hover:shadow-lg dark:bg-slate-800 dark:border-neonBlue/50 dark:text-neonBlue dark:hover:bg-neonBlue dark:hover:text-white"
+            className="px-4 py-2 rounded-lg border-2 border-neonBlue/30 bg-white text-neonBlue
+                       hover:bg-neonBlue hover:text-white hover:border-neonBlue
+                       transition-all duration-300 font-medium shadow-md hover:shadow-lg
+                       dark:bg-slate-800 dark:border-neonBlue/50 dark:text-neonBlue
+                       dark:hover:bg-neonBlue dark:hover:text-white"
           >
             Choose File
           </button>
@@ -97,7 +212,7 @@ export default function FileToolUploadPanel({
           />
         </div>
 
-        {/* Right-hand side: file list + actions */}
+        {/* Right side: file list + actions */}
         <div className="lg:w-80 w-full space-y-4">
           <div className="p-4 rounded-lg bg-gray-50 dark:bg-slate-800/50 border border-gray-200 dark:border-white/10">
             <div className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
@@ -111,7 +226,9 @@ export default function FileToolUploadPanel({
                       key={i}
                       className="flex items-center justify-between p-2 bg-white dark:bg-slate-700 rounded border"
                     >
-                      <span className="truncate flex-1 mr-2">{f.name || f.filename}</span>
+                      <span className="truncate flex-1 mr-2">
+                        {f.name || f.filename}
+                      </span>
                       {f.size && (
                         <span className="text-xs text-gray-500 dark:text-slate-400">
                           {Math.round(f.size / 1024)} KB
@@ -121,7 +238,9 @@ export default function FileToolUploadPanel({
                   ))}
                 </div>
               ) : (
-                <span className="text-gray-500 dark:text-slate-500">No file selected</span>
+                <span className="text-gray-500 dark:text-slate-500">
+                  No file selected
+                </span>
               )}
             </div>
           </div>
@@ -142,7 +261,9 @@ export default function FileToolUploadPanel({
 
           {/* View mode switcher */}
           <div className="flex items-center justify-center gap-2">
-            <span className="text-xs text-gray-600 dark:text-slate-400 mr-2">View:</span>
+            <span className="text-xs text-gray-600 dark:text-slate-400 mr-2">
+              View:
+            </span>
             {["grid", "details", "list"].map((mode) => (
               <button
                 key={mode}
