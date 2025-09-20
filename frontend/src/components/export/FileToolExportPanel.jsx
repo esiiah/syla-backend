@@ -17,6 +17,9 @@ export default function FileToolExportPanel({
 }) {
   const [compressionLevel, setCompressionLevel] = useState("medium");
   const [panelWidth, setPanelWidth] = useState(340);
+  const [position, setPosition] = useState({ x: null, y: null });
+  const [dragging, setDragging] = useState(false);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
   const panelRef = useRef(null);
 
   // Reset compression level when tool type changes
@@ -30,6 +33,43 @@ export default function FileToolExportPanel({
     else if (toolType === "merge") setPanelWidth(360);
     else setPanelWidth(320);
   }, [toolType, conversionComplete]);
+
+  // Dragging events
+  const handleMouseDown = (e) => {
+    if (!panelRef.current) return;
+    setDragging(true);
+    const rect = panelRef.current.getBoundingClientRect();
+    setOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!dragging) return;
+    setPosition({
+      x: e.clientX - offset.x,
+      y: e.clientY - offset.y,
+    });
+  };
+
+  const handleMouseUp = () => {
+    setDragging(false);
+  };
+
+  useEffect(() => {
+    if (dragging) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+    } else {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [dragging, offset]);
 
   if (!showPanel) return null;
 
@@ -79,16 +119,19 @@ export default function FileToolExportPanel({
   return (
     <div
       ref={panelRef}
+      onMouseDown={handleMouseDown}
       style={{
         position: "fixed",
-        right: 24,
-        top: "50%",
-        transform: "translateY(-50%)",
+        right: position.x === null ? 24 : "auto",
+        top: position.y === null ? "50%" : "auto",
+        left: position.x !== null ? position.x : "auto",
+        transform: position.y === null ? "translateY(-50%)" : "none",
         width: panelWidth,
-        maxHeight: "calc(100vh - 72px)", // vertical centering with scrollable body
+        maxHeight: "calc(100vh - 72px)",
         zIndex: 1000,
         display: "flex",
         flexDirection: "column",
+        cursor: dragging ? "grabbing" : "grab",
       }}
     >
       <div className="rounded-xl bg-white border-2 border-neonBlue/20 shadow-2xl dark:bg-slate-800/95 dark:border-neonBlue/30 backdrop-blur-sm neon-border flex flex-col h-full">
