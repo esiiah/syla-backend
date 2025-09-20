@@ -138,8 +138,6 @@ function App() {
         </div>
 
         <main className="relative z-10 flex">
-          {/* Sidebar */}
-          <Sidebar />
 
           {/* Page Content */}
           <div className="flex-1">
