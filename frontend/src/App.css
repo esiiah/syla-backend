@@ -148,12 +148,23 @@ select, input, textarea {
 
 /* ================= HERO SECTION STYLES ================= */
 
-/* Hero gradient background - high specificity */
+/* Hero section container */
+.hero-section {
+  position: relative;
+  margin-bottom: 2rem;
+  border-radius: 1rem;      /* clip gradient */
+  overflow: hidden;         /* clip gradient */
+  background: transparent;  /* allow gradient to show */
+  z-index: 1;               /* stacking context above page bg */
+}
+
+/* Hero gradient background */
 .hero-gradient-bg {
-  position: absolute !important;
-  inset: 0 !important;
-  border-radius: 1rem !important;
-  z-index: -1 !important;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;  /* match hero-section */
+  z-index: 0;              /* sits below content but above page bg */
+  pointer-events: none;    /* so content is clickable */
 }
 
 /* Light theme gradient */
@@ -164,7 +175,7 @@ select, input, textarea {
     #93c5fd 40%, 
     #dbeafe 60%, 
     #f0f9ff 80%, 
-    #ffffff 100%) !important;
+    #ffffff 100%);
 }
 
 /* Dark theme gradient */
@@ -175,21 +186,13 @@ select, input, textarea {
     rgba(147, 197, 253, 0.4) 40%, 
     rgba(219, 234, 254, 0.3) 60%, 
     rgba(240, 249, 255, 0.2) 80%, 
-    rgba(0, 0, 0, 0.1) 100%) !important;
-}
-
-/* Hero section container */
-.hero-section {
-  position: relative !important;
-  margin-bottom: 2rem !important;
-  border-radius: 1rem !important;  /* NEW */
-  overflow: hidden !important;     /* NEW */
+    rgba(0, 0, 0, 0.1) 100%);
 }
 
 /* Hero content */
 .hero-content {
-  position: relative !important;
-  z-index: 10 !important;
-  text-align: center !important;
-  padding: 3rem 1.5rem !important;
+  position: relative;
+  z-index: 2;              /* sits above gradient */
+  text-align: center;
+  padding: 3rem 1.5rem;
 }
