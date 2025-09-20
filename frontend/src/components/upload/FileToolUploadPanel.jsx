@@ -35,7 +35,16 @@ export default function FileToolUploadPanel({
   };
 
   return (
-    <section className="rounded-2xl bg-white border-2 border-neonBlue/20 shadow-lg dark:bg-ink/80 dark:border-neonBlue/40 dark:border-white/5 p-6 max-w-6xl mx-auto neon-border">
+    <section
+      className="rounded-2xl bg-white border-2 border-neonBlue/20 shadow-lg dark:bg-ink/80 dark:border-neonBlue/40 dark:border-white/5 p-6 max-w-6xl neon-border"
+      style={{
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        zIndex: 1000,
+      }}
+    >
       <h3 className="font-display text-lg mb-2 text-gray-800 dark:text-slate-200">
         {title}
       </h3>
