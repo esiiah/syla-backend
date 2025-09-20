@@ -136,7 +136,7 @@ function App() {
         <main className="mx-auto max-w-7xl px-4 pb-16 pt-8">
           
           {/* Dashboard Greeting Section with Fixed Gradient */}
-          <div className="hero-section>
+          <div className="hero-section">
             {/* Fixed Background gradient */}
             <div className="hero-gradient-bg"></div>
             
@@ -155,7 +155,7 @@ function App() {
               ) : (
                 <>
                   <h1 className="font-body text-4xl md:text-5xl tracking-wide mb-6 text-gray-800 dark:text-slate-200">
-                    From raw data to <span className="text-neonBlue font-semibold">smart decisions</span> — 
+                    From raw data to <span className="text-neonBlue font-semibold">smart decisions</span> 
                     <br />
                     all powered by <span className="text-neonYellow font-semibold">Syla</span>.
                   </h1>
