@@ -150,13 +150,13 @@ select, input, textarea {
 
 /* Hero section container */
 .hero-section {
-  position: relative;       /* allow absolute gradient inside */
-  width: 100vw;             /* full viewport width */
-  margin: 0;                /* remove spacing from layout */
-  border-radius: 0;         /* no rounded corners, flush edges */
-  overflow: visible;        /* gradient not clipped */
-  background: transparent;  /* allow gradient to show */
-  z-index: 1;               /* stacking context above page bg */
+  position: relative;
+  width: 100%;
+  min-height: 60vh;       /* ensures gradient covers top portion */
+  margin: 0;
+  overflow: visible;
+  background: transparent;
+  z-index: 1;
 }
 
 .hero-gradient-bg {
@@ -190,14 +190,20 @@ select, input, textarea {
     rgba(0, 0, 0, 0.1) 100%);
 }
 
-/* Hero content */
 .hero-content {
-  position: relative;        /* stays above fixed gradient */
-  z-index: 2;                /* above gradient */
+  position: relative;
+  z-index: 2;
   text-align: center;
-  padding: 6rem 1.5rem 3rem; /* add extra top padding if navbar overlaps */
+  padding: 6rem 1.5rem 3rem;
 }
 
+@media (max-width: 640px) {
+  .hero-content {
+    padding-top: 4rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
 /* Ensure floating panel never exceeds viewport */
 .filetool-panel {
   max-height: calc(100vh - 72px);
