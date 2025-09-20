@@ -87,39 +87,30 @@ class PDFCompressionService:
         except Exception as e:
             raise RuntimeError(f"Ghostscript error: {str(e)}")
     
-    def compress_with_pikepdf(self, input_path: str, output_path: str, level: str = "medium") -> bool:
-        """Compress PDF using pikepdf with corrected parameters"""
-        if not pikepdf:
-            raise RuntimeError("pikepdf not installed")
-            
-        try:
-            with pikepdf.Pdf.open(input_path) as pdf:
-                # Apply compression based on level
-                settings = self._get_compression_settings(level)
-                
-                # Use correct pikepdf parameters
-                save_kwargs = {
-                    "compress_streams": True,
-                    "stream_decode_level": pikepdf.StreamDecodeLevel.generalized,
-                    "object_stream_mode": pikepdf.ObjectStreamMode.generate,
-                    "normalize_content": True,
-                    "linearize": True
-                }
-                
-                # Adjust quality based on compression level
-                if level == "strong":
-                    save_kwargs["recompress_flate"] = True
-                    save_kwargs["compression_level"] = 9
-                elif level == "light":  
-                    save_kwargs["compression_level"] = 1
-                else:  # medium
-                    save_kwargs["compression_level"] = 6
-                
-                pdf.save(output_path, **save_kwargs)
-            return True
-            
-        except Exception as e:
-            raise RuntimeError(f"pikepdf compression failed: {str(e)}")
+def compress_with_pikepdf(self, input_path: str, output_path: str, level: str = "medium") -> bool:
+    if not pikepdf:
+        raise RuntimeError("pikepdf not installed")
+        
+    try:
+        with pikepdf.Pdf.open(input_path) as pdf:
+            settings = self._get_compression_settings(level)
+
+            save_kwargs = {
+                "compress_streams": True,
+                "stream_decode_level": pikepdf.StreamDecodeLevel.generalized,
+                "object_stream_mode": pikepdf.ObjectStreamMode.generate,
+                "normalize_content": True,
+                "linearize": True
+            }
+
+            if level == "strong":
+                save_kwargs["recompress_flate"] = True
+
+            pdf.save(output_path, **save_kwargs)
+        return True
+
+    except Exception as e:
+        raise RuntimeError(f"pikepdf compression failed: {str(e)}")
     
     def get_compression_preview(self, input_path: str) -> dict:
         """Get compression preview for different levels"""
