@@ -51,16 +51,12 @@ BASE_DIR = os.path.dirname(__file__)
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# ----- React frontend serving -----
-FRONTEND_DIR = os.path.join(BASE_DIR, "frontend", "dist")  # path to Vite build
+# ----- React frontend serving (dist is inside app/) -----
+FRONTEND_DIR = os.path.join(BASE_DIR, "dist")  # ✅ correct path inside app/
 
-# Serve JS/CSS assets
-app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIR, "assets")), name="assets")
-
-# Catch-all route for React (fallback to index.html)
+# Catch-all route for React
 @app.get("/{full_path:path}")
 async def serve_react_app(full_path: str):
-    # Keep API and uploads routes intact
     if full_path.startswith("api/") or full_path.startswith("files/"):
         raise HTTPException(status_code=404, detail="Not Found")
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
