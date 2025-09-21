@@ -1,4 +1,3 @@
-// frontend/src/components/export/FileToolExportPanel.jsx
 import React, { useState, useEffect, useRef } from "react";
 
 export default function FileToolExportPanel({
@@ -35,18 +34,12 @@ export default function FileToolExportPanel({
     if (!panelRef.current) return;
     setDragging(true);
     const rect = panelRef.current.getBoundingClientRect();
-    setOffset({
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
+    setOffset({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
 
   const handleMouseMove = (e) => {
     if (!dragging) return;
-    setPosition({
-      x: e.clientX - offset.x,
-      y: e.clientY - offset.y,
-    });
+    setPosition({ x: e.clientX - offset.x, y: e.clientY - offset.y });
   };
 
   const handleMouseUp = () => setDragging(false);
@@ -85,15 +78,19 @@ export default function FileToolExportPanel({
   };
 
   const getUploadButtonText = () => {
-    if (loading) return toolType === "compress" ? "Compressing..." : toolType === "merge" ? "Merging..." : "Processing...";
+    if (loading) return `${toolType[0].toUpperCase() + toolType.slice(1)} Processing...`;
     if (toolType === "compress") return `Compress File (${compressionLevel})`;
     if (toolType === "merge") return "Merge Files";
+    if (toolType === "pdf") return "Export PDF";
+    if (toolType === "csv") return "Export CSV";
     return "Convert";
   };
 
   const getProcessingTitle = () => {
     if (toolType === "compress") return "File Compression";
     if (toolType === "merge") return "File Merging";
+    if (toolType === "pdf") return "PDF Export";
+    if (toolType === "csv") return "CSV Export";
     return "File Processing";
   };
 
@@ -112,27 +109,18 @@ export default function FileToolExportPanel({
         zIndex: 1000,
         display: "flex",
         flexDirection: "column",
+        backgroundColor: "white",
+        borderRadius: "1rem",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+        overflow: "hidden"
       }}
     >
       {/* Header */}
       <div
         onMouseDown={handleMouseDown}
-        className="p-3 border-b border-gray-200 dark:border-white/10 bg-gradient-to-r from-neonBlue/5 to-indigo-500/5 rounded-t-xl cursor-grab"
+        className="p-3 border-b border-gray-200 dark:border-white/10 bg-gradient-to-r from-neonBlue/5 to-indigo-50 cursor-grab"
       >
         <div className="text-sm font-semibold text-gray-800 dark:text-slate-200 flex items-center">
-          <svg
-            className="w-4 h-4 mr-2 text-neonBlue"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
           {getProcessingTitle()}
         </div>
       </div>
@@ -163,59 +151,21 @@ export default function FileToolExportPanel({
         )}
 
         {/* Status */}
-        {conversionComplete ? (
-          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg dark:bg-green-900/20 dark:border-green-800">
-            <div className="flex items-center text-green-700 dark:text-green-400">
-              <svg
-                className="w-4 h-4 mr-2 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-              <span className="text-sm font-medium">
-                {toolType === "compress"
-                  ? `Compression Complete! (${compressionLevel})`
-                  : toolType === "merge"
-                  ? "Merge Complete!"
-                  : "Conversion Complete!"}
-              </span>
-            </div>
-            {fileName && (
-              <p className="text-xs text-green-600 dark:text-green-400 mt-1 break-all">
-                File: {fileName}
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
-            <div className="flex items-center text-blue-700 dark:text-blue-400">
-              <svg
-                className="w-4 h-4 mr-2 flex-shrink-0"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <span className="text-sm font-medium">File(s) Selected</span>
-            </div>
-            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-              Ready to process{toolType === "compress" && ` with ${compressionLevel} compression`}
-            </p>
-          </div>
-        )}
+        <div
+          className={`mb-4 p-3 rounded-lg ${
+            conversionComplete ? "bg-green-50 border border-green-200 dark:bg-green-900/20 dark:border-green-800 text-green-700 dark:text-green-400"
+            : "bg-blue-50 border border-blue-200 dark:bg-blue-900/20 dark:border-blue-800 text-blue-700 dark:text-blue-400"
+          }`}
+        >
+          <span className="text-sm font-medium">
+            {conversionComplete
+              ? `${getProcessingTitle()} Complete!`
+              : "Ready to process"}
+          </span>
+          {fileName && conversionComplete && (
+            <p className="text-xs mt-1 break-all">{fileName}</p>
+          )}
+        </div>
 
         {/* Upload Button */}
         {onUpload && !conversionComplete && (
@@ -228,7 +178,7 @@ export default function FileToolExportPanel({
                 : "bg-neonBlue text-white hover:bg-blue-600 shadow-md hover:shadow-lg hover:shadow-neonBlue/25"
             }`}
           >
-            {loading ? "Processing..." : getUploadButtonText()}
+            {getUploadButtonText()}
           </button>
         )}
 
@@ -251,18 +201,6 @@ export default function FileToolExportPanel({
         {error && (
           <div className="mt-3 p-3 text-xs text-red-600 bg-red-50 rounded-lg border border-red-200 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400">
             {error}
-          </div>
-        )}
-
-        {/* Loading Animation */}
-        {loading && (
-          <div className="mt-3 flex items-center text-xs text-gray-500 dark:text-slate-400">
-            <div className="flex space-x-1 mr-2">
-              <div className="w-1 h-1 bg-neonBlue rounded-full animate-bounce"></div>
-              <div className="w-1 h-1 bg-neonBlue rounded-full animate-bounce" style={{ animationDelay: "0.1s" }}></div>
-              <div className="w-1 h-1 bg-neonBlue rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
-            </div>
-            Processing file...
           </div>
         )}
       </div>
