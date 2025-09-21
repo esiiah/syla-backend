@@ -51,11 +51,6 @@ BASE_DIR = os.path.dirname(__file__)
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# ----- React frontend serving (dist is inside app/) -----
-FRONTEND_DIR = os.path.join(BASE_DIR, "dist")  # ✅ correct path inside app/
-
-# Serve all static files (JS/CSS/images) with correct MIME types
-app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
 # ----- Utilities -----
 def sanitize_filename(name: str) -> str:
@@ -231,3 +226,7 @@ async def serve_uploaded_file(saved_filename: str):
     mime_type, _ = mimetypes.guess_type(path)
     return FileResponse(path, media_type=mime_type or "application/octet-stream",
                         filename=os.path.basename(path))
+
+FRONTEND_DIR = os.path.join(BASE_DIR, "dist")  # ✅ correct path inside app/
+app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+
