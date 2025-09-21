@@ -184,15 +184,15 @@ select, input, textarea {
     #ffffff 100%);
 }
 
-/* Dark theme gradient (blue → nav blue) */
+/* Dark theme gradient (blue → navy → dark navy) */
 .dark .hero-gradient-bg {
-  background: linear-gradient(to bottom, 
-    #3b82f6 0%, 
-    #60a5fa 20%, 
-    #93c5fd 40%, 
-    #dbeafe 60%, 
-    #f0f9ff 80%, 
-    #1e3a8a 100%); /* nav blue for dark theme */
+  background: linear-gradient(to bottom,
+    #3b82f6 0%,
+    #2563eb 20%,   /* stronger blue */
+    #1e40af 50%,   /* deep blue */
+    #1e3a8a 75%,   /* navy */
+    #0f172a 100%   /* dark navy background */
+  );
 }
 
 /* Hero content */
