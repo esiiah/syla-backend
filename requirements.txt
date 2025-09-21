@@ -1,5 +1,3 @@
-# Backend Requirements - requirements.txt
-
 # Core server
 fastapi==0.111.1
 uvicorn[standard]==0.23.2
@@ -16,23 +14,18 @@ pandas>=2.2.1,<2.3
 numpy>=1.26.2,<1.27
 python-multipart>=0.0.7
 
-# PDF processing
-PyPDF2==3.0.1           # merging, splitting PDFs
-pikepdf==9.11.0         # PDF compression
-pdfplumber==0.11.7      # extracting text/tables from PDFs
-reportlab==4.4.3        # generating PDFs
-
-# Office document processing
-openpyxl==3.1.5         # Excel read/write
-python-docx==1.1.2      # Read/write Word (.docx)
-
-# Document converters (Python-based, no LibreOffice needed)
-pdf2docx==0.5.8         # PDF -> DOCX conversion
-docx2pdf==0.1.8         # DOCX -> PDF conversion (needs MS Word on Windows/Mac)
+# PDF + Office processing (basic handling only)
+PyPDF2==3.0.1
+pdfplumber==0.11.7
+reportlab==4.4.3
+openpyxl==3.1.5
+python-docx==1.1.2
+pdf2docx==0.5.8
+docx2pdf==0.1.8
 
 # Database
-SQLAlchemy==2.0.20      # ORM / Database toolkit
-# Optional: PostgreSQL driver (uncomment if using Postgres)
-# psycopg2-binary==2.9.9
-# Optional: MySQL driver (uncomment if using MySQL)
-# mysqlclient==2.3.1
+SQLAlchemy==2.0.20
+# psycopg2-binary==2.9.9   # PostgreSQL (optional)
+# mysqlclient==2.3.1       # MySQL (optional)
+
+# zlib is built into Python stdlib, no need for pip install
