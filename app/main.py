@@ -37,6 +37,7 @@ app.include_router(file_tools_full_router)
 app.include_router(auth_router.router)   # ✅ use .router
 
 # Mount uploaded files directory so download_url /api/files/<name> works
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/api/files", StaticFiles(directory=UPLOAD_DIR), name="files")
 
 # ---- File handling setup ----
@@ -50,7 +51,22 @@ BASE_DIR = os.path.dirname(__file__)
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# ----- React frontend serving -----
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend", "dist")  # path to Vite build
 
+# Serve JS/CSS assets
+app.mount("/assets", StaticFiles(directory=os.path.join(FRONTEND_DIR, "assets")), name="assets")
+
+# Catch-all route for React (fallback to index.html)
+@app.get("/{full_path:path}")
+async def serve_react_app(full_path: str):
+    # Keep API and uploads routes intact
+    if full_path.startswith("api/") or full_path.startswith("files/"):
+        raise HTTPException(status_code=404, detail="Not Found")
+    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+
+# ----- Utilities -----
 def sanitize_filename(name: str) -> str:
     base = os.path.basename(name or "uploaded_file")
     base = base.replace(" ", "_")
@@ -64,11 +80,13 @@ def unique_filename(name: str) -> str:
     return f"{ts}_{safe}"
 
 
+# ----- Health check -----
 @app.get("/api/health")
 def health_check():
     return {"message": "Backend is running 🚀"}
 
 
+# ----- File upload -----
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
     filename = file.filename or "uploaded_file"
@@ -211,6 +229,7 @@ async def upload_file(file: UploadFile = File(...)):
             pass
 
 
+# ----- Serve uploaded files -----
 @app.get("/api/files/{saved_filename}")
 async def serve_uploaded_file(saved_filename: str):
     if "/" in saved_filename or "\\" in saved_filename:
@@ -221,9 +240,3 @@ async def serve_uploaded_file(saved_filename: str):
     mime_type, _ = mimetypes.guess_type(path)
     return FileResponse(path, media_type=mime_type or "application/octet-stream",
                         filename=os.path.basename(path))
-
-
-# ---- Frontend serving (exactly like your working one) ----
-frontend_dist_path = os.path.join(os.path.dirname(__file__), "dist")
-if os.path.isdir(frontend_dist_path):
-    app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="frontend")
