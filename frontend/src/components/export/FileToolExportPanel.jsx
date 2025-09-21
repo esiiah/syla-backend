@@ -1,8 +1,7 @@
 // frontend/src/components/export/FileToolExportPanel.jsx
-
 import React, { useState, useEffect, useRef } from "react";
 
-export default function FileToolExportPanel({ 
+export default function FileToolExportPanel({
   onUpload,
   uploadLabel = "Convert",
   downloadUrl = "",
@@ -17,24 +16,21 @@ export default function FileToolExportPanel({
 }) {
   const [compressionLevel, setCompressionLevel] = useState("medium");
   const [panelWidth, setPanelWidth] = useState(340);
-  const [position, setPosition] = useState(null); // null = default (right-center)
+  const [position, setPosition] = useState(null);
   const [dragging, setDragging] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const panelRef = useRef(null);
 
-  // Reset compression level when tool type changes
   useEffect(() => {
     if (toolType !== "compress") setCompressionLevel("medium");
   }, [toolType]);
 
-  // Adjust width based on tool type
   useEffect(() => {
     if (toolType === "compress" && !conversionComplete) setPanelWidth(400);
     else if (toolType === "merge") setPanelWidth(360);
     else setPanelWidth(320);
   }, [toolType, conversionComplete]);
 
-  // Dragging events
   const handleMouseDown = (e) => {
     if (!panelRef.current) return;
     setDragging(true);
@@ -53,9 +49,7 @@ export default function FileToolExportPanel({
     });
   };
 
-  const handleMouseUp = () => {
-    setDragging(false);
-  };
+  const handleMouseUp = () => setDragging(false);
 
   useEffect(() => {
     if (dragging) {
@@ -91,19 +85,15 @@ export default function FileToolExportPanel({
   };
 
   const getUploadButtonText = () => {
-    if (loading) {
-      if (toolType === "compress") return "Compressing...";
-      if (toolType === "merge") return "Merging...";
-      return "Processing...";
-    }
-    if (toolType === "compress") return `Compress PDF (${compressionLevel})`;
-    if (toolType === "merge") return "Merge PDFs";
+    if (loading) return toolType === "compress" ? "Compressing..." : toolType === "merge" ? "Merging..." : "Processing...";
+    if (toolType === "compress") return `Compress File (${compressionLevel})`;
+    if (toolType === "merge") return "Merge Files";
     return "Convert";
   };
 
   const getProcessingTitle = () => {
-    if (toolType === "compress") return "PDF Compression";
-    if (toolType === "merge") return "PDF Merging";
+    if (toolType === "compress") return "File Compression";
+    if (toolType === "merge") return "File Merging";
     return "File Processing";
   };
 
@@ -122,12 +112,11 @@ export default function FileToolExportPanel({
       onMouseDown={handleMouseDown}
       style={{
         position: "fixed",
-        // Default position: right side, vertically centered
         right: position ? "auto" : 24,
         top: position ? "auto" : "50%",
         left: position ? position.x : "auto",
         transform: position ? "none" : "translateY(-50%)",
-        ...(position && { top: position.y }), // apply dragged position
+        ...(position && { top: position.y }),
         width: panelWidth,
         maxHeight: "calc(100vh - 72px)",
         zIndex: 1000,
@@ -153,38 +142,23 @@ export default function FileToolExportPanel({
           
           {/* Compression Level Selector */}
           {toolType === "compress" && !conversionComplete && (
-            <div className="mb-4 space-y-2">
+            <div className="mb-4 flex gap-2">
               {[
                 { value: "light", label: "Light", reduction: "~25%" },
                 { value: "medium", label: "Medium", reduction: "~50%" },
                 { value: "strong", label: "Strong", reduction: "~75%" },
               ].map((option) => (
-                <label
+                <button
                   key={option.value}
-                  className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                  onClick={() => handleCompressionLevelChange(option.value)}
+                  className={`flex-1 px-2 py-1 text-xs rounded border transition-all duration-150 ${
                     compressionLevel === option.value
                       ? "border-neonBlue bg-neonBlue/10 text-neonBlue"
-                      : "border-gray-200 hover:border-gray-300 text-gray-700 dark:border-slate-600 dark:hover:border-slate-500 dark:text-slate-300"
+                      : "border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 hover:border-gray-400"
                   }`}
                 >
-                  <input
-                    type="radio"
-                    name="compressionLevel"
-                    value={option.value}
-                    checked={compressionLevel === option.value}
-                    onChange={(e) => handleCompressionLevelChange(e.target.value)}
-                    className="sr-only"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm">{option.label}</span>
-                      <span className="text-xs opacity-75">{option.reduction}</span>
-                    </div>
-                    <div className="text-xs opacity-75 mt-1">
-                      {getCompressionDescription(option.value)}
-                    </div>
-                  </div>
-                </label>
+                  {option.label} {option.reduction}
+                </button>
               ))}
             </div>
           )}
@@ -230,7 +204,7 @@ export default function FileToolExportPanel({
             <button
               onClick={handleUpload}
               disabled={loading}
-              className={`w-full px-4 py-3 rounded-lg text-sm font-semibold mb-3 transition-all duration-300 ${
+              className={`w-full px-4 py-2 rounded-lg text-sm font-semibold mb-3 transition-all duration-300 ${
                 loading
                   ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-slate-700 dark:text-slate-500"
                   : "bg-neonBlue text-white hover:bg-blue-600 shadow-md hover:shadow-lg hover:shadow-neonBlue/25"
@@ -245,7 +219,7 @@ export default function FileToolExportPanel({
             <button
               onClick={handleDownload}
               disabled={!downloadUrl}
-              className={`w-full px-4 py-3 rounded-lg text-sm font-semibold transition-all duration-300 ${
+              className={`w-full px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${
                 downloadUrl
                   ? "bg-green-500 text-white hover:bg-green-600 shadow-md hover:shadow-lg hover:shadow-green-500/25"
                   : "bg-gray-100 text-gray-500 cursor-not-allowed dark:bg-slate-700 dark:text-slate-500"
