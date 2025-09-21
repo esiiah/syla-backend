@@ -122,26 +122,6 @@ export default function FileToolPage({ theme, setTheme }) {
     }
   };
 
-  const handleClearUserFiles = async () => {
-    if (!confirm("Are you sure you want to delete all your uploaded files?")) return;
-    setLoading(true);
-    try {
-      const res = await fetch("/api/files/clear-user-files", {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Failed to clear files");
-      setFiles([]);
-      setDownloadUrl("");
-      alert(data.message);
-    } catch (e) {
-      alert(e.message || "Failed to clear files");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-slate-950">
       {/* Sidebar */}
@@ -151,34 +131,8 @@ export default function FileToolPage({ theme, setTheme }) {
         <Navbar />
 
         <div className="flex-1 flex flex-col p-6 space-y-6">
-          {/* Clear Files Button */}
-          <div className="flex justify-between items-center mb-4">
-            <h1 className="text-2xl font-bold">File Tools</h1>
-            <button
-              className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-              onClick={handleClearUserFiles}
-              disabled={loading}
-            >
-              {loading ? "Processing..." : "Clear All My Files"}
-            </button>
-          </div>
-
           {config ? (
             <>
-              {/* Tool Header */}
-              <div className="text-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-slate-200 mb-2">
-                  {config.label}
-                </h1>
-                <p className="text-gray-600 dark:text-slate-400">
-                  {config.component === "compress"
-                    ? "Reduce PDF file size with customizable compression levels"
-                    : config.component === "merge"
-                    ? "Combine multiple PDF files into a single document (max 15 files)"
-                    : "Convert your files quickly and securely"}
-                </p>
-              </div>
-
               {/* Upload Panel */}
               <div className={config.component === "merge" ? "max-w-6xl mx-auto" : "max-w-4xl mx-auto"}>
                 <FileToolUploadPanel
@@ -217,19 +171,6 @@ export default function FileToolPage({ theme, setTheme }) {
           ) : (
             <div className="text-center text-gray-600 dark:text-gray-300">
               <div className="max-w-md mx-auto p-8 bg-white dark:bg-ink/80 rounded-2xl border border-gray-200 dark:border-white/5 shadow-soft">
-                <svg
-                  className="w-16 h-16 mx-auto mb-4 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
                 <h2 className="text-xl font-semibold text-gray-800 dark:text-slate-200 mb-2">
                   Tool Not Found
                 </h2>
