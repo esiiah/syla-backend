@@ -334,7 +334,7 @@ async def csv_to_excel(file: UploadFile = File(...)):
     saved = save_upload_file(file)
     saved_path = os.path.join(UPLOAD_DIR, saved)
     try:
-        df = pd.read_csv(saved_path, encoding="utf-8", errors="replace")
+        df = pd.read_csv(saved_path, encoding="utf-8", on_bad_lines="skip")
         out_name = f"converted_{int(time.time() * 1000)}.xlsx"
         out_path = os.path.join(UPLOAD_DIR, out_name)
         df.to_excel(out_path, index=False, engine="openpyxl")
@@ -535,23 +535,41 @@ async def excel_to_pdf(file: UploadFile = File(...)):
 async def pdf_to_word(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files allowed for PDF->Word conversion")
+
     try:
         from pdf2docx import Converter
     except ImportError:
         raise HTTPException(status_code=500, detail="pdf2docx required: pip install pdf2docx")
+
+    # Save uploaded file to a proper temp path
     in_path = write_upload_to_temp(file, prefix="pdf2word_in_")
     out_name = f"pdf2word_{int(time.time() * 1000)}.docx"
     out_path = os.path.join(UPLOAD_DIR, out_name)
+
     try:
+        if not os.path.exists(in_path) or os.path.getsize(in_path) == 0:
+            raise HTTPException(status_code=400, detail="Uploaded PDF file is empty or unreadable")
+
+        # Convert PDF → Word
         cv = Converter(in_path)
         cv.convert(out_path, start=0, end=None)
         cv.close()
+
         if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
             raise HTTPException(status_code=500, detail="Conversion failed: output DOCX not created")
-        return {"message": "PDF successfully converted to Word document", "download_url": f"/api/filetools/files/{out_name}", "filename": out_name}
+
+        return {
+            "message": "PDF successfully converted to Word document",
+            "download_url": f"/api/filetools/files/{out_name}",
+            "filename": out_name
+        }
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF to Word conversion failed: {str(e)}")
     finally:
+        # Cleanup temp file
         if os.path.exists(in_path):
             try:
                 os.remove(in_path)
