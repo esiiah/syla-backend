@@ -1,8 +1,68 @@
+# app/utils.py
+import os
 import re
+from datetime import datetime, timedelta
+from typing import Optional
+
 import numpy as np
 import pandas as pd
 
-# --- Constants
+# === AUTH / SECURITY STUFF ===
+from passlib.context import CryptContext
+from jose import jwt, JWTError
+from google.oauth2 import id_token
+from google.auth.transport import requests as grequests
+
+# ----- Password hashing -----
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+# ----- JWT handling -----
+SECRET_KEY = os.getenv("JWT_SECRET", "super-secret")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+
+def create_access_token(data: dict, expires_delta: Optional[int] = None) -> str:
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(
+        minutes=expires_delta or ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def get_current_user_from_token(request):
+    token = request.cookies.get("auth_token")
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return {"id": payload.get("id"), "sub": payload.get("sub")}
+    except JWTError:
+        return None
+
+# ----- Google Sign-In -----
+def verify_google_token(token: str):
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    if not client_id:
+        raise ValueError("GOOGLE_CLIENT_ID not set in environment")
+    try:
+        idinfo = id_token.verify_oauth2_token(token, grequests.Request(), client_id)
+        return {
+            "google_id": idinfo["sub"],
+            "email": idinfo.get("email"),
+            "name": idinfo.get("name"),
+            "avatar_url": idinfo.get("picture"),
+        }
+    except Exception as e:
+        raise ValueError(f"Invalid Google token: {str(e)}")
+
+# === DATAFRAME UTILS ===
+
 CURRENCY_SIGNS = r"[₹$€£¥]"
 THOUSAND_SEP = r","
 PERCENT = r"%"
@@ -51,24 +111,19 @@ def _ensure_unique_columns(cols):
 
 # --- Numeric conversion
 def _to_numeric_series(s):
-    """
-    Robust numeric coercion for Series, DataFrame, ndarray.
-    Handles nested structures, mixed types, and avoids .str errors.
-    """
+    """Robust numeric coercion for Series, DataFrame, ndarray."""
     if s is None:
         return pd.Series([], dtype=float)
 
-    # Convert DataFrame -> Series
     if isinstance(s, pd.DataFrame):
         if s.shape[1] == 1:
             s = s.iloc[:, 0]
         else:
             s = pd.Series(s.astype(str).agg(" | ".join, axis=1), index=s.index)
 
-    # Convert ndarray -> Series
     if isinstance(s, np.ndarray):
         if s.ndim > 1:
-            s = pd.Series([" | ".join(map(str, row)) for row in s], index=getattr(s, "index", None))
+            s = pd.Series([" | ".join(map(str, row)) for row in s])
         else:
             s = pd.Series(s)
 
@@ -78,7 +133,6 @@ def _to_numeric_series(s):
     if s.empty:
         return s
 
-    # Collapse nested structures safely
     def _safe_str(v):
         if isinstance(v, (list, tuple, set, np.ndarray)):
             return " | ".join(map(str, v.flatten() if isinstance(v, np.ndarray) else v))
@@ -89,7 +143,6 @@ def _to_numeric_series(s):
     s2 = s.map(_safe_str).str.strip()
     s2 = s2.replace({"": np.nan})
 
-    # Safe replacements without .str
     s2 = s2.replace(to_replace=CURRENCY_SIGNS, value="", regex=True)
     s2 = s2.replace(to_replace=THOUSAND_SEP, value="", regex=True)
     s2 = s2.replace(to_replace=PERCENT, value="", regex=True)
@@ -99,18 +152,13 @@ def _to_numeric_series(s):
 # --- DataFrame cleaning
 def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-
-    # Normalize headers
     df.columns = [_normalize_header_name(c) for c in df.columns]
     df.columns = _ensure_unique_columns(df.columns)
-
-    # Remove empty columns
     df = df.dropna(axis=1, how="all")
 
     for i in range(df.shape[1]):
         col_series = df.iloc[:, i]
 
-        # Collapse nested structures
         def _collapse_val(v):
             if isinstance(v, (list, tuple, set, np.ndarray)):
                 return " | ".join(map(str, v.flatten() if isinstance(v, np.ndarray) else v))
@@ -118,22 +166,18 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
         s = col_series.map(_collapse_val)
 
-        # Numeric coercion if >=30% parse
         numeric = _to_numeric_series(s)
         if numeric.notna().sum() >= max(1, int(0.3 * len(df))):
             df.iloc[:, i] = numeric.fillna(0)
             continue
 
-        # Datetime coercion if >=70% parse
         dt = pd.to_datetime(s.astype(str), errors="coerce", infer_datetime_format=True)
         if dt.notna().sum() >= max(1, int(0.7 * len(df))):
             df.iloc[:, i] = dt
             continue
 
-        # Fallback to string
         df.iloc[:, i] = s.map(lambda x: "" if pd.isna(x) else str(x)).fillna("")
 
-    # Fill numeric NaN -> 0, others -> ""
     for col in df.select_dtypes(include=[np.number]).columns:
         df[col] = df[col].fillna(0)
     for col in df.columns.difference(df.select_dtypes(include=[np.number]).columns):
