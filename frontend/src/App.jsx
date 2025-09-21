@@ -128,7 +128,7 @@ function App() {
               ) : (
                 <>
                   <h1 className="font-body text-4xl md:text-5xl tracking-wide mb-6 text-gray-800 dark:text-slate-200">
-                    From raw data to <span className="text-neonBlue font-semibold">smart decisions</span> 
+                    From raw data to <span className="text-red-500 font-semibold">smart decisions</span>
                     <br />
                     all powered by <span className="text-neonYellow font-semibold">Syla</span>.
                   </h1>
