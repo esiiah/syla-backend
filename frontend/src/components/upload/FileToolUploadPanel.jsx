@@ -1,4 +1,3 @@
-// frontend/src/components/upload/FileToolUploadPanel.jsx
 import React, { useRef } from "react";
 
 export default function FileToolUploadPanel({
@@ -13,6 +12,7 @@ export default function FileToolUploadPanel({
   setViewMode = () => {},
   uploadLabel = "Upload & Process",
   loading = false,
+  toolType = "convert", // new prop to adjust title/context
 }) {
   const inputRef = useRef(null);
 
@@ -40,18 +40,19 @@ export default function FileToolUploadPanel({
     setFiles(next);
   };
 
+  const getTitle = () => {
+    if (toolType === "compress") return "Upload File to Compress";
+    if (toolType === "merge") return "Upload Files to Merge";
+    if (toolType === "pdf") return "Upload PDF File";
+    if (toolType === "csv") return "Upload CSV File";
+    return title;
+  };
+
   return (
     <section
-      className="rounded-2xl bg-white border-2 border-neonBlue/20 shadow-lg dark:bg-ink/80 dark:border-neonBlue/40 dark:border-white/5 p-6 max-w-6xl neon-border"
-      style={{
-        position: "fixed",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        zIndex: 1000,
-      }}
+      className="rounded-2xl bg-white dark:bg-slate-900 border-2 border-neonBlue/20 shadow-lg p-6 max-w-6xl fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50"
     >
-      <h3 className="font-display text-lg mb-2 text-gray-800 dark:text-slate-200">{title}</h3>
+      <h3 className="font-display text-lg mb-2 text-gray-800 dark:text-slate-200">{getTitle()}</h3>
       {hint && <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">{hint}</p>}
 
       <div className="flex flex-col lg:flex-row gap-6 items-center">
@@ -59,14 +60,8 @@ export default function FileToolUploadPanel({
         <div
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
-          className="flex-1 rounded-xl p-6 text-center transition-all duration-300 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-dashed border-neonBlue/30 hover:border-neonBlue/60 hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 dark:bg-gradient-to-r dark:from-slate-800/50 dark:to-slate-900/50 dark:border-neonBlue/40 dark:hover:border-neonBlue/70"
-          style={{
-            boxShadow: "0 8px 32px rgba(59, 130, 246, 0.1)",
-            minHeight: "140px",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-          }}
+          className="flex-1 rounded-xl p-6 text-center transition-all duration-300 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-dashed border-neonBlue/30 hover:border-neonBlue/60 hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 dark:bg-slate-800/50 dark:border-neonBlue/40 dark:hover:border-neonBlue/70"
+          style={{ minHeight: "140px", display: "flex", flexDirection: "column", justifyContent: "center", boxShadow: "0 8px 32px rgba(59, 130, 246, 0.1)" }}
         >
           <div className="mb-3">
             <svg
@@ -106,39 +101,24 @@ export default function FileToolUploadPanel({
           />
         </div>
 
-        {/* Right-hand side: file list + actions */}
+        {/* Right-hand side */}
         <div className="lg:w-80 w-full space-y-4">
+          {/* Selected Files */}
           <div className="p-4 rounded-lg bg-gray-50 dark:bg-slate-800/50 border border-gray-200 dark:border-white/10">
-            <div className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-              Selected Files:
-            </div>
-            <div className="text-sm text-gray-600 dark:text-slate-400">
-              {files.length ? (
-                <div className="space-y-1">
-                  {files.map((f, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between p-2 bg-white dark:bg-slate-700 rounded border"
-                    >
-                      <span className="truncate flex-1 mr-2">{f.name || f.filename}</span>
-                      {f.size && (
-                        <span className="text-xs text-gray-500 dark:text-slate-400">
-                          {Math.round(f.size / 1024)} KB
-                        </span>
-                      )}
-                      <button
-                        onClick={() => handleRemoveFile(i)}
-                        className="ml-2 px-2 py-1 text-xs rounded bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-300"
-                      >
-                        X
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <span className="text-gray-500 dark:text-slate-500">No file selected</span>
-              )}
-            </div>
+            <div className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Selected Files:</div>
+            {files.length ? (
+              <div className="space-y-1">
+                {files.map((f, i) => (
+                  <div key={i} className="flex items-center justify-between p-2 bg-white dark:bg-slate-700 rounded border">
+                    <span className="truncate flex-1 mr-2">{f.name || f.filename}</span>
+                    {f.size && <span className="text-xs text-gray-500 dark:text-slate-400">{Math.round(f.size / 1024)} KB</span>}
+                    <button onClick={() => handleRemoveFile(i)} className="ml-2 px-2 py-1 text-xs rounded bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-300">X</button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <span className="text-gray-500 dark:text-slate-500">No file selected</span>
+            )}
           </div>
 
           {/* Upload Button */}
