@@ -10,8 +10,8 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi import FastAPI, File, UploadFile, HTTPException, Request
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
@@ -52,6 +52,9 @@ TABULAR_EXTS = (".csv", ".tsv", ".xls", ".xlsx")
 BASE_DIR = os.path.dirname(__file__)
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+# Frontend directory
+FRONTEND_DIR = os.path.join(BASE_DIR, "dist")  # ✅ correct path inside app/
 
 
 # ----- Utilities -----
@@ -229,6 +232,36 @@ async def serve_uploaded_file(saved_filename: str):
     return FileResponse(path, media_type=mime_type or "application/octet-stream",
                         filename=os.path.basename(path))
 
-FRONTEND_DIR = os.path.join(BASE_DIR, "dist")  # ✅ correct path inside app/
-app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
+# ✅ Custom SPA fallback handler
+@app.get("/{path:path}")
+async def spa_fallback(request: Request, path: str):
+    """
+    Serve static files and handle SPA routing.
+    If a static file exists, serve it. Otherwise, serve index.html for client-side routing.
+    """
+    # Skip API routes - they should be handled by their respective routers
+    if path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API endpoint not found")
+    
+    # Try to serve static file first
+    file_path = os.path.join(FRONTEND_DIR, path)
+    
+    # If it's a file and exists, serve it
+    if os.path.isfile(file_path):
+        mime_type, _ = mimetypes.guess_type(file_path)
+        return FileResponse(file_path, media_type=mime_type)
+    
+    # For directories or non-existent files, try index.html in that directory
+    if os.path.isdir(file_path):
+        index_path = os.path.join(file_path, "index.html")
+        if os.path.isfile(index_path):
+            return FileResponse(index_path, media_type="text/html")
+    
+    # Fallback to root index.html for SPA routing
+    root_index = os.path.join(FRONTEND_DIR, "index.html")
+    if os.path.isfile(root_index):
+        return FileResponse(root_index, media_type="text/html")
+    
+    # If no index.html exists, return 404
+    raise HTTPException(status_code=404, detail="Page not found")
