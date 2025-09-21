@@ -45,9 +45,7 @@ export default function FileToolUploadPanel({
         zIndex: 1000,
       }}
     >
-      <h3 className="font-display text-lg mb-2 text-gray-800 dark:text-slate-200">
-        {title}
-      </h3>
+      <h3 className="font-display text-lg mb-2 text-gray-800 dark:text-slate-200">{title}</h3>
       {hint && <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">{hint}</p>}
 
       <div className="flex flex-col lg:flex-row gap-6 items-center">
