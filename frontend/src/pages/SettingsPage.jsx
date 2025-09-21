@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
 import ProfilePage from "./ProfilePage";
+import { Palette, User, Settings, Shield, Bell } from "lucide-react";
 
 export default function SettingsPage() {
   const [theme, setTheme] = useState("dark");
@@ -96,11 +97,11 @@ export default function SettingsPage() {
   };
 
   const tabs = [
-    { id: "appearance", label: "Appearance", icon: "🎨" },
-    { id: "profile", label: "Profile", icon: "👤" },
-    { id: "account", label: "Account", icon: "⚙️" },
-    { id: "privacy", label: "Privacy", icon: "🔒" },
-    { id: "notifications", label: "Notifications", icon: "🔔" }
+    { id: "appearance", label: "Appearance", icon: Palette },
+    { id: "profile", label: "Profile", icon: User },
+    { id: "account", label: "Account", icon: Settings },
+    { id: "privacy", label: "Privacy", icon: Shield },
+    { id: "notifications", label: "Notifications", icon: Bell }
   ];
 
   return (
@@ -135,20 +136,23 @@ export default function SettingsPage() {
             {/* Settings Navigation */}
             <div className="lg:w-64">
               <nav className="bg-white dark:bg-ink/80 rounded-2xl border border-gray-200 dark:border-white/5 p-2 shadow-soft">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center gap-3 ${
-                      activeTab === tab.id
-                        ? "bg-neonBlue text-white shadow-lg"
-                        : "text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-white/5"
-                    }`}
-                  >
-                    <span className="text-lg">{tab.icon}</span>
-                    {tab.label}
-                  </button>
-                ))}
+                {tabs.map((tab) => {
+                  const IconComponent = tab.icon;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center gap-3 ${
+                        activeTab === tab.id
+                          ? "bg-neonBlue text-white shadow-lg"
+                          : "text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-white/5"
+                      }`}
+                    >
+                      <IconComponent className="w-5 h-5" />
+                      {tab.label}
+                    </button>
+                  );
+                })}
               </nav>
             </div>
 
@@ -213,12 +217,38 @@ export default function SettingsPage() {
                 </section>
               )}
 
-              {activeTab === "profile" && user && (
+              {activeTab === "profile" && (
                 <div className="bg-white dark:bg-ink/80 rounded-2xl border border-gray-200 dark:border-white/5 p-6 shadow-soft">
                   <h2 className="font-display text-xl text-gray-800 dark:text-slate-200 mb-6">
                     Profile Information
                   </h2>
-                  <ProfilePage />
+                  {user ? (
+                    <ProfilePage />
+                  ) : (
+                    <div className="text-center py-8">
+                      <User className="w-16 h-16 mx-auto text-gray-400 dark:text-slate-500 mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-slate-200 mb-2">
+                        Sign in to access your profile
+                      </h3>
+                      <p className="text-gray-600 dark:text-slate-400 mb-6">
+                        Create an account or sign in to manage your profile information
+                      </p>
+                      <div className="flex justify-center gap-4">
+                        <Link
+                          to="/login"
+                          className="px-6 py-3 bg-neonBlue text-white rounded-lg hover:bg-blue-600 transition-colors duration-200 font-medium"
+                        >
+                          Sign In
+                        </Link>
+                        <Link
+                          to="/signup"
+                          className="px-6 py-3 border border-neonBlue text-neonBlue rounded-lg hover:bg-neonBlue hover:text-white transition-colors duration-200 font-medium"
+                        >
+                          Create Account
+                        </Link>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
