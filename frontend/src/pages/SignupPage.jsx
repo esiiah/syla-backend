@@ -2,10 +2,22 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+const countryCodes = [
+  { code: "+1", name: "USA" }, { code: "+44", name: "UK" }, { code: "+91", name: "India" }, { code: "+61", name: "Australia" }, { code: "+81", name: "Japan" },
+  { code: "+49", name: "Germany" }, { code: "+33", name: "France" }, { code: "+55", name: "Brazil" }, { code: "+7", name: "Russia" }, { code: "+86", name: "China" },
+  { code: "+27", name: "South Africa" }, { code: "+39", name: "Italy" }, { code: "+34", name: "Spain" }, { code: "+82", name: "South Korea" }, { code: "+64", name: "New Zealand" },
+  { code: "+65", name: "Singapore" }, { code: "+90", name: "Turkey" }, { code: "+31", name: "Netherlands" }, { code: "+46", name: "Sweden" }, { code: "+41", name: "Switzerland" },
+  { code: "+34", name: "Spain" }, { code: "+351", name: "Portugal" }, { code: "+352", name: "Luxembourg" }, { code: "+353", name: "Ireland" }, { code: "+358", name: "Finland" },
+  { code: "+420", name: "Czech Republic" }, { code: "+421", name: "Slovakia" }, { code: "+48", name: "Poland" }, { code: "+36", name: "Hungary" }, { code: "+352", name: "Luxembourg" },
+  { code: "+971", name: "UAE" }, { code: "+972", name: "Israel" }, { code: "+966", name: "Saudi Arabia" }, { code: "+20", name: "Egypt" }, { code: "+212", name: "Morocco" },
+  { code: "+92", name: "Pakistan" }, { code: "+880", name: "Bangladesh" }, { code: "+880", name: "Bangladesh" }, { code: "+974", name: "Qatar" }, { code: "+965", name: "Kuwait" }
+];
+
 export default function SignupPage() {
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
+  const [countryCode, setCountryCode] = useState("+1");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [contactType, setContactType] = useState("email");
@@ -57,7 +69,7 @@ export default function SignupPage() {
         credentials: "include",
         body: JSON.stringify({
           name,
-          contact,
+          contact: contactType === "phone" ? countryCode + contact : contact,
           password,
           confirm_password: confirmPassword,
           contact_type: contactType,
@@ -155,16 +167,6 @@ export default function SignupPage() {
             >
               Continue with Mobile
             </button>
-
-            <div className="mt-6 text-center text-sm text-gray-600 dark:text-slate-400">
-              Already have an account?{" "}
-              <Link
-                to="/login"
-                className="text-neonBlue dark:text-neonYellow font-semibold hover:underline"
-              >
-                Log in
-              </Link>
-            </div>
           </div>
         ) : (
           <div>
@@ -183,14 +185,42 @@ export default function SignupPage() {
                 required
                 className="w-full border rounded-lg px-4 py-3"
               />
-              <input
-                type={contactType === "email" ? "email" : "tel"}
-                value={contact}
-                onChange={(e) => setContact(e.target.value)}
-                placeholder={contactType === "email" ? "Email" : "Phone"}
-                required
-                className="w-full border rounded-lg px-4 py-3"
-              />
+
+              {contactType === "phone" && (
+                <div className="flex space-x-2">
+                  <select
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
+                    className="border rounded-lg px-3 py-3"
+                  >
+                    {countryCodes.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.name} ({c.code})
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="tel"
+                    value={contact}
+                    onChange={(e) => setContact(e.target.value)}
+                    placeholder="Phone Number"
+                    required
+                    className="flex-1 border rounded-lg px-4 py-3"
+                  />
+                </div>
+              )}
+
+              {contactType === "email" && (
+                <input
+                  type="email"
+                  value={contact}
+                  onChange={(e) => setContact(e.target.value)}
+                  placeholder="Email"
+                  required
+                  className="w-full border rounded-lg px-4 py-3"
+                />
+              )}
+
               <input
                 type="password"
                 value={password}
@@ -221,6 +251,17 @@ export default function SignupPage() {
             </form>
           </div>
         )}
+
+        {/* Always show login link at the bottom */}
+        <div className="mt-6 text-center text-sm text-gray-600 dark:text-slate-400">
+          Already have an account?{" "}
+          <Link
+            to="/login"
+            className="text-neonBlue dark:text-neonYellow font-semibold hover:underline"
+          >
+            Log in
+          </Link>
+        </div>
       </div>
     </div>
   );
