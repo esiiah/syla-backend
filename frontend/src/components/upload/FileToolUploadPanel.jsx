@@ -20,7 +20,7 @@ export default function FileToolUploadPanel({
     const selected = Array.from(e.target.files || []);
     if (!selected.length) return;
     setFiles(multiple ? selected : [selected[0]]);
-    e.target.value = ""; // Reset input so same file can be re-selected
+    e.target.value = "";
   };
 
   const handleDrop = (e) => {
@@ -32,6 +32,12 @@ export default function FileToolUploadPanel({
 
   const handleUpload = () => {
     if (typeof onUpload === "function") onUpload();
+  };
+
+  const handleRemoveFile = (index) => {
+    const next = [...files];
+    next.splice(index, 1);
+    setFiles(next);
   };
 
   return (
@@ -120,6 +126,12 @@ export default function FileToolUploadPanel({
                           {Math.round(f.size / 1024)} KB
                         </span>
                       )}
+                      <button
+                        onClick={() => handleRemoveFile(i)}
+                        className="ml-2 px-2 py-1 text-xs rounded bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-300"
+                      >
+                        X
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -129,6 +141,7 @@ export default function FileToolUploadPanel({
             </div>
           </div>
 
+          {/* Upload Button */}
           {files.length > 0 && (
             <button
               onClick={handleUpload}
@@ -144,22 +157,24 @@ export default function FileToolUploadPanel({
           )}
 
           {/* View mode switcher */}
-          <div className="flex items-center justify-center gap-2">
-            <span className="text-xs text-gray-600 dark:text-slate-400 mr-2">View:</span>
-            {["grid", "details", "list"].map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                className={`px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 ${
-                  viewMode === mode
-                    ? "bg-neonBlue text-white shadow-sm"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
-                }`}
-              >
-                {mode.charAt(0).toUpperCase() + mode.slice(1)}
-              </button>
-            ))}
-          </div>
+          {files.length > 0 && (
+            <div className="flex items-center justify-center gap-2 mt-2">
+              <span className="text-xs text-gray-600 dark:text-slate-400 mr-2">View:</span>
+              {["grid", "details", "list"].map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  className={`px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 ${
+                    viewMode === mode
+                      ? "bg-neonBlue text-white shadow-sm"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
+                  }`}
+                >
+                  {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </section>
