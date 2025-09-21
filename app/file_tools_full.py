@@ -6,15 +6,13 @@ import shutil
 import tempfile
 import subprocess
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple, Dict
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
-# Import the new compression service
+# Import the compression service
 from .services.file_compression import FileCompressionService
-from fastapi import APIRouter
-import os
 
 router = APIRouter(prefix="/api/filetools", tags=["filetools"])
 
@@ -57,7 +55,10 @@ def write_upload_to_temp(upload: UploadFile, prefix="tmp_") -> str:
     fd, tmp_path = tempfile.mkstemp(prefix=prefix, suffix=ext, dir=TMP_DIR)
     os.close(fd)
     with open(tmp_path, "wb") as fh:
-        upload.file.seek(0)
+        try:
+            upload.file.seek(0)
+        except Exception:
+            pass
         shutil.copyfileobj(upload.file, fh)
     try:
         upload.file.close()
@@ -118,7 +119,7 @@ async def list_uploaded_files():
             "name": fn,
             "size": size,
             "size_readable": human_readable_size(size),
-            "download_url": f"/api/files/{fn}",
+            "download_url": f"/api/filetools/files/{fn}",
         })
     return {"files": items}
 
@@ -135,15 +136,25 @@ async def delete_uploaded_file(saved_filename: str):
         raise HTTPException(status_code=500, detail=f"Failed to delete file: {str(e)}")
     return {"message": "Deleted", "name": saved_filename}
 
+# ---------- Serve saved files ----------
+@router.get("/files/{filename}")
+async def serve_uploaded_file(filename: str):
+    # simple safeguard
+    if "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    path = os.path.join(UPLOAD_DIR, filename)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(path, filename=filename)
+
 # ---------- PDF compress preview ----------
 @router.post("/pdf/compress-preview")
 async def pdf_compress_preview(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files allowed")
-    
     in_path = write_upload_to_temp(file, prefix="preview_in_")
     try:
-        return compression_service.get_compression_preview(in_path)
+        return compression_service.get_compression_preview(in_path, prefer_pdf=True)
     finally:
         if os.path.exists(in_path):
             try:
@@ -151,51 +162,31 @@ async def pdf_compress_preview(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-# ---------- PDF compress (actual) ----------
-@router.post("/pdf/compress")
-async def pdf_compress(file: UploadFile = File(...), level: str = Form("medium")):
+# ---------- Generic file compress (any file type) ----------
+@router.post("/file/compress")
+async def file_compress(file: UploadFile = File(...), level: str = Form("medium")):
     level = (level or "medium").lower()
     if level not in ["light", "medium", "strong"]:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid level '{level}'. Must be one of: light, medium, strong",
-        )
-    
-    if not (file.filename or "").lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are allowed for compression")
-    
+        raise HTTPException(status_code=400, detail="Invalid level")
     in_path = write_upload_to_temp(file, prefix="compress_in_")
     out_tmp = None
-    
     try:
-        # Create temporary output file
-        out_tmp = tempfile.mktemp(prefix=f"compressed_{level}_", suffix=".pdf", dir=TMP_DIR)
-        
-        # Get file sizes
-        size_before = os.path.getsize(in_path)
-        
-        # Compress using the service
-        success = compression_service.compress_pdf(in_path, out_tmp, level)
-        
+        out_tmp = tempfile.mktemp(prefix=f"compressed_{level}_", suffix=".zip", dir=TMP_DIR)
+        success = compression_service.compress_file(in_path, out_tmp, level)
         if not success or not os.path.exists(out_tmp) or os.path.getsize(out_tmp) == 0:
-            raise HTTPException(status_code=500, detail="Compression failed - output file is empty")
-        
-        size_after = os.path.getsize(out_tmp)
-        reduction = ((size_before - size_after) / size_before) * 100 if size_before > 0 else 0
-        
-        # Generate final filename
-        orig_name = Path(file.filename).stem if file.filename else "document"
-        out_name = f"{orig_name}_compressed_{level}.pdf"
+            raise HTTPException(status_code=500, detail="Compression failed - output empty")
+        orig_name = Path(file.filename).stem if file.filename else "file"
+        out_name = f"{orig_name}_compressed_{level}.zip"
         final_name = unique_filename(out_name)
         final_path = os.path.join(UPLOAD_DIR, final_name)
-        
-        # Move to final location
         shutil.move(out_tmp, final_path)
-        out_tmp = None  # Prevent cleanup
-        
+        out_tmp = None
+        size_before = os.path.getsize(in_path)
+        size_after = os.path.getsize(final_path)
+        reduction = ((size_before - size_after) / size_before) * 100 if size_before > 0 else 0
         return {
-            "message": f"PDF compressed successfully ({level} level)",
-            "download_url": f"/api/files/{final_name}",
+            "message": f"File compressed successfully ({level})",
+            "download_url": f"/api/filetools/files/{final_name}",
             "filename": final_name,
             "size_before": size_before,
             "size_after": size_after,
@@ -204,13 +195,89 @@ async def pdf_compress(file: UploadFile = File(...), level: str = Form("medium")
             "reduction_percent": round(reduction, 1),
             "level_used": level
         }
-        
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Compression failed: {str(e)}")
     finally:
-        # Cleanup temp files
+        for path in [in_path, out_tmp]:
+            if path and os.path.exists(path):
+                try:
+                    os.remove(path)
+                except Exception:
+                    pass
+
+# ---------- PDF compress (actual) ----------
+@router.post("/pdf/compress")
+async def pdf_compress(file: UploadFile = File(...), level: str = Form("medium")):
+    level = (level or "medium").lower()
+    if level not in ["light", "medium", "strong"]:
+        raise HTTPException(status_code=400, detail=f"Invalid level '{level}'.")
+    if not (file.filename or "").lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed for compression")
+    in_path = write_upload_to_temp(file, prefix="compress_in_")
+    out_tmp = None
+    try:
+        out_tmp = tempfile.mktemp(prefix=f"compressed_pdf_{level}_", suffix=".pdf", dir=TMP_DIR)
+        success = compression_service.compress_pdf(in_path, out_tmp, level)
+        if not success or not os.path.exists(out_tmp) or os.path.getsize(out_tmp) == 0:
+            # If PDF path not produced, fallback to zip file compress to ensure we return something
+            # Try zip fallback
+            tmp_zip = tempfile.mktemp(prefix=f"compressed_{level}_", suffix=".zip", dir=TMP_DIR)
+            try:
+                compression_service.compress_file(in_path, tmp_zip, level)
+                if os.path.exists(tmp_zip) and os.path.getsize(tmp_zip) > 0:
+                    # move zip out and return
+                    orig_name = Path(file.filename).stem if file.filename else "document"
+                    out_name = f"{orig_name}_compressed_{level}.zip"
+                    final_name = unique_filename(out_name)
+                    final_path = os.path.join(UPLOAD_DIR, final_name)
+                    shutil.move(tmp_zip, final_path)
+                    size_before = os.path.getsize(in_path)
+                    size_after = os.path.getsize(final_path)
+                    reduction = ((size_before - size_after) / size_before) * 100 if size_before > 0 else 0
+                    return {
+                        "message": "PDF compression fallback (zip) applied",
+                        "download_url": f"/api/filetools/files/{final_name}",
+                        "filename": final_name,
+                        "size_before": size_before,
+                        "size_after": size_after,
+                        "size_before_readable": human_readable_size(size_before),
+                        "size_after_readable": human_readable_size(size_after),
+                        "reduction_percent": round(reduction, 1),
+                        "level_used": level,
+                        "format": "zip"
+                    }
+            except Exception:
+                pass
+            raise HTTPException(status_code=500, detail="Compression failed - no output produced")
+        # move final pdf to upload dir
+        orig_name = Path(file.filename).stem if file.filename else "document"
+        out_name = f"{orig_name}_compressed_{level}.pdf"
+        final_name = unique_filename(out_name)
+        final_path = os.path.join(UPLOAD_DIR, final_name)
+        shutil.move(out_tmp, final_path)
+        out_tmp = None
+        size_before = os.path.getsize(in_path)
+        size_after = os.path.getsize(final_path)
+        reduction = ((size_before - size_after) / size_before) * 100 if size_before > 0 else 0
+        return {
+            "message": f"PDF compressed successfully ({level} level)",
+            "download_url": f"/api/filetools/files/{final_name}",
+            "filename": final_name,
+            "size_before": size_before,
+            "size_after": size_after,
+            "size_before_readable": human_readable_size(size_before),
+            "size_after_readable": human_readable_size(size_after),
+            "reduction_percent": round(reduction, 1),
+            "level_used": level,
+            "format": "pdf"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Compression failed: {str(e)}")
+    finally:
         for path in [in_path, out_tmp]:
             if path and os.path.exists(path):
                 try:
@@ -246,7 +313,7 @@ async def pdf_merge(files: List[UploadFile] = File(...)):
         merger.close()
         if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
             raise HTTPException(status_code=500, detail="Merge produced empty file")
-        return {"message": f"Successfully merged {len(temp_paths)} PDF files", "download_url": f"/api/files/{out_name}", "filename": out_name}
+        return {"message": f"Successfully merged {len(temp_paths)} PDF files", "download_url": f"/api/filetools/files/{out_name}", "filename": out_name}
     finally:
         for p in temp_paths:
             if os.path.exists(p):
@@ -256,7 +323,6 @@ async def pdf_merge(files: List[UploadFile] = File(...)):
                     pass
 
 # ---------- Conversions ----------
-# 1) CSV -> Excel
 @router.post("/convert/csv-to-excel")
 async def csv_to_excel(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".csv"):
@@ -272,11 +338,10 @@ async def csv_to_excel(file: UploadFile = File(...)):
         out_name = f"converted_{int(time.time() * 1000)}.xlsx"
         out_path = os.path.join(UPLOAD_DIR, out_name)
         df.to_excel(out_path, index=False, engine="openpyxl")
-        return {"message": "CSV successfully converted to Excel", "download_url": f"/api/files/{out_name}", "filename": out_name}
+        return {"message": "CSV successfully converted to Excel", "download_url": f"/api/filetools/files/{out_name}", "filename": out_name}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
 
-# 2) Excel -> CSV
 @router.post("/convert/excel-to-csv")
 async def excel_to_csv(file: UploadFile = File(...)):
     ext = (file.filename or "").lower()
@@ -293,11 +358,10 @@ async def excel_to_csv(file: UploadFile = File(...)):
         out_name = f"converted_{int(time.time() * 1000)}.csv"
         out_path = os.path.join(UPLOAD_DIR, out_name)
         df.to_csv(out_path, index=False, encoding="utf-8")
-        return {"message": "Excel successfully converted to CSV", "download_url": f"/api/files/{out_name}", "filename": out_name}
+        return {"message": "Excel successfully converted to CSV", "download_url": f"/api/filetools/files/{out_name}", "filename": out_name}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
 
-# 3) PDF -> CSV (table extraction using pdfplumber)
 @router.post("/convert/pdf-to-csv")
 async def pdf_to_csv(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".pdf"):
@@ -331,7 +395,7 @@ async def pdf_to_csv(file: UploadFile = File(...)):
             writer = csv.writer(fh)
             for r in rows:
                 writer.writerow(r)
-        return {"message": "PDF content successfully extracted to CSV", "download_url": f"/api/files/{os.path.basename(out_path)}", "filename": os.path.basename(out_path)}
+        return {"message": "PDF content successfully extracted to CSV", "download_url": f"/api/filetools/files/{os.path.basename(out_path)}", "filename": os.path.basename(out_path)}
     except HTTPException:
         raise
     except Exception as e:
@@ -343,7 +407,6 @@ async def pdf_to_csv(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-# 4) CSV -> PDF (simple table using reportlab)
 @router.post("/convert/csv-to-pdf")
 async def csv_to_pdf(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".csv"):
@@ -377,7 +440,7 @@ async def csv_to_pdf(file: UploadFile = File(...)):
             )
         )
         doc.build([table])
-        return {"message": "CSV successfully converted to PDF table", "download_url": f"/api/files/{os.path.basename(out_path)}", "filename": os.path.basename(out_path)}
+        return {"message": "CSV successfully converted to PDF table", "download_url": f"/api/filetools/files/{os.path.basename(out_path)}", "filename": os.path.basename(out_path)}
     except HTTPException:
         raise
     except Exception as e:
@@ -389,7 +452,6 @@ async def csv_to_pdf(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-# 5) PDF -> Excel (uses pdf_to_csv -> csv_to_excel approach)
 @router.post("/convert/pdf-to-excel")
 async def pdf_to_excel(file: UploadFile = File(...)):
     try:
@@ -431,7 +493,7 @@ async def pdf_to_excel(file: UploadFile = File(...)):
             os.remove(out_csv_path)
         except Exception:
             pass
-        return {"message": "PDF table data successfully converted to Excel", "download_url": f"/api/files/{out_xlsx_name}", "filename": out_xlsx_name}
+        return {"message": "PDF table data successfully converted to Excel", "download_url": f"/api/filetools/files/{out_xlsx_name}", "filename": out_xlsx_name}
     except HTTPException:
         raise
     except Exception as e:
@@ -443,7 +505,6 @@ async def pdf_to_excel(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-# 6) Excel -> PDF
 @router.post("/convert/excel-to-pdf")
 async def excel_to_pdf(file: UploadFile = File(...)):
     try:
@@ -460,7 +521,7 @@ async def excel_to_pdf(file: UploadFile = File(...)):
         doc = SimpleDocTemplate(out_path)
         table = Table(data, repeatRows=1)
         doc.build([table])
-        return {"message": "Excel successfully converted to PDF", "download_url": f"/api/files/{out_name}", "filename": out_name}
+        return {"message": "Excel successfully converted to PDF", "download_url": f"/api/filetools/files/{out_name}", "filename": out_name}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Excel->PDF conversion failed: {str(e)}")
     finally:
@@ -470,7 +531,6 @@ async def excel_to_pdf(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-# 7) PDF -> Word
 @router.post("/convert/pdf-to-word")
 async def pdf_to_word(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".pdf"):
@@ -488,7 +548,7 @@ async def pdf_to_word(file: UploadFile = File(...)):
         cv.close()
         if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
             raise HTTPException(status_code=500, detail="Conversion failed: output DOCX not created")
-        return {"message": "PDF successfully converted to Word document", "download_url": f"/api/files/{out_name}", "filename": out_name}
+        return {"message": "PDF successfully converted to Word document", "download_url": f"/api/filetools/files/{out_name}", "filename": out_name}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF to Word conversion failed: {str(e)}")
     finally:
