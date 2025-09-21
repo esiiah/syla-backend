@@ -2,7 +2,8 @@
 from fastapi import APIRouter, Request, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from typing import Optional
-from . import db, utils
+from . import db       # same folder, okay
+from .. import utils    # go up one level to app/
 import os
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
