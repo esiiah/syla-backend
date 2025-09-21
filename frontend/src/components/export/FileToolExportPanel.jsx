@@ -17,7 +17,7 @@ export default function FileToolExportPanel({
 }) {
   const [compressionLevel, setCompressionLevel] = useState("medium");
   const [panelWidth, setPanelWidth] = useState(340);
-  const [position, setPosition] = useState({ x: null, y: null });
+  const [position, setPosition] = useState(null); // null = default (right-center)
   const [dragging, setDragging] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const panelRef = useRef(null);
@@ -122,10 +122,12 @@ export default function FileToolExportPanel({
       onMouseDown={handleMouseDown}
       style={{
         position: "fixed",
-        right: position.x === null ? 24 : "auto",
-        top: position.y === null ? "50%" : "auto",
-        left: position.x !== null ? position.x : "auto",
-        transform: position.y === null ? "translateY(-50%)" : "none",
+        // Default position: right side, vertically centered
+        right: position ? "auto" : 24,
+        top: position ? "auto" : "50%",
+        left: position ? position.x : "auto",
+        transform: position ? "none" : "translateY(-50%)",
+        ...(position && { top: position.y }), // apply dragged position
         width: panelWidth,
         maxHeight: "calc(100vh - 72px)",
         zIndex: 1000,
