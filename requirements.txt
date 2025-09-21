@@ -1,20 +1,20 @@
-# Core server
+# === Core server ===
 fastapi==0.111.1
 uvicorn[standard]==0.23.2
 
-# Authentication & Security
+# === Authentication & Security ===
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
-PyJWT==2.8.0
-requests==2.31.0  # For Google OAuth verification
+google-auth>=2.22.0
+requests>=2.31.0
 
-# Data handling
+# === Data handling ===
 pandas>=2.2.1,<2.3
 numpy>=1.26.2,<1.27
-python-multipart>=0.0.7
+python-multipart>=0.0.7,<0.1
 
-# PDF + Office processing (basic handling only)
+# === PDF + Office processing ===
 PyPDF2==3.0.1
 pdfplumber==0.11.7
 reportlab==4.4.3
@@ -23,9 +23,10 @@ python-docx==1.1.2
 pdf2docx==0.5.8
 docx2pdf==0.1.8
 
-# Database
+# === Database ===
 SQLAlchemy==2.0.20
-# psycopg2-binary==2.9.9   # PostgreSQL (optional)
-# mysqlclient==2.3.1       # MySQL (optional)
+# Uncomment if using PostgreSQL/MySQL
+# psycopg2-binary==2.9.9
+# mysqlclient==2.3.1
 
 # zlib is built into Python stdlib, no need for pip install
