@@ -3,14 +3,19 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 const countryCodes = [
-  { code: "+1", name: "USA" }, { code: "+44", name: "UK" }, { code: "+91", name: "India" }, { code: "+61", name: "Australia" }, { code: "+81", name: "Japan" },
-  { code: "+49", name: "Germany" }, { code: "+33", name: "France" }, { code: "+55", name: "Brazil" }, { code: "+7", name: "Russia" }, { code: "+86", name: "China" },
-  { code: "+27", name: "South Africa" }, { code: "+39", name: "Italy" }, { code: "+34", name: "Spain" }, { code: "+82", name: "South Korea" }, { code: "+64", name: "New Zealand" },
-  { code: "+65", name: "Singapore" }, { code: "+90", name: "Turkey" }, { code: "+31", name: "Netherlands" }, { code: "+46", name: "Sweden" }, { code: "+41", name: "Switzerland" },
-  { code: "+34", name: "Spain" }, { code: "+351", name: "Portugal" }, { code: "+352", name: "Luxembourg" }, { code: "+353", name: "Ireland" }, { code: "+358", name: "Finland" },
-  { code: "+420", name: "Czech Republic" }, { code: "+421", name: "Slovakia" }, { code: "+48", name: "Poland" }, { code: "+36", name: "Hungary" }, { code: "+352", name: "Luxembourg" },
-  { code: "+971", name: "UAE" }, { code: "+972", name: "Israel" }, { code: "+966", name: "Saudi Arabia" }, { code: "+20", name: "Egypt" }, { code: "+212", name: "Morocco" },
-  { code: "+92", name: "Pakistan" }, { code: "+880", name: "Bangladesh" }, { code: "+880", name: "Bangladesh" }, { code: "+974", name: "Qatar" }, { code: "+965", name: "Kuwait" }
+  { code: "+1", name: "USA" }, { code: "+44", name: "UK" }, { code: "+91", name: "India" },
+  { code: "+61", name: "Australia" }, { code: "+81", name: "Japan" }, { code: "+49", name: "Germany" },
+  { code: "+33", name: "France" }, { code: "+55", name: "Brazil" }, { code: "+7", name: "Russia" },
+  { code: "+86", name: "China" }, { code: "+27", name: "South Africa" }, { code: "+39", name: "Italy" },
+  { code: "+34", name: "Spain" }, { code: "+82", name: "South Korea" }, { code: "+64", name: "New Zealand" },
+  { code: "+65", name: "Singapore" }, { code: "+90", name: "Turkey" }, { code: "+31", name: "Netherlands" },
+  { code: "+46", name: "Sweden" }, { code: "+41", name: "Switzerland" }, { code: "+351", name: "Portugal" },
+  { code: "+352", name: "Luxembourg" }, { code: "+353", name: "Ireland" }, { code: "+358", name: "Finland" },
+  { code: "+420", name: "Czech Republic" }, { code: "+421", name: "Slovakia" }, { code: "+48", name: "Poland" },
+  { code: "+36", name: "Hungary" }, { code: "+971", name: "UAE" }, { code: "+972", name: "Israel" },
+  { code: "+966", name: "Saudi Arabia" }, { code: "+20", name: "Egypt" }, { code: "+212", name: "Morocco" },
+  { code: "+92", name: "Pakistan" }, { code: "+880", name: "Bangladesh" }, { code: "+974", name: "Qatar" },
+  { code: "+965", name: "Kuwait" }
 ];
 
 export default function LoginPage() {
@@ -28,26 +33,16 @@ export default function LoginPage() {
     setError("");
     try {
       if (typeof google === "undefined") throw new Error("Google Sign-In not loaded");
-      const response = await new Promise((resolve, reject) => {
-        google.accounts.id.prompt((notification) => {
-          if (notification.isNotDisplayed()) reject(new Error("Popup blocked"));
-        });
-        window.handleCredentialResponse = (response) => resolve(response);
+
+      // Use the One Tap API properly
+      google.accounts.id.prompt(notification => {
+        if (notification.isNotDisplayed()) {
+          setError("Google Sign-In popup blocked. Please allow popups.");
+          setLoading(false);
+        }
       });
-      const res = await fetch("/api/auth/google", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ credential: response.credential }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Google authentication failed");
-      localStorage.setItem("token", data.access_token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      navigate("/");
     } catch (err) {
       setError(err.message);
-    } finally {
       setLoading(false);
     }
   };
@@ -84,11 +79,16 @@ export default function LoginPage() {
   useEffect(() => {
     const script = document.createElement("script");
     script.src = "https://accounts.google.com/gsi/client";
-    script.onload = () =>
-      google.accounts.id.initialize({
-        client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID,
-        callback: window.handleCredentialResponse,
-      });
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      if (typeof google !== "undefined") {
+        google.accounts.id.initialize({
+          client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID,
+          callback: window.handleCredentialResponse,
+        });
+      }
+    };
     document.body.appendChild(script);
     return () => document.body.removeChild(script);
   }, []);
@@ -100,7 +100,8 @@ export default function LoginPage() {
         <span className="font-inter font-bold text-xl text-gray-800 dark:text-slate-200">Syla Analytics</span>
       </div>
 
-      <div className="w-full max-w-md bg-white dark:bg-ink/90 rounded-2xl shadow-2xl border-2 border-neonBlue dark:border-neonYellow p-8 transform transition-transform duration-300 hover:scale-[1.02]">
+      {/* Panel container */}
+      <div className="w-full max-w-md max-h-[90vh] overflow-y-auto bg-white dark:bg-ink/90 rounded-2xl shadow-2xl border-2 border-neonBlue dark:border-neonYellow p-8 transform transition-transform duration-300 hover:scale-[1.02]">
         <div className="text-center mb-6">
           <h1 className="text-3xl font-display font-bold text-gray-800 dark:text-slate-200 mb-1">Welcome Back</h1>
           <p className="text-sm text-gray-600 dark:text-slate-400">Sign in to your Syla Analytics account</p>
@@ -111,10 +112,10 @@ export default function LoginPage() {
 
         {!showDetails ? (
           <div className="space-y-4">
-            <button onClick={handleGoogleSignIn} disabled={loading} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg transition-all duration-200 flex items-center justify-center space-x-3 bg-white dark:bg-slate-800 dark:border-white/20 hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed">
-              <img src="/google-logo.png" alt="Google" className="w-5 h-5" />
-              <span className="text-gray-700 dark:text-slate-300 font-medium">{loading ? "Loading..." : "Continue with Google"}</span>
-            </button>
+            <div id="g_id_onload" data-client_id={process.env.REACT_APP_GOOGLE_CLIENT_ID} data-auto_prompt="false"></div>
+            <div id="googleSignInButton" className="w-full flex justify-center">
+              <div id="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="signin_with" data-shape="rectangular"></div>
+            </div>
 
             <div className="flex items-center mb-4">
               <div className="flex-1 border-t border-gray-300 dark:border-white/20"></div>
@@ -136,7 +137,12 @@ export default function LoginPage() {
             <form onSubmit={handleLogin} className="space-y-4">
               {contactType === "phone" && (
                 <div className="flex space-x-2">
-                  <select value={selectedCode} onChange={e => setSelectedCode(e.target.value)} className="border rounded-lg px-3 py-3">
+                  <select
+                    value={selectedCode}
+                    onChange={e => setSelectedCode(e.target.value)}
+                    className="border rounded-lg px-3 py-2 max-h-40 overflow-y-auto"
+                    size={5} // shows multiple options in scrollable box
+                  >
                     {countryCodes.map(c => <option key={c.code} value={c.code}>{c.name} ({c.code})</option>)}
                   </select>
                   <input type="tel" value={contact} onChange={e => setContact(e.target.value)} placeholder="Phone Number" required className="flex-1 border rounded-lg px-4 py-3" />
