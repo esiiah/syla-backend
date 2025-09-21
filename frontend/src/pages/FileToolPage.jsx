@@ -48,7 +48,7 @@ export default function FileToolPage({ theme, setTheme }) {
 
   // --- Tool Mapping ---
   const toolMapping = {
-    compress: { component: "compress", label: "PDF → Compressed PDF", accept: ".pdf" },
+    compress: { component: "compress", label: "File → Compressed File", accept: ".pdf,.docx,.xlsx,.csv,.txt" },
     merge: { component: "merge", label: "Merge PDFs", accept: ".pdf" },
     "pdf-to-word": { component: "compress", endpoint: "/api/filetools/pdf-to-word", accept: ".pdf", label: "PDF → Word" },
     "pdf-to-excel": { component: "compress", endpoint: "/api/filetools/pdf-to-excel", accept: ".pdf", label: "PDF → Excel" },
