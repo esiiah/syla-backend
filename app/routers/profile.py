@@ -3,16 +3,17 @@ from fastapi import APIRouter, Request, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from typing import Optional
 from . import db, utils
+import os
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
 
-@router.patch("/")
+@router.patch("")
 async def update_profile(
     request: Request,
     name: str = Form(...),
-    email: str = Form(""),
-    phone: str = Form(""),
+    email: str = Form(...),
+    phone: str = Form(...),
     avatar: Optional[UploadFile] = File(None),
 ):
     user = utils.get_current_user_from_token(request)
@@ -21,7 +22,6 @@ async def update_profile(
 
     avatar_url = user.get("avatar_url")
     if avatar and avatar.filename:
-        # save avatar (async)
         avatar_url = await utils.save_avatar(avatar, user["id"])
 
     try:
@@ -33,12 +33,15 @@ async def update_profile(
 
 
 @router.post("/change-password")
-async def change_password(request: Request, current_password: str = Form(...), new_password: str = Form(...)):
+async def change_password(
+    request: Request,
+    current_password: str = Form(...),
+    new_password: str = Form(...),
+):
     user = utils.get_current_user_from_token(request)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    # fetch full user with password hash
     full_user = db.get_user_with_hash_by_contact(user.get("email") or user.get("phone"))
     if not full_user or not utils.verify_password(current_password, full_user.get("password_hash", "")):
         raise HTTPException(status_code=400, detail="Current password is incorrect")
