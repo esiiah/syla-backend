@@ -1,10 +1,11 @@
 # app/routers/auth.py
+import os
 from fastapi import APIRouter, HTTPException, Response, Request
 from pydantic import BaseModel, validator
 from typing import Optional
-from app import utils  # ✅ points to utils.py in the parent app folder
-from . import db       # ✅ db.py is in the same folder, this is fine
 
+from app import utils
+from . import db
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -62,30 +63,40 @@ class GoogleAuthRequest(BaseModel):
     credential: str
 
 
-# --- Routes ---
+def _set_auth_cookie(response: Response, access_token: str):
+    max_age = int(utils.ACCESS_TOKEN_EXPIRE_MINUTES) * 60 if hasattr(utils, "ACCESS_TOKEN_EXPIRE_MINUTES") else 3600
+    response.set_cookie(
+        key="auth_token",
+        value=access_token,
+        max_age=max_age,
+        httponly=True,
+        secure=(os.getenv("ENV") == "production"),
+        samesite="lax",
+    )
+
+
 @router.post("/signup")
 async def signup(req: SignupRequest, response: Response):
+    # check existing by contact (email/phone)
     existing = db.get_user_by_contact(req.contact)
     if existing:
         raise HTTPException(status_code=400, detail="User with this email/phone already exists")
 
     password_hash = utils.hash_password(req.password)
     try:
-        user_id = db.create_local_user(req.name, req.contact if req.contact_type == "email" else None,
-                                       req.contact if req.contact_type == "phone" else None,
-                                       password_hash)
-    except Exception as e:
+        user_id = db.create_local_user(
+            req.name,
+            req.contact if req.contact_type == "email" else None,
+            req.contact if req.contact_type == "phone" else None,
+            password_hash,
+        )
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception:
         raise HTTPException(status_code=500, detail="Failed to create user")
 
     access_token = utils.create_access_token({"sub": user_id, "id": user_id})
-    response.set_cookie(
-        key="auth_token",
-        value=access_token,
-        max_age=int(utils.ACCESS_TOKEN_EXPIRE_MINUTES) * 60,
-        httponly=True,
-        secure=(os.getenv("ENV") == "production"),
-        samesite="lax",
-    )
+    _set_auth_cookie(response, access_token)
     user = db.get_user_by_id(user_id)
     return {"access_token": access_token, "token_type": "bearer", "user": user}
 
@@ -93,20 +104,18 @@ async def signup(req: SignupRequest, response: Response):
 @router.post("/login")
 async def login(req: LoginRequest, response: Response):
     user = db.get_user_with_hash_by_contact(req.contact)
-    if not user or not user.get("password_hash"):
+    if not user or not user.get("_password_hash"):
+        # do not reveal which part failed
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    if not utils.verify_password(req.password, user["password_hash"]):
+
+    # verify password using utils (expects plain password + stored hash)
+    if not utils.verify_password(req.password, user.get("_password_hash")):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     access_token = utils.create_access_token({"sub": user["id"], "id": user["id"]})
-    response.set_cookie(
-        key="auth_token",
-        value=access_token,
-        max_age=int(utils.ACCESS_TOKEN_EXPIRE_MINUTES) * 60,
-        httponly=True,
-        secure=(os.getenv("ENV") == "production"),
-        samesite="lax",
-    )
+    _set_auth_cookie(response, access_token)
+
+    # fetch latest sanitized user (without password)
     user_resp = db.get_user_by_id(user["id"])
     return {"access_token": access_token, "token_type": "bearer", "user": user_resp}
 
@@ -115,39 +124,35 @@ async def login(req: LoginRequest, response: Response):
 async def google_auth(body: GoogleAuthRequest, response: Response):
     try:
         google_user = utils.verify_google_token(body.credential)
+        if not google_user or not google_user.get("google_id"):
+            raise HTTPException(status_code=400, detail="Invalid Google token")
+
         existing_user = db.get_user_by_google_id(google_user["google_id"])
 
         if existing_user:
             user_id = existing_user["id"]
         else:
-            # if email exists, link; else create new user
-            existing_email_user = db.get_user_by_contact(google_user["email"]) if google_user.get("email") else None
+            # if email exists, link; else create new
+            existing_email_user = db.get_user_by_contact(google_user.get("email")) if google_user.get("email") else None
             if existing_email_user:
                 db.link_google_to_user(existing_email_user["id"], google_user["google_id"], google_user.get("avatar_url"))
                 user_id = existing_email_user["id"]
             else:
-                user_id = db.create_google_user(google_user["name"], google_user.get("email"), google_user["google_id"], google_user.get("avatar_url"))
+                user_id = db.create_google_user(
+                    google_user.get("name") or "Google User",
+                    google_user.get("email"),
+                    google_user.get("google_id"),
+                    google_user.get("avatar_url"),
+                )
 
         access_token = utils.create_access_token({"sub": user_id, "id": user_id})
-        response.set_cookie(
-            key="auth_token",
-            value=access_token,
-            max_age=int(utils.ACCESS_TOKEN_EXPIRE_MINUTES) * 60,
-            httponly=True,
-            secure=(os.getenv("ENV") == "production"),
-            samesite="lax",
-        )
+        _set_auth_cookie(response, access_token)
         user = db.get_user_by_id(user_id)
         return {"access_token": access_token, "token_type": "bearer", "user": user}
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Google authentication failed: {str(e)}")
-
-
-@router.get("/google/callback")
-async def google_callback():
-    return {"message": "Google OAuth callback - implement if you use server-side flow"}
 
 
 @router.get("/me")
