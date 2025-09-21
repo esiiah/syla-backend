@@ -109,7 +109,6 @@ export default function FileToolExportPanel({
   return (
     <div
       ref={panelRef}
-      onMouseDown={handleMouseDown}
       style={{
         position: "fixed",
         right: position ? "auto" : 24,
@@ -122,22 +121,22 @@ export default function FileToolExportPanel({
         zIndex: 1000,
         display: "flex",
         flexDirection: "column",
-        cursor: dragging ? "grabbing" : "grab",
       }}
     >
-      <div className="rounded-xl bg-white border-2 border-neonBlue/20 shadow-2xl dark:bg-slate-800/95 dark:border-neonBlue/30 backdrop-blur-sm neon-border flex flex-col h-full">
-        
-        {/* Header */}
-        <div className="p-3 border-b border-gray-200 dark:border-white/10 bg-gradient-to-r from-neonBlue/5 to-indigo-500/5 rounded-t-xl">
-          <div className="text-sm font-semibold text-gray-800 dark:text-slate-200 flex items-center">
-            <svg className="w-4 h-4 mr-2 text-neonBlue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            {getProcessingTitle()}
-          </div>
+      {/* Header */}
+      <div
+        onMouseDown={handleMouseDown} // drag only from header
+        className="p-3 border-b border-gray-200 dark:border-white/10 bg-gradient-to-r from-neonBlue/5 to-indigo-500/5 rounded-t-xl cursor-grab"
+      >
+        <div className="text-sm font-semibold text-gray-800 dark:text-slate-200 flex items-center">
+          <svg className="w-4 h-4 mr-2 text-neonBlue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          {getProcessingTitle()}
         </div>
+      </div>
 
-        {/* Scrollable Body */}
+      {/* Scrollable Body */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
           
           {/* Compression Level Selector */}
