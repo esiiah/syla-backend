@@ -29,7 +29,9 @@ export default function FileToolPage({ theme, setTheme }) {
     fetch(`/api/filetools/retrieve/${token}`)
       .then((res) => res.blob())
       .then((blob) => {
-        const f = new File([blob], "stashed_file", { type: blob.type || "application/octet-stream" });
+        const f = new File([blob], "stashed_file", {
+          type: blob.type || "application/octet-stream",
+        });
         setStashedFile(f);
         setFiles([f]);
       })
@@ -44,19 +46,65 @@ export default function FileToolPage({ theme, setTheme }) {
     setConversionComplete(false);
     setFileName("");
     setCompressionLevel("medium");
+    setFiles([]);
   }, [action]);
 
   // --- Tool Mapping ---
   const toolMapping = {
-    compress: { component: "compress", label: "File → Compressed File", accept: ".pdf,.docx,.xlsx,.csv,.txt" },
-    merge: { component: "merge", label: "Merge PDFs", accept: ".pdf" },
-    "pdf-to-word": { component: "compress", endpoint: "/api/filetools/pdf-to-word", accept: ".pdf", label: "PDF → Word" },
-    "pdf-to-excel": { component: "compress", endpoint: "/api/filetools/pdf-to-excel", accept: ".pdf", label: "PDF → Excel" },
-    "excel-to-pdf": { component: "compress", endpoint: "/api/filetools/excel-to-pdf", accept: ".xls,.xlsx", label: "Excel → PDF" },
-    "csv-to-excel": { component: "compress", endpoint: "/api/filetools/csv-to-excel", accept: ".csv", label: "CSV → Excel" },
-    "excel-to-csv": { component: "compress", endpoint: "/api/filetools/excel-to-csv", accept: ".xls,.xlsx", label: "Excel → CSV" },
-    "pdf-to-csv": { component: "compress", endpoint: "/api/filetools/pdf-to-csv", accept: ".pdf", label: "PDF → CSV" },
-    "csv-to-pdf": { component: "compress", endpoint: "/api/filetools/csv-to-pdf", accept: ".csv", label: "CSV → PDF" },
+    compress: {
+      type: "compress",
+      label: "File → Compressed File",
+      accept: ".pdf,.docx,.xlsx,.csv,.txt",
+      endpoint: "/api/filetools/pdf/compress",
+    },
+    merge: {
+      type: "merge",
+      label: "Merge PDFs",
+      accept: ".pdf",
+      endpoint: "/api/filetools/pdf/merge",
+    },
+    "pdf-to-word": {
+      type: "convert",
+      label: "PDF → Word",
+      accept: ".pdf",
+      endpoint: "/api/filetools/pdf-to-word",
+    },
+    "pdf-to-excel": {
+      type: "convert",
+      label: "PDF → Excel",
+      accept: ".pdf",
+      endpoint: "/api/filetools/pdf-to-excel",
+    },
+    "excel-to-pdf": {
+      type: "convert",
+      label: "Excel → PDF",
+      accept: ".xls,.xlsx",
+      endpoint: "/api/filetools/excel-to-pdf",
+    },
+    "csv-to-excel": {
+      type: "convert",
+      label: "CSV → Excel",
+      accept: ".csv",
+      endpoint: "/api/filetools/csv-to-excel",
+    },
+    "excel-to-csv": {
+      type: "convert",
+      label: "Excel → CSV",
+      accept: ".xls,.xlsx",
+      endpoint: "/api/filetools/excel-to-csv",
+    },
+    "pdf-to-csv": {
+      type: "convert",
+      label: "PDF → CSV",
+      accept: ".pdf",
+      endpoint: "/api/filetools/pdf-to-csv",
+    },
+    "csv-to-pdf": {
+      type: "convert",
+      label: "CSV → PDF",
+      accept: ".csv",
+      endpoint: "/api/filetools/csv-to-pdf",
+    },
   };
 
   const config = toolMapping[action] || null;
@@ -73,19 +121,17 @@ export default function FileToolPage({ theme, setTheme }) {
 
     try {
       const fd = new FormData();
-      if (config.component === "merge") {
+      if (config.type === "merge") {
         files.forEach((f) => fd.append("files", f));
       } else {
         fd.append("file", files[0]);
       }
 
-      if (config.component === "compress") fd.append("level", levelOverride || compressionLevel);
+      if (config.type === "compress") {
+        fd.append("level", levelOverride || compressionLevel);
+      }
 
-      const endpoint =
-        config.component === "compress" && action === "compress"
-          ? "/api/filetools/pdf/compress"
-          : config.endpoint || "/api/filetools/convert";
-
+      const endpoint = config.endpoint;
       const res = await fetch(endpoint, { method: "POST", body: fd });
       const json = await res.json();
 
@@ -126,71 +172,81 @@ export default function FileToolPage({ theme, setTheme }) {
         <div className="flex-1 flex flex-col p-6 space-y-6">
           {config ? (
             <>
-              <div className={config.component === "merge" ? "max-w-6xl mx-auto" : "max-w-4xl mx-auto"}>
+              {/* Upload Panel */}
+              <div
+                className={`${
+                  config.type === "merge" ? "max-w-6xl mx-auto" : "max-w-4xl mx-auto"
+                }`}
+              >
                 <FileToolUploadPanel
                   title={
-                    config.component === "compress"
-                      ? `Select file to Compress`
-                      : config.component === "merge"
+                    config.type === "compress"
+                      ? "Select file to Compress"
+                      : config.type === "merge"
                       ? "Select PDFs to Merge"
                       : `Select file for ${config.label}`
                   }
                   hint={
-                    config.component === "compress"
+                    config.type === "compress"
                       ? "Choose a file and select your preferred compression level"
-                      : config.component === "merge"
+                      : config.type === "merge"
                       ? "You can select up to 15 PDF files to merge into one document"
                       : `Upload ${config.accept.replace(/\./g, "").toUpperCase()} file for conversion`
                   }
                   accept={config.accept}
-                  multiple={config.component === "merge"}
+                  multiple={config.type === "merge"}
                   files={files}
                   setFiles={setFiles}
                   viewMode={viewMode}
                   setViewMode={setViewMode}
                   onUpload={handleUpload}
                   uploadLabel={
-                    config.component === "compress"
+                    config.type === "compress"
                       ? `Compress (${compressionLevel})`
-                      : config.component === "merge"
+                      : config.type === "merge"
                       ? "Merge PDFs"
                       : "Convert"
                   }
                   loading={loading}
+                  borderColor="sky-400"
                 />
               </div>
+
+              {/* Export Panel */}
+              <FileToolExportPanel
+                showPanel={files.length > 0}
+                downloadUrl={downloadUrl}
+                onDownload={handleDownload}
+                onUpload={handleUpload}
+                uploadLabel={
+                  config.type === "compress"
+                    ? `Compress (${compressionLevel})`
+                    : config.type === "merge"
+                    ? "Merge PDFs"
+                    : "Convert"
+                }
+                error={error}
+                loading={loading}
+                conversionComplete={conversionComplete}
+                fileName={fileName}
+                toolType={action} // pass exact action, not just "compress"
+                compressionLevel={compressionLevel}
+                onCompressionLevelChange={handleCompressionLevelChange}
+                borderColor="sky-400"
+              />
             </>
           ) : (
             <div className="text-center text-gray-600 dark:text-gray-300">
               <div className="max-w-md mx-auto p-8 bg-white dark:bg-ink/80 rounded-2xl border border-gray-200 dark:border-white/5 shadow-soft">
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-slate-200 mb-2">Tool Not Found</h2>
+                <h2 className="text-xl font-semibold text-gray-800 dark:text-slate-200 mb-2">
+                  Tool Not Found
+                </h2>
                 <p className="text-gray-600 dark:text-slate-400">
                   The requested tool "{action}" is not available.
                 </p>
               </div>
             </div>
           )}
-
-          <FileToolExportPanel
-            showPanel={files.length > 0}
-            downloadUrl={downloadUrl}
-            onDownload={handleDownload}
-            onUpload={handleUpload}
-            uploadLabel={
-              config?.component === "compress"
-                ? `Compress (${compressionLevel})`
-                : config?.component === "merge"
-                ? "Merge PDFs"
-                : "Convert"
-            }
-            error={error}
-            loading={loading}
-            conversionComplete={conversionComplete}
-            fileName={fileName}
-            toolType={config?.component || "convert"}
-            compressionLevel={compressionLevel}
-            onCompressionLevelChange={handleCompressionLevelChange}
-          />
         </div>
       </div>
     </div>
