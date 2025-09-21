@@ -1,9 +1,28 @@
-import React, { useRef } from "react";
+// FileToolUploadPanel.jsx
+import React, { useRef, useEffect, useState } from "react";
+
+/**
+ * FileToolUploadPanel
+ *
+ * Props:
+ *  - title, hint
+ *  - accept (optional override)
+ *  - multiple (boolean)
+ *  - files (array) and setFiles callback
+ *  - onUpload(files, opts) => Promise | void    (called when user clicks upload)
+ *  - viewMode, setViewMode
+ *  - uploadLabel, loading, toolType
+ *
+ * If onUpload is not provided, this component will perform a default upload to
+ * backend endpoints determined by toolType and then return the response and call setFiles([]) optionally.
+ *
+ * Styling: sky-blue border.
+ */
 
 export default function FileToolUploadPanel({
   title = "Upload File",
   hint = "",
-  accept = "*/*",
+  accept = "",
   multiple = false,
   files = [],
   setFiles = () => {},
@@ -12,9 +31,15 @@ export default function FileToolUploadPanel({
   setViewMode = () => {},
   uploadLabel = "Upload & Process",
   loading = false,
-  toolType = "convert", // new prop to adjust title/context
+  toolType = "convert",
 }) {
   const inputRef = useRef(null);
+  const [internalLoading, setInternalLoading] = useState(false);
+  const [internalError, setInternalError] = useState("");
+
+  useEffect(() => {
+    setInternalError("");
+  }, [files]);
 
   const handleSelect = (e) => {
     const selected = Array.from(e.target.files || []);
@@ -30,10 +55,6 @@ export default function FileToolUploadPanel({
     setFiles(multiple ? selected : [selected[0]]);
   };
 
-  const handleUpload = () => {
-    if (typeof onUpload === "function") onUpload();
-  };
-
   const handleRemoveFile = (index) => {
     const next = [...files];
     next.splice(index, 1);
@@ -41,16 +62,128 @@ export default function FileToolUploadPanel({
   };
 
   const getTitle = () => {
-    if (toolType === "compress") return "Upload File to Compress";
-    if (toolType === "merge") return "Upload Files to Merge";
-    if (toolType === "pdf") return "Upload PDF File";
-    if (toolType === "csv") return "Upload CSV File";
-    return title;
+    switch (toolType) {
+      case "compress":
+        return "Upload File to Compress";
+      case "merge":
+        return "Upload PDF Files to Merge";
+      case "csv-to-excel":
+        return "Upload CSV to convert to Excel";
+      case "excel-to-csv":
+        return "Upload Excel to convert to CSV";
+      case "pdf-to-csv":
+        return "Upload PDF to extract to CSV";
+      case "csv-to-pdf":
+        return "Upload CSV to convert to PDF";
+      case "pdf-to-excel":
+        return "Upload PDF to convert to Excel";
+      case "excel-to-pdf":
+        return "Upload Excel to convert to PDF";
+      case "pdf-to-word":
+        return "Upload PDF to convert to Word";
+      default:
+        return title;
+    }
+  };
+
+  const getAccept = () => {
+    if (accept) return accept;
+    switch (toolType) {
+      case "compress":
+        return "*/*";
+      case "merge":
+        return ".pdf,application/pdf";
+      case "csv-to-excel":
+      case "csv-to-pdf":
+        return ".csv,text/csv";
+      case "excel-to-csv":
+      case "excel-to-pdf":
+        return ".xls,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel";
+      case "pdf-to-csv":
+      case "pdf-to-excel":
+      case "pdf-to-word":
+        return ".pdf,application/pdf";
+      default:
+        return "*/*";
+    }
+  };
+
+  // Default upload logic (used if no onUpload provided)
+  const defaultUpload = async () => {
+    setInternalError("");
+    setInternalLoading(true);
+    try {
+      if (!files || files.length === 0) {
+        throw new Error("No file selected");
+      }
+
+      // map toolType -> endpoint
+      const map = {
+        compress: { url: "/api/filetools/pdf/compress", multi: false, formFileKey: "file" },
+        "compress-any": { url: "/api/filetools/file/compress", multi: false, formFileKey: "file" },
+        merge: { url: "/api/filetools/pdf/merge", multi: true, formFileKey: "files" },
+        "csv-to-excel": { url: "/api/filetools/convert/csv-to-excel", multi: false, formFileKey: "file" },
+        "excel-to-csv": { url: "/api/filetools/convert/excel-to-csv", multi: false, formFileKey: "file" },
+        "pdf-to-csv": { url: "/api/filetools/convert/pdf-to-csv", multi: false, formFileKey: "file" },
+        "csv-to-pdf": { url: "/api/filetools/convert/csv-to-pdf", multi: false, formFileKey: "file" },
+        "pdf-to-excel": { url: "/api/filetools/convert/pdf-to-excel", multi: false, formFileKey: "file" },
+        "excel-to-pdf": { url: "/api/filetools/convert/excel-to-pdf", multi: false, formFileKey: "file" },
+        "pdf-to-word": { url: "/api/filetools/convert/pdf-to-word", multi: false, formFileKey: "file" },
+      };
+
+      let chosen = map[toolType] || map.compress;
+      const fd = new FormData();
+      if (chosen.multi) {
+        files.forEach((f) => {
+          fd.append(chosen.formFileKey, f);
+        });
+      } else {
+        fd.append(chosen.formFileKey, files[0]);
+      }
+
+      const resp = await fetch(chosen.url, {
+        method: "POST",
+        body: fd,
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.detail || json.error || JSON.stringify(json));
+
+      // If provided, call onUpload callback with response
+      if (typeof onUpload === "function") {
+        try {
+          await onUpload(files, { result: json, toolType });
+        } catch (_) {}
+      }
+
+      setInternalLoading(false);
+      return json;
+    } catch (err) {
+      setInternalLoading(false);
+      setInternalError(err.message || String(err));
+      return Promise.reject(err);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (typeof onUpload === "function") {
+      // let parent handle actual upload
+      try {
+        const r = onUpload(files);
+        if (r && typeof r.then === "function") {
+          await r;
+        }
+      } catch (err) {
+        setInternalError(err.message || String(err));
+      }
+    } else {
+      await defaultUpload();
+    }
   };
 
   return (
     <section
-      className="rounded-2xl bg-white dark:bg-slate-900 border-2 border-neonBlue/20 shadow-lg p-6 max-w-6xl fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50"
+      className="rounded-2xl bg-white dark:bg-slate-900 border-2 shadow-lg p-6 max-w-6xl fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50"
+      style={{ borderColor: "rgba(14,165,233,0.35)" }}
     >
       <h3 className="font-display text-lg mb-2 text-gray-800 dark:text-slate-200">{getTitle()}</h3>
       {hint && <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">{hint}</p>}
@@ -60,12 +193,12 @@ export default function FileToolUploadPanel({
         <div
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
-          className="flex-1 rounded-xl p-6 text-center transition-all duration-300 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-dashed border-neonBlue/30 hover:border-neonBlue/60 hover:bg-gradient-to-r hover:from-blue-100 hover:to-indigo-100 dark:bg-slate-800/50 dark:border-neonBlue/40 dark:hover:border-neonBlue/70"
-          style={{ minHeight: "140px", display: "flex", flexDirection: "column", justifyContent: "center", boxShadow: "0 8px 32px rgba(59, 130, 246, 0.1)" }}
+          className="flex-1 rounded-xl p-6 text-center transition-all duration-300 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-dashed hover:border-sky-400"
+          style={{ minHeight: "140px", display: "flex", flexDirection: "column", justifyContent: "center", boxShadow: "0 8px 32px rgba(59, 130, 246, 0.08)" }}
         >
           <div className="mb-3">
             <svg
-              className="mx-auto h-10 w-10 text-neonBlue/60"
+              className="mx-auto h-10 w-10 text-sky-400"
               stroke="currentColor"
               fill="none"
               viewBox="0 0 48 48"
@@ -78,23 +211,21 @@ export default function FileToolUploadPanel({
               />
             </svg>
           </div>
-          <p className="mb-2 font-medium text-gray-700 dark:text-slate-300">
-            Drag & drop your file here
-          </p>
+          <p className="mb-2 font-medium text-gray-700 dark:text-slate-300">Drag & drop your file here</p>
           <p className="text-xs mb-4 text-gray-500 dark:text-slate-400">
-            Accepted: <span className="font-mono text-neonBlue">{accept}</span>
+            Accepted: <span className="font-mono text-sky-500">{getAccept()}</span>
           </p>
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="px-4 py-2 rounded-lg border-2 border-neonBlue/30 bg-white text-neonBlue hover:bg-neonBlue hover:text-white hover:border-neonBlue transition-all duration-300 font-medium shadow-md hover:shadow-lg dark:bg-slate-800 dark:border-neonBlue/50 dark:text-neonBlue dark:hover:bg-neonBlue dark:hover:text-white"
+            className="px-4 py-2 rounded-lg border-2 bg-white text-sky-500 hover:bg-sky-500 hover:text-white transition-all duration-300 font-medium shadow-md"
           >
             Choose File
           </button>
           <input
             ref={inputRef}
             type="file"
-            accept={accept}
+            accept={getAccept()}
             multiple={multiple}
             onChange={handleSelect}
             className="hidden"
@@ -104,7 +235,7 @@ export default function FileToolUploadPanel({
         {/* Right-hand side */}
         <div className="lg:w-80 w-full space-y-4">
           {/* Selected Files */}
-          <div className="p-4 rounded-lg bg-gray-50 dark:bg-slate-800/50 border border-gray-200 dark:border-white/10">
+          <div className="p-4 rounded-lg bg-gray-50 dark:bg-slate-800/50 border border-gray-200">
             <div className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Selected Files:</div>
             {files.length ? (
               <div className="space-y-1">
@@ -112,7 +243,7 @@ export default function FileToolUploadPanel({
                   <div key={i} className="flex items-center justify-between p-2 bg-white dark:bg-slate-700 rounded border">
                     <span className="truncate flex-1 mr-2">{f.name || f.filename}</span>
                     {f.size && <span className="text-xs text-gray-500 dark:text-slate-400">{Math.round(f.size / 1024)} KB</span>}
-                    <button onClick={() => handleRemoveFile(i)} className="ml-2 px-2 py-1 text-xs rounded bg-red-100 text-red-700 dark:bg-red-800 dark:text-red-300">X</button>
+                    <button onClick={() => handleRemoveFile(i)} className="ml-2 px-2 py-1 text-xs rounded bg-red-100 text-red-700">X</button>
                   </div>
                 ))}
               </div>
@@ -125,14 +256,14 @@ export default function FileToolUploadPanel({
           {files.length > 0 && (
             <button
               onClick={handleUpload}
-              disabled={loading}
+              disabled={loading || internalLoading}
               className={`w-full px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
-                loading
-                  ? "bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-slate-600 dark:text-slate-400"
-                  : "bg-neonBlue text-white hover:bg-blue-600 shadow-lg hover:shadow-neon"
+                loading || internalLoading
+                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  : "bg-sky-500 text-white hover:bg-sky-600 shadow-lg"
               }`}
             >
-              {loading ? "Processing..." : uploadLabel}
+              {loading || internalLoading ? "Processing..." : uploadLabel}
             </button>
           )}
 
@@ -146,14 +277,19 @@ export default function FileToolUploadPanel({
                   onClick={() => setViewMode(mode)}
                   className={`px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 ${
                     viewMode === mode
-                      ? "bg-neonBlue text-white shadow-sm"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
+                      ? "bg-sky-500 text-white shadow-sm"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                   }`}
                 >
                   {mode.charAt(0).toUpperCase() + mode.slice(1)}
                 </button>
               ))}
             </div>
+          )}
+
+          {/* Internal error */}
+          {internalError && (
+            <div className="mt-2 p-2 text-xs text-red-600 bg-red-50 rounded border border-red-200">{internalError}</div>
           )}
         </div>
       </div>
