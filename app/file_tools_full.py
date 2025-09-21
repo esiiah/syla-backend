@@ -12,7 +12,9 @@ from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse
 
 # Import the new compression service
-from .services.pdf_compression import PDFCompressionService
+from .services.file_compression import FileCompressionService
+from fastapi import APIRouter
+import os
 
 router = APIRouter(prefix="/api/filetools", tags=["filetools"])
 
@@ -26,7 +28,7 @@ os.makedirs(STASH_DIR, exist_ok=True)
 os.makedirs(TMP_DIR, exist_ok=True)
 
 # Initialize compression service
-compression_service = PDFCompressionService()
+compression_service = FileCompressionService()
 
 # ---------- Helpers ----------
 def sanitize_filename(name: str) -> str:
