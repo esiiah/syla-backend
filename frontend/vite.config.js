@@ -8,4 +8,10 @@ export default defineConfig({
     outDir: resolve(__dirname, "../app/dist"), // 🚀 send build output into app/dist
     emptyOutDir: true, // clear before building
   },
+  server: {
+    historyApiFallback: true, // ✅ This fixes client-side routing in development
+  },
+  preview: {
+    historyApiFallback: true, // ✅ This fixes client-side routing in preview mode
+  },
 })
