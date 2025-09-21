@@ -54,13 +54,8 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # ----- React frontend serving (dist is inside app/) -----
 FRONTEND_DIR = os.path.join(BASE_DIR, "dist")  # ✅ correct path inside app/
 
-# Catch-all route for React
-@app.get("/{full_path:path}")
-async def serve_react_app(full_path: str):
-    if full_path.startswith("api/") or full_path.startswith("files/"):
-        raise HTTPException(status_code=404, detail="Not Found")
-    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
-
+# Serve all static files (JS/CSS/images) with correct MIME types
+app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
 # ----- Utilities -----
 def sanitize_filename(name: str) -> str:
