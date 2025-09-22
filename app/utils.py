@@ -36,16 +36,14 @@ def create_access_token(data: dict, expires_delta: Optional[int] = None) -> str:
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def get_current_user_from_token(request):
-    """Return decoded JWT payload from the auth_token cookie or None."""
     token = request.cookies.get("auth_token")
     if not token:
         return None
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload   # payload contains {"sub": user_id, "id": user_id, "exp": ...}
+        return payload    # ✅ return the decoded JWT claims
     except JWTError:
         return None
-
 
 # ----- Google Sign-In -----
 def verify_google_token(token: str):
