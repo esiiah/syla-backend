@@ -65,17 +65,21 @@ export default function LoginPage() {
     setError("");
     try {
       if (typeof google === "undefined") {
-        throw new Error("Google Sign-In not loaded");
+        throw new Error("Google Sign-In not loaded. Please refresh the page.");
       }
-      // Trigger the Google One Tap
-      google.accounts.id.prompt(notification => {
-        if (notification.isNotDisplayed()) {
-          setError("Google Sign-In popup blocked. Please allow popups.");
-          setLoading(false);
-        } else if (notification.isSkippedMoment()) {
-          setLoading(false);
-        }
-      });
+      
+      // Clear any existing rendered buttons and render fresh
+      const buttonContainer = document.getElementById("google-signin-button");
+      if (buttonContainer) {
+        buttonContainer.innerHTML = '';
+        google.accounts.id.renderButton(buttonContainer, {
+          theme: "outline",
+          size: "large",
+          width: "100%",
+          text: "signin_with"
+        });
+      }
+      setLoading(false);
     } catch (err) {
       setError(err.message);
       setLoading(false);
@@ -197,10 +201,11 @@ export default function LoginPage() {
               {/* Google Sign In */}
               <div className="w-full">
                 <div id="g_id_onload" data-client_id={process.env.REACT_APP_GOOGLE_CLIENT_ID} data-auto_prompt="false"></div>
+                <div id="google-signin-button" className="w-full flex justify-center"></div>
                 <button
                   onClick={handleGoogleSignIn}
                   disabled={loading}
-                  className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 font-medium transition-all duration-200 hover:bg-gray-50 dark:hover:bg-slate-700 hover:border-blue-400 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-200 font-medium transition-all duration-200 hover:bg-gray-50 dark:hover:bg-slate-700 hover:border-blue-400 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed mt-2"
                 >
                   <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -348,6 +353,16 @@ export default function LoginPage() {
                 >
                   {loading ? "Signing In..." : "Sign In"}
                 </button>
+
+                {/* Forgot Password Link */}
+                <div className="text-center">
+                  <Link 
+                    to="/forgot-password" 
+                    className="text-sm text-blue-500 dark:text-yellow-400 hover:underline transition-colors duration-200"
+                  >
+                    Forgot your password?
+                  </Link>
+                </div>
               </form>
             </div>
           )}
