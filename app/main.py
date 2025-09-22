@@ -8,6 +8,9 @@ import mimetypes
 import re
 from typing import List
 
+from dotenv import load_dotenv  # <-- import dotenv
+load_dotenv()  # <-- load .env variables into os.environ
+
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
