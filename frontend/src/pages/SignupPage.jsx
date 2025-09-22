@@ -2,6 +2,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+// Add this line right after your imports, before the countryCodes array
+const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || "618939207673-gbevo0aok0bqufjch9mmr4sc9ma86qtm.apps.googleusercontent.com";
+
 const countryCodes = [
   { code: "+1", name: "USA" }, { code: "+44", name: "UK" }, { code: "+91", name: "India" },
   { code: "+61", name: "Australia" }, { code: "+81", name: "Japan" }, { code: "+49", name: "Germany" },
@@ -156,7 +159,7 @@ export default function SignupPage() {
     script.onload = () => {
       if (typeof google !== "undefined") {
         google.accounts.id.initialize({
-          client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID,
+          client_id: GOOGLE_CLIENT_ID,
           callback: window.handleCredentialResponse,
           auto_select: false,
           cancel_on_tap_outside: false,
@@ -206,7 +209,7 @@ export default function SignupPage() {
             <div className="space-y-4">
               {/* Google Sign In */}
               <div className="w-full">
-                <div id="g_id_onload" data-client_id={process.env.REACT_APP_GOOGLE_CLIENT_ID} data-auto_prompt="false"></div>
+                <div id="g_id_onload" data-client_id={GOOGLE_CLIENT_ID} data-auto_prompt="false"></div>
                 <div id="google-signin-button" className="w-full flex justify-center"></div>
                 <button
                   onClick={handleGoogleSignIn}
