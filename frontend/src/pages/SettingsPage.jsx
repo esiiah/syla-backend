@@ -1,9 +1,8 @@
 // frontend/src/pages/SettingsPage.jsx
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
-import ProfilePage from "./ProfilePage";
 import { Palette, User, Settings, Shield, Bell } from "lucide-react";
 
 export default function SettingsPage() {
@@ -12,6 +11,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState("appearance");
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Load theme
@@ -223,7 +223,21 @@ export default function SettingsPage() {
                     Profile Information
                   </h2>
                   {user ? (
-                    <ProfilePage />
+                    <div className="text-center py-8">
+                      <User className="w-16 h-16 mx-auto text-neonBlue mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-slate-200 mb-2">
+                        Manage Your Profile
+                      </h3>
+                      <p className="text-gray-600 dark:text-slate-400 mb-6">
+                        Update your profile information, avatar, and personal details
+                      </p>
+                      <button
+                        onClick={() => navigate('/profile')}
+                        className="px-6 py-3 bg-neonBlue text-white rounded-lg hover:bg-blue-600 transition-colors duration-200 font-medium shadow-lg hover:shadow-neon"
+                      >
+                        Go to Profile Settings
+                      </button>
+                    </div>
                   ) : (
                     <div className="text-center py-8">
                       <User className="w-16 h-16 mx-auto text-gray-400 dark:text-slate-500 mb-4" />
