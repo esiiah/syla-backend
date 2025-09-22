@@ -44,7 +44,8 @@ export default function ProfilePage() {
 
       if (!res.ok) {
         const err = await res.json();
-        alert(`Failed to update profile: ${err.detail}`);
+        console.error("Profile update failed", err);
+        alert("Failed to update profile: " + (err.detail ?? JSON.stringify(err)));
         return;
       }
 
