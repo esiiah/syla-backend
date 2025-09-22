@@ -22,9 +22,12 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         {/* Authentication */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Settings */}
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
 
         {/* Dynamic tool pages */}
         <Route path="/tools/:action" element={<FileToolPage />} />
