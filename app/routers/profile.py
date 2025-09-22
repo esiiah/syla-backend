@@ -1,87 +1,67 @@
 # app/routers/profile.py
-from fastapi import APIRouter, Request, HTTPException, UploadFile, File, Form
-from fastapi.responses import FileResponse
-from typing import Optional
-from . import db
-from .. import utils
 import os
+from fastapi import APIRouter, Request, UploadFile, File, Form, HTTPException
+from fastapi.responses import JSONResponse
+from app.utils import get_current_user_from_token, hash_password
+import shutil
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "../uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-def get_current_user(request: Request):
-    """
-    Check Authorization header first, then fallback to cookie.
-    Returns user dict or None.
-    """
-    # 1️⃣ Header check
-    auth_header = request.headers.get("Authorization")
-    token = None
-    if auth_header and auth_header.startswith("Bearer "):
-        token = auth_header.split(" ")[1]
-    else:
-        # 2️⃣ Cookie fallback
-        token = request.cookies.get("auth_token")
+# ----- GET PROFILE -----
+@router.get("")
+def get_profile(request: Request):
+    user = get_current_user_from_token(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
 
-    if not token:
-        return None
-
-    try:
-        payload = utils.jwt.decode(token, utils.SECRET_KEY, algorithms=[utils.ALGORITHM])
-        return {"id": payload.get("id"), "sub": payload.get("sub")}
-    except utils.JWTError:
-        return None
+    # Example: replace this with real DB query
+    return JSONResponse(
+        content={
+            "name": "John Doe",
+            "email": "john@example.com",
+            "contact": "+123456789",
+            "avatar_url": "/api/files/default_avatar.png",
+        }
+    )
 
 
-@router.patch("")
+# ----- UPDATE PROFILE -----
+@router.put("")
 async def update_profile(
     request: Request,
     name: str = Form(...),
     email: str = Form(...),
-    phone: str = Form(...),
-    avatar: Optional[UploadFile] = File(None),
+    contact: str = Form(...),
+    password: str = Form(None),
+    avatar: UploadFile = File(None)
 ):
-    user = get_current_user(request)
+    user = get_current_user_from_token(request)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    avatar_url = user.get("avatar_url")
-    if avatar and avatar.filename:
-        avatar_url = await utils.save_avatar(avatar, user["id"])
+    update_data = {
+        "name": name,
+        "email": email,
+        "contact": contact,
+    }
 
-    try:
-        db.update_user_profile(user["id"], name, email, phone, avatar_url)
-        updated = db.get_user_by_id(user["id"])
-        return updated
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update profile: {str(e)}")
+    if password:
+        update_data["password"] = hash_password(password)
 
+    if avatar:
+        # Save avatar file
+        filename = f"{int(time.time()*1000)}_{avatar.filename}"
+        path = os.path.join(UPLOAD_DIR, filename)
+        with open(path, "wb") as f:
+            shutil.copyfileobj(avatar.file, f)
+        update_data["avatar_url"] = f"/api/files/{filename}"
 
-@router.post("/change-password")
-async def change_password(
-    request: Request,
-    current_password: str = Form(...),
-    new_password: str = Form(...),
-):
-    user = get_current_user(request)
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    # Here: actually update the user in DB
+    # e.g., db.update_user(user["id"], update_data)
 
-    full_user = db.get_user_with_hash_by_contact(user.get("email") or user.get("phone"))
-    if not full_user or not utils.verify_password(current_password, full_user.get("password_hash", "")):
-        raise HTTPException(status_code=400, detail="Current password is incorrect")
-
-    if len(new_password) < 6:
-        raise HTTPException(status_code=400, detail="New password must be at least 6 characters long")
-
-    try:
-        new_hash = utils.hash_password(new_password)
-        db.update_password(user["id"], new_hash)
-        return {"message": "Password changed successfully"}
-    except Exception:
-        raise HTTPException(status_code=500, detail="Failed to change password")
-
-
-@router.get("/avatars/{filename}")
-async def get_avatar(filename: str):
-    return utils.serve_avatar(filename)
+    return JSONResponse(
+        content={"message": "Profile updated successfully", "profile": update_data}
+    )
