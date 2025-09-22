@@ -10,7 +10,7 @@ import ForgotPasswordPage from "./pages/ForgotPasswordPage.jsx";
 import ResetPasswordPage from "./pages/ResetPasswordPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
-import { UserProvider } from "./context/UserContext.jsx";   // ✅ added
+import UserProvider from "./context/UserContext.jsx";    // ✅ added
 import "./index.css";
 
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
