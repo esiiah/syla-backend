@@ -20,9 +20,12 @@ function Navbar({ user }) {
           </div>
         </div>
 
-        {/* Right Side - moved pricing here */}
+        {/* Right Side */}
         <div className="flex items-center gap-3">
-          <a href="#" className="text-gray-700 hover:text-neonYellow dark:text-slate-300 dark:hover:text-neonYellow hidden md:block">
+          <a
+            href="#"
+            className="text-gray-700 hover:text-neonYellow dark:text-slate-300 dark:hover:text-neonYellow hidden md:block"
+          >
             Pricing
           </a>
           
@@ -44,9 +47,9 @@ function Navbar({ user }) {
           ) : (
             <div className="flex items-center gap-3">
               <img
-                src={user.avatar || "/default-avatar.png"}
+                src={user.avatar_url || "/default-avatar.png"}
                 alt="User avatar"
-                className="w-8 h-8 rounded-full border border-gray-300 dark:border-white/10"
+                className="w-8 h-8 rounded-full border border-gray-300 dark:border-white/10 object-cover"
               />
               <span className="text-sm font-medium text-gray-700 dark:text-slate-200">
                 {user.name || "Profile"}
