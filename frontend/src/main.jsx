@@ -7,7 +7,10 @@ import App from "./App.jsx";
 import FileToolPage from "./pages/FileToolPage.jsx"; // Page for individual tools
 import LoginPage from "./pages/LoginPage.jsx";
 import SignupPage from "./pages/SignupPage.jsx";
-import SettingsPage from "./pages/SettingsPage.jsx"; // NEW
+import ForgotPasswordPage from "./pages/ForgotPasswordPage.jsx";
+import ResetPasswordPage from "./pages/ResetPasswordPage.jsx";
+import SettingsPage from "./pages/SettingsPage.jsx";
+import ProfilePage from "./pages/ProfilePage.jsx";
 import "./index.css"; // Tailwind styles
 
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
