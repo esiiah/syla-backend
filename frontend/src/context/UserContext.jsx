@@ -21,21 +21,16 @@ export default function UserProvider({ children }) {
       setUser(JSON.parse(storedUser));
     }
 
-    // Pull fresh user from backend if token exists
-    const token = localStorage.getItem("token");
-    if (token) {
-      fetch("/api/profile", {
-        headers: { Authorization: `Bearer ${token}` },
+    // Always try to pull fresh user from backend using auth cookie
+    fetch("/api/profile", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data) {
+          setUser(data);
+          localStorage.setItem("user", JSON.stringify(data));
+        }
       })
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data) {
-            setUser(data);
-            localStorage.setItem("user", JSON.stringify(data));
-          }
-        })
-        .catch(() => {});
-    }
+      .catch(() => {});
   }, []);
 
   // ---- Auth actions ----
@@ -44,19 +39,19 @@ export default function UserProvider({ children }) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
+      credentials: "include", // send/receive auth cookie
     });
     if (!res.ok) throw new Error("Login failed");
     const data = await res.json();
 
     setUser(data.user);
-    localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("token");
     localStorage.removeItem("user");
+    // optionally call a logout endpoint to clear the cookie if you add one
   };
 
   return (
