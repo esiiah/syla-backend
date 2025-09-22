@@ -9,7 +9,10 @@ import re
 from typing import List
 
 from dotenv import load_dotenv  # <-- import dotenv
-load_dotenv()  # <-- load .env variables into os.environ
+
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))  # syla-backend/
+ENV_PATH = os.path.join(BASE_DIR, "frontend", ".env")
+load_dotenv(ENV_PATH)
 
 import numpy as np
 import pandas as pd
