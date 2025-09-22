@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from typing import Optional, Dict, Any
 
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, or_
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, or_
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.exc import IntegrityError
 
@@ -27,6 +27,18 @@ class User(Base):
     password_hash = Column(String, nullable=True)
     google_id = Column(String, unique=True, index=True, nullable=True)
     avatar_url = Column(String, nullable=True)
+    
+    # Extended profile fields
+    bio = Column(Text, nullable=True)
+    location = Column(String, nullable=True)
+    website = Column(String, nullable=True)
+    company = Column(String, nullable=True)
+    job_title = Column(String, nullable=True)
+    birth_date = Column(String, nullable=True)  # Store as string for flexibility
+    gender = Column(String, nullable=True)
+    language = Column(String, default="en")
+    timezone = Column(String, default="UTC")
+    
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -45,6 +57,15 @@ def _serialize_user(user: Optional[User]) -> Optional[Dict[str, Any]]:
         "phone": user.phone,
         "avatar_url": user.avatar_url,
         "google_id": user.google_id,
+        "bio": user.bio,
+        "location": user.location,
+        "website": user.website,
+        "company": user.company,
+        "job_title": user.job_title,
+        "birth_date": user.birth_date,
+        "gender": user.gender,
+        "language": user.language,
+        "timezone": user.timezone,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "updated_at": user.updated_at.isoformat() if user.updated_at else None,
     }
