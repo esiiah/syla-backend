@@ -2,11 +2,35 @@
 from fastapi import APIRouter, Request, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from typing import Optional
-from . import db       # same folder, okay
-from .. import utils    # go up one level to app/
+from . import db
+from .. import utils
 import os
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
+
+
+def get_current_user(request: Request):
+    """
+    Check Authorization header first, then fallback to cookie.
+    Returns user dict or None.
+    """
+    # 1️⃣ Header check
+    auth_header = request.headers.get("Authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    else:
+        # 2️⃣ Cookie fallback
+        token = request.cookies.get("auth_token")
+
+    if not token:
+        return None
+
+    try:
+        payload = utils.jwt.decode(token, utils.SECRET_KEY, algorithms=[utils.ALGORITHM])
+        return {"id": payload.get("id"), "sub": payload.get("sub")}
+    except utils.JWTError:
+        return None
 
 
 @router.patch("")
@@ -17,7 +41,7 @@ async def update_profile(
     phone: str = Form(...),
     avatar: Optional[UploadFile] = File(None),
 ):
-    user = utils.get_current_user_from_token(request)
+    user = get_current_user(request)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
@@ -39,7 +63,7 @@ async def change_password(
     current_password: str = Form(...),
     new_password: str = Form(...),
 ):
-    user = utils.get_current_user_from_token(request)
+    user = get_current_user(request)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
