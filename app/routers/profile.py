@@ -1,9 +1,11 @@
 # app/routers/profile.py
 import os
+import time
+import shutil
 from fastapi import APIRouter, Request, UploadFile, File, Form, HTTPException
 from fastapi.responses import JSONResponse
 from app.utils import get_current_user_from_token, hash_password
-import shutil
+from app.routers import db  # import your DB helpers
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
@@ -13,19 +15,15 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # ----- GET PROFILE -----
 @router.get("")
 def get_profile(request: Request):
-    user = get_current_user_from_token(request)
-    if not user:
+    user_info = get_current_user_from_token(request)
+    if not user_info:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    # Example: replace this with real DB query
-    return JSONResponse(
-        content={
-            "name": "John Doe",
-            "email": "john@example.com",
-            "contact": "+123456789",
-            "avatar_url": "/api/files/default_avatar.png",
-        }
-    )
+    user = db.get_user_by_id(user_info["id"])
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return JSONResponse(content=user)
 
 
 # ----- UPDATE PROFILE -----
@@ -38,30 +36,31 @@ async def update_profile(
     password: str = Form(None),
     avatar: UploadFile = File(None)
 ):
-    user = get_current_user_from_token(request)
-    if not user:
+    user_info = get_current_user_from_token(request)
+    if not user_info:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    update_data = {
-        "name": name,
-        "email": email,
-        "contact": contact,
-    }
+    # fetch DB user
+    with db.SessionLocal() as session:
+        user = session.query(db.User).filter(db.User.id == user_info["id"]).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
 
-    if password:
-        update_data["password"] = hash_password(password)
+        # update fields
+        user.name = name
+        user.email = email
+        user.phone = contact
+        if password:
+            user.password_hash = hash_password(password)
 
-    if avatar:
-        # Save avatar file
-        filename = f"{int(time.time()*1000)}_{avatar.filename}"
-        path = os.path.join(UPLOAD_DIR, filename)
-        with open(path, "wb") as f:
-            shutil.copyfileobj(avatar.file, f)
-        update_data["avatar_url"] = f"/api/files/{filename}"
+        if avatar:
+            filename = f"{int(time.time() * 1000)}_{avatar.filename}"
+            path = os.path.join(UPLOAD_DIR, filename)
+            with open(path, "wb") as f:
+                shutil.copyfileobj(avatar.file, f)
+            user.avatar_url = f"/api/files/{filename}"
 
-    # Here: actually update the user in DB
-    # e.g., db.update_user(user["id"], update_data)
+        session.commit()
+        session.refresh(user)
 
-    return JSONResponse(
-        content={"message": "Profile updated successfully", "profile": update_data}
-    )
+    return JSONResponse(content=db._serialize_user(user))
