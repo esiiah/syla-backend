@@ -17,7 +17,7 @@ export default function ProfilePage() {
     const formData = new FormData();
     formData.append("name", name);
     formData.append("email", email);
-    formData.append("phone", phone);
+    formData.append("contact", phone);
 
     if (editorRef.current) {
       const canvas = editorRef.current.getImageScaledToCanvas();
@@ -34,16 +34,14 @@ export default function ProfilePage() {
 
   const sendProfile = async (formData) => {
     try {
+      // Removed Authorization header since backend uses cookies
       const res = await fetch("/api/profile", {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+        method: "PUT",
         body: formData,
       });
 
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         console.error("Profile update failed", err);
         alert("Failed to update profile: " + (err.detail ?? JSON.stringify(err)));
         return;
@@ -52,6 +50,7 @@ export default function ProfilePage() {
       const updatedUser = await res.json();
       setUser(updatedUser);
       alert("Profile updated!");
+      setAvatarFile(null); // reset editor
     } catch (err) {
       console.error(err);
       alert("Failed to update profile: Network error");
@@ -66,14 +65,11 @@ export default function ProfilePage() {
 
       const res = await fetch("/api/profile/change-password", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
         body: formData,
       });
 
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         alert(`Password change failed: ${err.detail}`);
         return;
       }
