@@ -1,88 +1,241 @@
-// frontend/src/context/UserContext.jsx
 import React, { createContext, useState, useEffect } from "react";
 
 export const UserContext = createContext();
 
 export default function UserProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
+  const [theme, setTheme] = useState("light");
   const [loading, setLoading] = useState(true);
 
-  // Initialize: read local user if present, then validate session with server
+  // Initialize theme and check authentication on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        localStorage.removeItem("user");
-      }
-    }
+    // Load theme from localStorage
+    const storedTheme = localStorage.getItem("theme") || "light";
+    setTheme(storedTheme);
+    document.body.classList.remove("dark", "light");
+    document.body.classList.add(storedTheme);
 
-    const checkAuth = async () => {
-      try {
-        const res = await fetch("/api/auth/me", { credentials: "include" });
-        if (res.ok) {
-          const data = await res.json();
-          setUser(data);
-          localStorage.setItem("user", JSON.stringify(data));
-        } else {
-          setUser(null);
-          localStorage.removeItem("user");
-        }
-      } catch (err) {
-        console.error("Auth check failed:", err);
-        setUser(null);
-        localStorage.removeItem("user");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAuth();
+    // Check authentication status
+    checkAuthStatus();
   }, []);
 
-  // login: call /api/auth/login, cookie will be set by server; then fetch /me to get user
+  // Update theme when it changes
+  useEffect(() => {
+    localStorage.setItem("theme", theme);
+    document.body.classList.remove("dark", "light");
+    document.body.classList.add(theme);
+  }, [theme]);
+
+  const checkAuthStatus = async () => {
+    try {
+      setLoading(true);
+      
+      // First try to get user from localStorage for immediate display
+      const storedUser = localStorage.getItem("user");
+      if (storedUser) {
+        try {
+          setUser(JSON.parse(storedUser));
+        } catch (e) {
+          localStorage.removeItem("user");
+        }
+      }
+
+      // Then verify with backend
+      const response = await fetch("/api/auth/me", {
+        method: "GET",
+        credentials: "include", // Include cookies
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
+      } else {
+        // Clear user data if authentication failed
+        setUser(null);
+        localStorage.removeItem("user");
+        localStorage.removeItem("token"); // Remove old token if exists
+      }
+    } catch (error) {
+      console.error("Auth check failed:", error);
+      setUser(null);
+      localStorage.removeItem("user");
+      localStorage.removeItem("token");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const login = async (contact, password) => {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ contact, password }),
-      credentials: "include", // important to allow server set cookie and send it back
-    });
+    try {
+      const formData = new FormData();
+      formData.append("contact", contact);
+      formData.append("password", password);
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || "Login failed");
-    }
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        credentials: "include", // Include cookies
+        body: formData
+      });
 
-    // server sets cookie; fetch /me to obtain user object
-    const meRes = await fetch("/api/auth/me", { credentials: "include" });
-    if (!meRes.ok) {
-      throw new Error("Failed to get authenticated user after login");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Login failed");
+      }
+
+      const data = await response.json();
+      
+      // Update user state and localStorage
+      setUser(data.user);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      
+      // Store token as backup (though we're using cookies primarily)
+      if (data.access_token) {
+        localStorage.setItem("token", data.access_token);
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Login error:", error);
+      throw error;
     }
-    const data = await meRes.json();
-    setUser(data);
-    localStorage.setItem("user", JSON.stringify(data));
-    return data;
+  };
+
+  const signup = async (name, email, phone, password) => {
+    try {
+      const formData = new FormData();
+      formData.append("name", name);
+      if (email) formData.append("email", email);
+      if (phone) formData.append("phone", phone);
+      formData.append("password", password);
+
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        credentials: "include", // Include cookies
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Signup failed");
+      }
+
+      const data = await response.json();
+      
+      // Update user state and localStorage
+      setUser(data.user);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      
+      // Store token as backup
+      if (data.access_token) {
+        localStorage.setItem("token", data.access_token);
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Signup error:", error);
+      throw error;
+    }
+  };
+
+  const googleSignIn = async (token) => {
+    try {
+      const formData = new FormData();
+      formData.append("token", token);
+
+      const response = await fetch("/api/auth/google", {
+        method: "POST",
+        credentials: "include", // Include cookies
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Google sign-in failed");
+      }
+
+      const data = await response.json();
+      
+      // Update user state and localStorage
+      setUser(data.user);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      
+      // Store token as backup
+      if (data.access_token) {
+        localStorage.setItem("token", data.access_token);
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Google sign-in error:", error);
+      throw error;
+    }
   };
 
   const logout = async () => {
     try {
+      // Call logout endpoint to clear server-side cookie
       await fetch("/api/auth/logout", {
         method: "POST",
-        credentials: "include",
+        credentials: "include"
+      }).catch(() => {
+        // Ignore errors for logout endpoint
       });
-    } catch (e) {
-      // ignore
+    } catch (error) {
+      console.error("Logout error:", error);
     } finally {
+      // Always clear local state
       setUser(null);
       localStorage.removeItem("user");
+      localStorage.removeItem("token");
     }
   };
 
+  const updateUser = (updatedUserData) => {
+    setUser(updatedUserData);
+    localStorage.setItem("user", JSON.stringify(updatedUserData));
+  };
+
+  const refreshAuth = async () => {
+    try {
+      const response = await fetch("/api/auth/refresh", {
+        method: "POST",
+        credentials: "include"
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.access_token) {
+          localStorage.setItem("token", data.access_token);
+        }
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Token refresh failed:", error);
+      return false;
+    }
+  };
+
+  const contextValue = {
+    user,
+    setUser: updateUser,
+    theme,
+    setTheme,
+    loading,
+    login,
+    signup,
+    googleSignIn,
+    logout,
+    checkAuthStatus,
+    refreshAuth
+  };
+
   return (
-    <UserContext.Provider value={{ user, setUser, login, logout, theme, setTheme, loading }}>
+    <UserContext.Provider value={contextValue}>
       {children}
     </UserContext.Provider>
   );
