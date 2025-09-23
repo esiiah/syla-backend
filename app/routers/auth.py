@@ -1,169 +1,360 @@
 # app/routers/auth.py
+from fastapi import APIRouter, Depends, HTTPException, status, Form, Request, Response
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import JSONResponse
+from typing import Optional, Dict, Any
 import os
-from fastapi import APIRouter, HTTPException, Response, Request
-from pydantic import BaseModel, validator
-from typing import Optional
+from datetime import datetime, timedelta
 
-from app import utils
-from . import db
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from google.oauth2 import id_token
+from google.auth.transport import requests as grequests
+
+from .db import (
+    get_user_by_contact, 
+    get_user_with_hash_by_contact,
+    get_user_by_id,
+    create_local_user,
+    get_user_by_google_id,
+    create_google_user,
+    link_google_to_user
+)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+security = HTTPBearer(auto_error=False)
 
+# Security configuration
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+SECRET_KEY = os.getenv("JWT_SECRET", "super-secret-key-change-in-production")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # 24 hours
 
-class SignupRequest(BaseModel):
-    name: str
-    contact: str
-    password: str
-    confirm_password: str
-    contact_type: str = "email"
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
 
-    @validator("name")
-    def validate_name(cls, v: str):
-        v = v.strip()
-        if len(v) < 2:
-            raise ValueError("Name must be at least 2 characters long")
-        return v
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
 
-    @validator("contact")
-    def validate_contact(cls, v: str, values):
-        contact_type = values.get("contact_type", "email")
-        v = v.strip()
-        if contact_type == "email":
-            import re
-            email_pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Za-z]{2,}$"
-            if not re.match(email_pattern, v):
-                raise ValueError("Invalid email format")
-        else:
-            import re
-            cleaned = v.replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
-            phone_pattern = r"^\+?\d{10,15}$"
-            if not re.match(phone_pattern, cleaned):
-                raise ValueError("Invalid phone number format")
-        return v
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
-    @validator("confirm_password")
-    def passwords_match(cls, v, values):
-        if "password" in values and v != values["password"]:
-            raise ValueError("Passwords do not match")
-        return v
+def get_current_user_payload(request: Request) -> Optional[Dict]:
+    """Extract user payload from JWT token in cookie or header"""
+    # Try cookie first
+    token = request.cookies.get("auth_token")
+    
+    # Fallback to Authorization header
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+    
+    if not token:
+        return None
+        
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError:
+        return None
 
-    @validator("password")
-    def validate_password(cls, v: str):
-        if len(v) < 6:
-            raise ValueError("Password must be at least 6 characters long")
-        return v
+def get_current_user(request: Request) -> Optional[Dict[str, Any]]:
+    """Get current user data from token"""
+    payload = get_current_user_payload(request)
+    if not payload:
+        return None
+    
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+    
+    try:
+        user = get_user_by_id(int(user_id))
+        return user
+    except (ValueError, TypeError):
+        return None
 
+def require_auth(request: Request) -> Dict[str, Any]:
+    """Dependency that requires authentication"""
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
 
-class LoginRequest(BaseModel):
-    contact: str
-    password: str
+@router.post("/signup")
+async def signup(
+    name: str = Form(...),
+    email: Optional[str] = Form(None),
+    phone: Optional[str] = Form(None),
+    password: str = Form(...)
+):
+    """Register a new user with email/phone and password"""
+    if not email and not phone:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either email or phone number is required"
+        )
+    
+    contact = email or phone
+    
+    # Check if user already exists
+    existing_user = get_user_by_contact(contact)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User with this email or phone already exists"
+        )
+    
+    # Hash password and create user
+    password_hash = hash_password(password)
+    
+    try:
+        user_id = create_local_user(
+            name=name,
+            email=email,
+            phone=phone,
+            password_hash=password_hash
+        )
+        
+        # Get the created user
+        user = get_user_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create user"
+            )
+        
+        # Create access token
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": str(user["id"])}, 
+            expires_delta=access_token_expires
+        )
+        
+        # Create response with cookie
+        response = JSONResponse(content={
+            "message": "User created successfully",
+            "user": user,
+            "access_token": access_token,
+            "token_type": "bearer"
+        })
+        
+        # Set cookie
+        response.set_cookie(
+            key="auth_token",
+            value=access_token,
+            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            httponly=True,
+            secure=False,  # Set to True in production with HTTPS
+            samesite="lax"
+        )
+        
+        return response
+        
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
-
-class GoogleAuthRequest(BaseModel):
-    credential: str
-
-
-def _set_auth_cookie(response: Response, access_token: str):
-    max_age = int(utils.ACCESS_TOKEN_EXPIRE_MINUTES) * 60 if hasattr(utils, "ACCESS_TOKEN_EXPIRE_MINUTES") else 3600
+@router.post("/login")
+async def login(
+    contact: str = Form(...),
+    password: str = Form(...)
+):
+    """Login with email/phone and password"""
+    user = get_user_with_hash_by_contact(contact)
+    if not user or not user.get("_password_hash"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
+    
+    if not verify_password(password, user["_password_hash"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
+    
+    # Remove password hash from user data
+    user_data = {k: v for k, v in user.items() if k != "_password_hash"}
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(user_data["id"])}, 
+        expires_delta=access_token_expires
+    )
+    
+    # Create response with cookie
+    response = JSONResponse(content={
+        "message": "Login successful",
+        "user": user_data,
+        "access_token": access_token,
+        "token_type": "bearer"
+    })
+    
+    # Set cookie
     response.set_cookie(
         key="auth_token",
         value=access_token,
-        max_age=max_age,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         httponly=True,
-        secure=False,  # Set to False for development
-        samesite="lax",
+        secure=False,  # Set to True in production with HTTPS
+        samesite="lax"
     )
-
-
-@router.post("/signup")
-async def signup(req: SignupRequest, response: Response):
-    # check existing by contact (email/phone)
-    existing = db.get_user_by_contact(req.contact)
-    if existing:
-        raise HTTPException(status_code=400, detail="User with this email/phone already exists")
-
-    password_hash = utils.hash_password(req.password)
-    try:
-        user_id = db.create_local_user(
-            req.name,
-            req.contact if req.contact_type == "email" else None,
-            req.contact if req.contact_type == "phone" else None,
-            password_hash,
-        )
-    except ValueError as ve:
-        raise HTTPException(status_code=400, detail=str(ve))
-    except Exception:
-        raise HTTPException(status_code=500, detail="Failed to create user")
-
-    access_token = utils.create_access_token({"sub": user_id, "id": user_id})
-    _set_auth_cookie(response, access_token)
-    user = db.get_user_by_id(user_id)
-    return {"access_token": access_token, "token_type": "bearer", "user": user}
-
-
-@router.post("/login")
-async def login(req: LoginRequest, response: Response):
-    user = db.get_user_with_hash_by_contact(req.contact)
-    if not user or not user.get("_password_hash"):
-        # do not reveal which part failed
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    # verify password using utils (expects plain password + stored hash)
-    if not utils.verify_password(req.password, user.get("_password_hash")):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    access_token = utils.create_access_token({"sub": user["id"], "id": user["id"]})
-    _set_auth_cookie(response, access_token)
-
-    # fetch latest sanitized user (without password)
-    user_resp = db.get_user_by_id(user["id"])
-    return {"access_token": access_token, "token_type": "bearer", "user": user_resp}
-
+    
+    return response
 
 @router.post("/google")
-async def google_auth(body: GoogleAuthRequest, response: Response):
+async def google_signin(token: str = Form(...)):
+    """Sign in or sign up with Google"""
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    if not client_id:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Google authentication not configured"
+        )
+    
     try:
-        google_user = utils.verify_google_token(body.credential)
-        if not google_user or not google_user.get("google_id"):
-            raise HTTPException(status_code=400, detail="Invalid Google token")
-
-        existing_user = db.get_user_by_google_id(google_user["google_id"])
-
-        if existing_user:
-            user_id = existing_user["id"]
+        # Verify Google token
+        idinfo = id_token.verify_oauth2_token(token, grequests.Request(), client_id)
+        
+        google_id = idinfo["sub"]
+        email = idinfo.get("email")
+        name = idinfo.get("name", "Google User")
+        avatar_url = idinfo.get("picture")
+        
+        # Check if user exists with this Google ID
+        user = get_user_by_google_id(google_id)
+        
+        if user:
+            # User exists, log them in
+            user_data = user
         else:
-            # if email exists, link; else create new
-            existing_email_user = db.get_user_by_contact(google_user.get("email")) if google_user.get("email") else None
-            if existing_email_user:
-                db.link_google_to_user(existing_email_user["id"], google_user["google_id"], google_user.get("avatar_url"))
-                user_id = existing_email_user["id"]
+            # Check if user exists with this email
+            if email:
+                existing_user = get_user_by_contact(email)
+                if existing_user:
+                    # Link Google account to existing user
+                    link_google_to_user(existing_user["id"], google_id, avatar_url)
+                    user_data = get_user_by_id(existing_user["id"])
+                else:
+                    # Create new user
+                    user_id = create_google_user(name, email, google_id, avatar_url)
+                    user_data = get_user_by_id(user_id)
             else:
-                user_id = db.create_google_user(
-                    google_user.get("name") or "Google User",
-                    google_user.get("email"),
-                    google_user.get("google_id"),
-                    google_user.get("avatar_url"),
-                )
-
-        access_token = utils.create_access_token({"sub": user_id, "id": user_id})
-        _set_auth_cookie(response, access_token)
-        user = db.get_user_by_id(user_id)
-        return {"access_token": access_token, "token_type": "bearer", "user": user}
-    except HTTPException:
-        raise
+                # Create new user without email
+                user_id = create_google_user(name, None, google_id, avatar_url)
+                user_data = get_user_by_id(user_id)
+        
+        if not user_data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create or retrieve user"
+            )
+        
+        # Create access token
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": str(user_data["id"])}, 
+            expires_delta=access_token_expires
+        )
+        
+        # Create response with cookie
+        response = JSONResponse(content={
+            "message": "Google sign-in successful",
+            "user": user_data,
+            "access_token": access_token,
+            "token_type": "bearer"
+        })
+        
+        # Set cookie
+        response.set_cookie(
+            key="auth_token",
+            value=access_token,
+            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            httponly=True,
+            secure=False,  # Set to True in production with HTTPS
+            samesite="lax"
+        )
+        
+        return response
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Google authentication failed: {str(e)}")
-
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid Google token: {str(e)}"
+        )
 
 @router.get("/me")
-async def get_current_user_info(request: Request):
-    user_info = utils.get_current_user_from_token(request)
-    if not user_info:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+async def get_current_user_endpoint(request: Request):
+    """Get current authenticated user"""
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+    return user
 
-    db_user = db.get_user_by_id(user_info["id"])
-    if not db_user:
-        raise HTTPException(status_code=404, detail="User not found")
+@router.post("/logout")
+async def logout():
+    """Logout user by clearing cookie"""
+    response = JSONResponse(content={"message": "Logged out successfully"})
+    response.delete_cookie(key="auth_token")
+    return response
 
-    return db_user
-
+@router.post("/refresh")
+async def refresh_token(request: Request):
+    """Refresh access token"""
+    payload = get_current_user_payload(request)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )
+    
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload"
+        )
+    
+    # Create new access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user_id}, 
+        expires_delta=access_token_expires
+    )
+    
+    # Create response with cookie
+    response = JSONResponse(content={
+        "access_token": access_token,
+        "token_type": "bearer"
+    })
+    
+    # Set cookie
+    response.set_cookie(
+        key="auth_token",
+        value=access_token,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        secure=False,  # Set to True in production with HTTPS
+        samesite="lax"
+    )
+    
+    return response
