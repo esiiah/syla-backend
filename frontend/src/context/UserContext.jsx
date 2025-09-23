@@ -41,14 +41,15 @@ export default function UserProvider({ children }) {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-      credentials: "include", // send/receive auth cookie
+      body: JSON.stringify({ contact: email, password }), // Make sure it's 'contact'
+      credentials: "include",
     });
     if (!res.ok) throw new Error("Login failed");
     const data = await res.json();
 
     setUser(data.user);
     localStorage.setItem("user", JSON.stringify(data.user));
+    localStorage.setItem("token", data.access_token); // Make sure this is saved
   };
 
   const logout = () => {
