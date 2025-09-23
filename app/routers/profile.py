@@ -1,179 +1,162 @@
 # app/routers/profile.py
 import os
-import time
-import shutil
-from fastapi import APIRouter, Request, UploadFile, File, Form, HTTPException
+from typing import Optional
+from fastapi import APIRouter, Request, UploadFile, File, Form, HTTPException, status
+from fastapi import Depends
 from fastapi.responses import JSONResponse
-from app.utils import get_current_user_from_token, hash_password, verify_password
-from app.routers import db  # import your DB helpers
+from pydantic import BaseModel
+
+from app.routers import db
+from app import utils
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "../uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-
-# ----- GET PROFILE -----
-@router.get("")
-def get_profile(request: Request):
-    user_info = get_current_user_from_token(request)
-    if not user_info:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    user = db.get_user_by_id(user_info["id"])
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    return JSONResponse(content=user)
+# Directory to save uploaded avatars (ensure exists)
+AVATAR_UPLOAD_DIR = os.getenv("AVATAR_UPLOAD_DIR", "./static/avatars")
+os.makedirs(AVATAR_UPLOAD_DIR, exist_ok=True)
 
 
-# ----- UPDATE PROFILE -----
-@router.put("")
+class ProfileUpdateResponse(BaseModel):
+    id: int
+    name: str
+    email: Optional[str]
+    phone: Optional[str]
+    avatar_url: Optional[str]
+    bio: Optional[str]
+    location: Optional[str]
+    website: Optional[str]
+    company: Optional[str]
+    job_title: Optional[str]
+    birth_date: Optional[str]
+    gender: Optional[str]
+    language: Optional[str]
+    timezone: Optional[str]
+
+
+def _require_user_from_request(request: Request):
+    payload = utils.get_current_user_from_request(request)
+    if not payload or not payload.get("user_id"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    return int(payload["user_id"])
+
+
+@router.put("", status_code=200, response_model=ProfileUpdateResponse)
 async def update_profile(
     request: Request,
-    name: str = Form(""),
-    email: str = Form(""),
-    contact: str = Form(""),
-    bio: str = Form(""),
-    location: str = Form(""),
-    website: str = Form(""),
-    company: str = Form(""),
-    job_title: str = Form(""),
-    birth_date: str = Form(""),
-    gender: str = Form(""),
-    language: str = Form("en"),
-    timezone: str = Form("UTC"),
-    avatar: UploadFile = File(None)
+    name: Optional[str] = Form(None),
+    email: Optional[str] = Form(None),
+    contact: Optional[str] = Form(None),  # frontend may send phone as "contact"
+    phone: Optional[str] = Form(None),
+    bio: Optional[str] = Form(None),
+    location: Optional[str] = Form(None),
+    website: Optional[str] = Form(None),
+    company: Optional[str] = Form(None),
+    job_title: Optional[str] = Form(None),
+    birth_date: Optional[str] = Form(None),
+    gender: Optional[str] = Form(None),
+    language: Optional[str] = Form(None),
+    timezone: Optional[str] = Form(None),
+    avatar: Optional[UploadFile] = File(None)
 ):
-    user_info = get_current_user_from_token(request)
-    if not user_info:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    """
+    Update profile fields and optional avatar file upload.
+    Requires authentication (cookie or Bearer header).
+    """
+    user_id = _require_user_from_request(request)
+    # Load user via SQLAlchemy session and update fields
+    from app.routers.db import SessionLocal, User
+    session = SessionLocal()
+    user = session.query(User).filter(User.id == user_id).first()
+    if not user:
+        session.close()
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    with db.SessionLocal() as session:
-        user = session.query(db.User).filter(db.User.id == user_info["id"]).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+    # update fields only if present (preserve existing else)
+    if name is not None:
+        user.name = name
+    if email is not None:
+        user.email = email or user.email
+    if phone is not None:
+        user.phone = phone or user.phone
+    if contact and not phone:
+        user.phone = contact or user.phone
 
-        # update basic fields if provided
-        if name:
-            user.name = name
-        if email:
-            user.email = email
-        if contact:
-            user.phone = contact
+    user.bio = bio if bio is not None else user.bio
+    user.location = location if location is not None else user.location
+    user.website = website if website is not None else user.website
+    user.company = company if company is not None else user.company
+    user.job_title = job_title if job_title is not None else user.job_title
+    user.birth_date = birth_date if birth_date is not None else user.birth_date
+    user.gender = gender if gender is not None else user.gender
+    user.language = language if language is not None else user.language
+    user.timezone = timezone if timezone is not None else user.timezone
 
-        # update extended profile fields
-        user.bio = bio or user.bio
-        user.location = location or user.location
-        user.website = website or user.website
-        user.company = company or user.company
-        user.job_title = job_title or user.job_title
-        user.birth_date = birth_date or user.birth_date
-        user.gender = gender or user.gender
-        user.language = language or user.language
-        user.timezone = timezone or user.timezone
+    # Avatar upload handling
+    if avatar:
+        # sanitize file name and save
+        filename = f"user_{user_id}_{int(os.times().system*100000)}_{avatar.filename}"
+        filepath = os.path.join(AVATAR_UPLOAD_DIR, filename)
+        with open(filepath, "wb") as f:
+            content = await avatar.read()
+            f.write(content)
+        # assign accessible URL (assumes static served from /static)
+        user.avatar_url = f"/static/avatars/{filename}"
 
-        # avatar upload handling
-        if avatar and avatar.filename:
-            allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
-            if avatar.content_type not in allowed_types:
-                raise HTTPException(status_code=400, detail="Invalid file type. Only images are allowed.")
-
-            # Validate file size (5MB limit)
-            try:
-                avatar.file.seek(0, os.SEEK_END)
-                size = avatar.file.tell()
-                avatar.file.seek(0)
-                if size > 5 * 1024 * 1024:
-                    raise HTTPException(status_code=400, detail="File too large. Maximum size is 5MB.")
-            except Exception:
-                pass  # if size check fails, ignore and proceed
-
-            filename = f"{int(time.time() * 1000)}_{avatar.filename}"
-            path = os.path.join(UPLOAD_DIR, filename)
-
-            try:
-                with open(path, "wb") as f:
-                    content = await avatar.read()
-                    f.write(content)
-                user.avatar_url = f"/api/files/{filename}"
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to save avatar: {str(e)}")
-
-        try:
-            session.commit()
-            session.refresh(user)
-        except Exception as e:
-            session.rollback()
-            raise HTTPException(status_code=500, detail=f"Failed to update profile: {str(e)}")
-
-    return JSONResponse(content=db._serialize_user(user))
+    user.updated_at = user.updated_at  # trigger update timestamp if using DB onupdate
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    result = db.get_user_by_id(user_id)
+    session.close()
+    return JSONResponse(content=result)
 
 
-# ----- CHANGE PASSWORD -----
+@router.delete("/avatar", status_code=200)
+def remove_avatar(request: Request):
+    user_id = _require_user_from_request(request)
+    from app.routers.db import SessionLocal, User
+    session = SessionLocal()
+    user = session.query(User).filter(User.id == user_id).first()
+    if not user:
+        session.close()
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    user.avatar_url = None
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    result = db.get_user_by_id(user_id)
+    session.close()
+    return JSONResponse(content=result)
+
+
 @router.post("/change-password")
-async def change_password(
+def change_password(
     request: Request,
     current_password: str = Form(...),
-    new_password: str = Form(...)
+    new_password: str = Form(...),
 ):
-    user_info = get_current_user_from_token(request)
-    if not user_info:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    user_id = _require_user_from_request(request)
+    from app.routers.db import SessionLocal, User
+    session = SessionLocal()
+    user = session.query(User).filter(User.id == user_id).first()
+    if not user:
+        session.close()
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # verify current password
+    if not utils.verify_password(current_password, user.password_hash):
+        session.close()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Current password is incorrect")
 
     if len(new_password) < 6:
-        raise HTTPException(status_code=400, detail="New password must be at least 6 characters long")
+        session.close()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="New password too short")
 
-    with db.SessionLocal() as session:
-        user = session.query(db.User).filter(db.User.id == user_info["id"]).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        if not user.password_hash:
-            raise HTTPException(status_code=400, detail="No password set for this account")
-
-        if not verify_password(current_password, user.password_hash):
-            raise HTTPException(status_code=400, detail="Current password is incorrect")
-
-        user.password_hash = hash_password(new_password)
-
-        try:
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            raise HTTPException(status_code=500, detail=f"Failed to change password: {str(e)}")
-
-    return JSONResponse(content={"message": "Password changed successfully"})
-
-
-# ----- DELETE AVATAR -----
-@router.delete("/avatar")
-def delete_avatar(request: Request):
-    user_info = get_current_user_from_token(request)
-    if not user_info:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    with db.SessionLocal() as session:
-        user = session.query(db.User).filter(db.User.id == user_info["id"]).first()
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        # remove avatar file if exists
-        if user.avatar_url and user.avatar_url.startswith("/api/files/"):
-            filename = user.avatar_url.replace("/api/files/", "")
-            file_path = os.path.join(UPLOAD_DIR, filename)
-            if os.path.exists(file_path):
-                try:
-                    os.remove(file_path)
-                except Exception:
-                    pass  # continue even if deletion fails
-
-        user.avatar_url = None
-
-        try:
-            session.commit()
-            session.refresh(user)
-        except Exception as e:
-            session.rollback()
-            raise HTTPException(status_code=500, detail=f"Failed to delete avatar: {str(e)}")
-
-    return JSONResponse(content=db._serialize_user(user))
+    user.password_hash = utils.hash_password(new_password)
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    result = db.get_user_by_id(user_id)
+    session.close()
+    return JSONResponse(content={"detail": "Password changed", "user": result})
