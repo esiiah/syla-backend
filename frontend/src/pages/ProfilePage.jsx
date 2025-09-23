@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 
 export default function ProfilePage() {
-  const { user, setUser } = useContext(UserContext);
+  const { user, setUser, loading: userLoading } = useContext(UserContext);
   const [theme, setTheme] = useState("dark");
 
   // Profile form states
@@ -20,7 +20,6 @@ export default function ProfilePage() {
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState("personal");
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -102,7 +101,7 @@ useEffect(() => {
     try {
       const response = await fetch("/api/profile/avatar", {
         method: "DELETE",
-        credentials: "include", // Include cookies for authentication
+        credentials: "include"
       });
 
       if (!response.ok) {
@@ -120,7 +119,7 @@ useEffect(() => {
       setMessage(`Failed to remove avatar: ${error.message}`);
     }
   };
-
+  
   const saveProfile = async () => {
     setLoading(true);
     setMessage("");
@@ -128,14 +127,9 @@ useEffect(() => {
     try {
       const formDataToSend = new FormData();
       
-      // Add all form fields with proper validation
+      // Add all form fields
       Object.entries(formData).forEach(([key, value]) => {
-        const cleanValue = value || "";
-        if (key === "phone") {
-          formDataToSend.append("contact", cleanValue);
-        } else {
-          formDataToSend.append(key, cleanValue);
-        }
+        formDataToSend.append(key, value || "");
       });
 
       // Add avatar if selected
@@ -143,14 +137,10 @@ useEffect(() => {
         formDataToSend.append("avatar", avatarFile);
       }
 
-      const token = localStorage.getItem("token");
       const response = await fetch("/api/profile", {
         method: "PUT",
-        headers: {
-          ...(token && { "Authorization": `Bearer ${token}` })
-        },
         body: formDataToSend,
-        credentials: "include", // Include cookies for authentication
+        credentials: "include"
       });
 
       if (!response.ok) {
@@ -160,9 +150,6 @@ useEffect(() => {
 
       const updatedUser = await response.json();
       setUser(updatedUser);
-      
-      // Update localStorage
-      localStorage.setItem("user", JSON.stringify(updatedUser));
       
       setMessage("Profile updated successfully!");
       setAvatarFile(null);
@@ -197,7 +184,7 @@ useEffect(() => {
       const response = await fetch("/api/profile/change-password", {
         method: "POST",
         body: formData,
-        credentials: "include", // Include cookies for authentication
+        credentials: "include"
       });
 
       if (!response.ok) {
@@ -215,7 +202,7 @@ useEffect(() => {
     }
   };
   
-  if (initialLoading) {
+  if (userLoading) {
     return (
       <div className="flex min-h-screen bg-gray-50 dark:bg-slate-950">
         <Sidebar theme={theme} setTheme={setTheme} onReportChange={() => {}} />
