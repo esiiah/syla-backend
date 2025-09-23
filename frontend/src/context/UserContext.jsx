@@ -9,12 +9,6 @@ export default function UserProvider({ children }) {
 
   // ---- Theme handling ----
   useEffect(() => {
-    localStorage.setItem("theme", theme);
-    document.documentElement.classList.toggle("dark", theme === "dark");
-  }, [theme]);
-
-  // ---- Hydrate user on app load ----
-  useEffect(() => {
     // Pull user from localStorage if present
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
@@ -22,15 +16,24 @@ export default function UserProvider({ children }) {
     }
 
     // Always try to pull fresh user from backend using auth cookie
-    fetch("/api/profile", { credentials: "include" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch("/api/auth/me", { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
           setUser(data);
           localStorage.setItem("user", JSON.stringify(data));
+        } else {
+          // If auth check fails, clear stale data
+          setUser(null);
+          localStorage.removeItem("user");
         }
-      })
-      .catch(() => {});
+      } catch (error) {
+        console.log("Auth check failed:", error);
+      }
+    };
+
+    checkAuth();
   }, []);
 
   // ---- Auth actions ----
