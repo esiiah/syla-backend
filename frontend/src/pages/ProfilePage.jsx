@@ -20,6 +20,7 @@ export default function ProfilePage() {
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState("personal");
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
@@ -32,28 +33,36 @@ export default function ProfilePage() {
 
   const fileInputRef = useRef(null);
 
-  // Load theme and user data on component mount
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") || "dark";
-    setTheme(savedTheme);
+// Load theme and user data on component mount
+useEffect(() => {
+  const savedTheme = localStorage.getItem("theme") || "dark";
+  setTheme(savedTheme);
 
-    if (user) {
-      setFormData({
-        name: user.name || "",
-        email: user.email || "",
-        phone: user.phone || "",
-        bio: user.bio || "",
-        location: user.location || "",
-        website: user.website || "",
-        company: user.company || "",
-        job_title: user.job_title || "",
-        birth_date: user.birth_date || "",
-        gender: user.gender || "",
-        language: user.language || "en",
-        timezone: user.timezone || "UTC"
-      });
-    }
-  }, [user]);
+  if (user) {
+    setFormData({
+      name: user.name || "",
+      email: user.email || "",
+      phone: user.phone || "",
+      bio: user.bio || "",
+      location: user.location || "",
+      website: user.website || "",
+      company: user.company || "",
+      job_title: user.job_title || "",
+      birth_date: user.birth_date || "",
+      gender: user.gender || "",
+      language: user.language || "en",
+      timezone: user.timezone || "UTC"
+    });
+  }
+}, [user]);
+
+useEffect(() => {
+  // Give context time to load user data
+  const timer = setTimeout(() => {
+    setInitialLoading(false);
+  }, 500);
+  return () => clearTimeout(timer);
+}, []);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -200,6 +209,23 @@ export default function ProfilePage() {
       setLoading(false);
     }
   };
+  
+  if (initialLoading) {
+    return (
+      <div className="flex min-h-screen bg-gray-50 dark:bg-slate-950">
+        <Sidebar theme={theme} setTheme={setTheme} onReportChange={() => {}} />
+        <div className="flex-1 transition-all duration-300">
+          <Navbar user={user} />
+          <main className="mx-auto max-w-6xl px-6 py-8">
+            <div className="text-center py-16">
+              <div className="w-16 h-16 mx-auto border-4 border-neonBlue border-t-transparent rounded-full animate-spin mb-4" />
+              <p className="text-gray-600 dark:text-slate-400">Loading profile...</p>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (
@@ -222,7 +248,7 @@ export default function ProfilePage() {
       </div>
     );
   }
-
+  
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-slate-950">
       <Sidebar theme={theme} setTheme={setTheme} onReportChange={() => {}} />
