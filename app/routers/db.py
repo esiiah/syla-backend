@@ -46,8 +46,9 @@ class User(Base):
 Base.metadata.create_all(bind=engine)
 
 
-# ---- helpers ----
+# ---- Helper Functions ----
 def _serialize_user(user: Optional[User]) -> Optional[Dict[str, Any]]:
+    """Serialize user object to dictionary"""
     if not user:
         return None
     return {
@@ -71,12 +72,12 @@ def _serialize_user(user: Optional[User]) -> Optional[Dict[str, Any]]:
     }
 
 
-# ---- CRUD ----
+# ---- User CRUD Operations ----
 def get_user_by_contact(contact: str) -> Optional[Dict[str, Any]]:
     """Return serialized user by email or phone, or None."""
     with SessionLocal() as session:
         user = session.query(User).filter(
-            (User.email == contact) | (User.phone == contact)
+            or_(User.email == contact, User.phone == contact)
         ).first()
         return _serialize_user(user)
 
@@ -85,24 +86,39 @@ def get_user_with_hash_by_contact(contact: str) -> Optional[Dict[str, Any]]:
     """Return serialized user including password_hash (for login)."""
     with SessionLocal() as session:
         user = session.query(User).filter(
-            (User.email == contact) | (User.phone == contact)
+            or_(User.email == contact, User.phone == contact)
         ).first()
         if not user:
             return None
-        d = _serialize_user(user)
-        # add password_hash for internal use (do NOT leak to client)
-        d["_password_hash"] = user.password_hash
-        return d
+        
+        user_data = _serialize_user(user)
+        if user_data and user.password_hash:
+            user_data["_password_hash"] = user.password_hash
+        
+        return user_data
 
 
 def get_user_by_id(user_id: int) -> Optional[Dict[str, Any]]:
+    """Get user by ID"""
     with SessionLocal() as session:
         user = session.query(User).filter(User.id == user_id).first()
         return _serialize_user(user)
 
 
-def create_local_user(name: str, email: Optional[str] = None, phone: Optional[str] = None, password_hash: Optional[str] = None) -> int:
-    user = User(name=name, email=email, phone=phone, password_hash=password_hash)
+def create_local_user(
+    name: str, 
+    email: Optional[str] = None, 
+    phone: Optional[str] = None, 
+    password_hash: Optional[str] = None
+) -> int:
+    """Create a new local user with email/phone and password"""
+    user = User(
+        name=name,
+        email=email,
+        phone=phone,
+        password_hash=password_hash
+    )
+    
     with SessionLocal() as session:
         session.add(user)
         try:
@@ -115,13 +131,26 @@ def create_local_user(name: str, email: Optional[str] = None, phone: Optional[st
 
 
 def get_user_by_google_id(google_id: str) -> Optional[Dict[str, Any]]:
+    """Get user by Google ID"""
     with SessionLocal() as session:
         user = session.query(User).filter(User.google_id == google_id).first()
         return _serialize_user(user)
 
 
-def create_google_user(name: str, email: Optional[str] = None, google_id: Optional[str] = None, avatar_url: Optional[str] = None) -> int:
-    user = User(name=name, email=email, google_id=google_id, avatar_url=avatar_url)
+def create_google_user(
+    name: str, 
+    email: Optional[str] = None, 
+    google_id: Optional[str] = None, 
+    avatar_url: Optional[str] = None
+) -> int:
+    """Create a new Google user"""
+    user = User(
+        name=name,
+        email=email,
+        google_id=google_id,
+        avatar_url=avatar_url
+    )
+    
     with SessionLocal() as session:
         session.add(user)
         try:
@@ -134,12 +163,110 @@ def create_google_user(name: str, email: Optional[str] = None, google_id: Option
 
 
 def link_google_to_user(user_id: int, google_id: str, avatar_url: Optional[str] = None) -> bool:
+    """Link Google account to existing user"""
     with SessionLocal() as session:
         user = session.query(User).filter(User.id == user_id).first()
         if not user:
             raise ValueError("User not found")
+        
         user.google_id = google_id
         if avatar_url:
             user.avatar_url = avatar_url
+        user.updated_at = datetime.utcnow()
+        
+        try:
+            session.commit()
+            return True
+        except IntegrityError:
+            session.rollback()
+            raise ValueError("Google account already linked to another user")
+
+
+def update_user_profile(
+    user_id: int,
+    name: Optional[str] = None,
+    email: Optional[str] = None,
+    phone: Optional[str] = None,
+    bio: Optional[str] = None,
+    location: Optional[str] = None,
+    website: Optional[str] = None,
+    company: Optional[str] = None,
+    job_title: Optional[str] = None,
+    birth_date: Optional[str] = None,
+    gender: Optional[str] = None,
+    language: Optional[str] = None,
+    timezone: Optional[str] = None,
+    avatar_url: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
+    """Update user profile information"""
+    with SessionLocal() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise ValueError("User not found")
+        
+        # Update fields if provided
+        if name is not None:
+            user.name = name
+        if email is not None:
+            user.email = email if email else None
+        if phone is not None:
+            user.phone = phone if phone else None
+        if bio is not None:
+            user.bio = bio if bio else None
+        if location is not None:
+            user.location = location if location else None
+        if website is not None:
+            user.website = website if website else None
+        if company is not None:
+            user.company = company if company else None
+        if job_title is not None:
+            user.job_title = job_title if job_title else None
+        if birth_date is not None:
+            user.birth_date = birth_date if birth_date else None
+        if gender is not None:
+            user.gender = gender if gender else None
+        if language is not None:
+            user.language = language if language else "en"
+        if timezone is not None:
+            user.timezone = timezone if timezone else "UTC"
+        if avatar_url is not None:
+            user.avatar_url = avatar_url
+        
+        user.updated_at = datetime.utcnow()
+        
+        try:
+            session.commit()
+            session.refresh(user)
+            return _serialize_user(user)
+        except IntegrityError:
+            session.rollback()
+            raise ValueError("Email or phone already exists for another user")
+
+
+def update_user_password(user_id: int, password_hash: str) -> bool:
+    """Update user password"""
+    with SessionLocal() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise ValueError("User not found")
+        
+        user.password_hash = password_hash
+        user.updated_at = datetime.utcnow()
+        
         session.commit()
         return True
+
+
+def remove_user_avatar(user_id: int) -> Optional[Dict[str, Any]]:
+    """Remove user avatar"""
+    with SessionLocal() as session:
+        user = session.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise ValueError("User not found")
+        
+        user.avatar_url = None
+        user.updated_at = datetime.utcnow()
+        
+        session.commit()
+        session.refresh(user)
+        return _serialize_user(user)
