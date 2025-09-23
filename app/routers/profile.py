@@ -30,9 +30,9 @@ def get_profile(request: Request):
 @router.put("")
 async def update_profile(
     request: Request,
-    name: str = Form(...),
-    email: str = Form(...),
-    contact: str = Form(...),
+    name: str = Form(""),
+    email: str = Form(""),
+    contact: str = Form(""),
     bio: str = Form(""),
     location: str = Form(""),
     website: str = Form(""),
@@ -48,41 +48,49 @@ async def update_profile(
     if not user_info:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    # fetch DB user
     with db.SessionLocal() as session:
         user = session.query(db.User).filter(db.User.id == user_info["id"]).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # update basic fields
-        user.name = name
-        user.email = email if email else user.email
-        user.phone = contact if contact else user.phone
-        
-        # update extended profile fields
-        user.bio = bio
-        user.location = location
-        user.website = website
-        user.company = company
-        user.job_title = job_title
-        user.birth_date = birth_date
-        user.gender = gender
-        user.language = language
-        user.timezone = timezone
+        # update basic fields if provided
+        if name:
+            user.name = name
+        if email:
+            user.email = email
+        if contact:
+            user.phone = contact
 
+        # update extended profile fields
+        user.bio = bio or user.bio
+        user.location = location or user.location
+        user.website = website or user.website
+        user.company = company or user.company
+        user.job_title = job_title or user.job_title
+        user.birth_date = birth_date or user.birth_date
+        user.gender = gender or user.gender
+        user.language = language or user.language
+        user.timezone = timezone or user.timezone
+
+        # avatar upload handling
         if avatar and avatar.filename:
-            # Validate file type
             allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
             if avatar.content_type not in allowed_types:
                 raise HTTPException(status_code=400, detail="Invalid file type. Only images are allowed.")
-            
+
             # Validate file size (5MB limit)
-            if hasattr(avatar, 'size') and avatar.size > 5 * 1024 * 1024:
-                raise HTTPException(status_code=400, detail="File too large. Maximum size is 5MB.")
-            
+            try:
+                avatar.file.seek(0, os.SEEK_END)
+                size = avatar.file.tell()
+                avatar.file.seek(0)
+                if size > 5 * 1024 * 1024:
+                    raise HTTPException(status_code=400, detail="File too large. Maximum size is 5MB.")
+            except Exception:
+                pass  # if size check fails, ignore and proceed
+
             filename = f"{int(time.time() * 1000)}_{avatar.filename}"
             path = os.path.join(UPLOAD_DIR, filename)
-            
+
             try:
                 with open(path, "wb") as f:
                     content = await avatar.read()
@@ -127,7 +135,7 @@ async def change_password(
             raise HTTPException(status_code=400, detail="Current password is incorrect")
 
         user.password_hash = hash_password(new_password)
-        
+
         try:
             session.commit()
         except Exception as e:
@@ -149,7 +157,7 @@ def delete_avatar(request: Request):
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Remove avatar file if it exists
+        # remove avatar file if exists
         if user.avatar_url and user.avatar_url.startswith("/api/files/"):
             filename = user.avatar_url.replace("/api/files/", "")
             file_path = os.path.join(UPLOAD_DIR, filename)
@@ -157,10 +165,10 @@ def delete_avatar(request: Request):
                 try:
                     os.remove(file_path)
                 except Exception:
-                    pass  # Continue even if file deletion fails
+                    pass  # continue even if deletion fails
 
         user.avatar_url = None
-        
+
         try:
             session.commit()
             session.refresh(user)
