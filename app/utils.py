@@ -36,12 +36,21 @@ def create_access_token(data: dict, expires_delta: Optional[int] = None) -> str:
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def get_current_user_from_token(request):
+    # Try cookie first
     token = request.cookies.get("auth_token")
+    
+    # Fallback to Authorization header
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+    
     if not token:
         return None
+        
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload    # ✅ return the decoded JWT claims
+        return payload
     except JWTError:
         return None
 
