@@ -1,8 +1,11 @@
 // src/components/Navbar.jsx
-import React from "react";
+import React, { useContext } from "react";
 import { Link } from "react-router-dom";
+import { UserContext } from "../context/UserContext";
 
-function Navbar({ user }) {
+function Navbar() {
+  const { user } = useContext(UserContext);
+
   return (
     <nav className="sticky top-0 z-20 backdrop-blur bg-white/80 border-b border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft">
       <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
