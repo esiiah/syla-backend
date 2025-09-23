@@ -128,12 +128,13 @@ useEffect(() => {
     try {
       const formDataToSend = new FormData();
       
-      // Add all form fields
+      // Add all form fields with proper validation
       Object.entries(formData).forEach(([key, value]) => {
+        const cleanValue = value || "";
         if (key === "phone") {
-          formDataToSend.append("contact", value || "");
+          formDataToSend.append("contact", cleanValue);
         } else {
-          formDataToSend.append(key, value || "");
+          formDataToSend.append(key, cleanValue);
         }
       });
 
@@ -142,8 +143,12 @@ useEffect(() => {
         formDataToSend.append("avatar", avatarFile);
       }
 
+      const token = localStorage.getItem("token");
       const response = await fetch("/api/profile", {
         method: "PUT",
+        headers: {
+          ...(token && { "Authorization": `Bearer ${token}` })
+        },
         body: formDataToSend,
         credentials: "include", // Include cookies for authentication
       });
