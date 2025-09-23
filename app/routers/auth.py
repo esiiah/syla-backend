@@ -70,7 +70,7 @@ def _set_auth_cookie(response: Response, access_token: str):
         value=access_token,
         max_age=max_age,
         httponly=True,
-        secure=(os.getenv("ENV") == "production"),
+        secure=False,  # Set to False for development
         samesite="lax",
     )
 
