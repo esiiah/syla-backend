@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from typing import Optional, Dict, Any
 import os
 from datetime import datetime, timedelta
+from pydantic import BaseModel
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -218,8 +219,12 @@ async def login(
     
     return response
 
+class GoogleLoginRequest(BaseModel):
+    credential: str
+
 @router.post("/google")
-async def google_signin(token: str = Form(...)):
+async def google_signin(body: GoogleLoginRequest):
+    token = body.credential
     """Sign in or sign up with Google"""
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     if not client_id:
