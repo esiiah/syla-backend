@@ -157,7 +157,13 @@ async def google_auth(body: GoogleAuthRequest, response: Response):
 
 @router.get("/me")
 async def get_current_user_info(request: Request):
-    user = utils.get_current_user_from_token(request)
-    if not user:
+    user_info = utils.get_current_user_from_token(request)
+    if not user_info:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    return user
+
+    db_user = db.get_user_by_id(user_info["id"])
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return db_user
+
