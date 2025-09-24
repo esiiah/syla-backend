@@ -11,6 +11,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
 import ProfilePage from "./pages/ProfilePage.jsx";
 import UserProvider from "./context/UserContext.jsx";    // ✅ added
+import ForecastPage from "./pages/ForecastPage.jsx";   // ⬅️ add at the top
 import "./index.css";
 
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
@@ -28,6 +29,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/tools/:action" element={<FileToolPage />} />
+          <Route path="/forecast" element={<ForecastPage />} />
           <Route
             path="*"
             element={
