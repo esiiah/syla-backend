@@ -71,6 +71,11 @@ function Sidebar({ onReportChange, theme, setTheme }) {
           {!collapsed && <span>Data Source</span>}
         </div>
 
+        <Link to="/forecast" className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 group">
+          <Cpu className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300" />
+          {!collapsed && <span>AI Forecast</span>}
+        </Link>
+
         <div className="px-3">
           <div className="flex items-center rounded-lg cursor-pointer mb-2 hover:bg-gray-100 dark:hover:bg-white/5 group">
             <BarChart className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300" />
