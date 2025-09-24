@@ -1,4 +1,4 @@
-# main.py
+# app/main.py
 import io
 import csv
 import logging
@@ -26,7 +26,7 @@ from .file_tools_full import router as file_tools_full_router, UPLOAD_DIR
 from app.routers import auth as auth_router   # ✅ import from routers
 from app.routers import password_recovery
 from app.routers import profile
-
+from app.ai.router import router as ai_router  # ✅ NEW: Import AI router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("syla-backend")
@@ -46,6 +46,7 @@ app.include_router(file_tools_full_router)
 app.include_router(auth_router.router)   # ✅ use .router
 app.include_router(password_recovery.router)
 app.include_router(profile.router)
+app.include_router(ai_router)  # ✅ NEW: Include AI router
 
 # Mount uploaded files directory so download_url /api/files/<name> works
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -83,7 +84,7 @@ def unique_filename(name: str) -> str:
 # ----- Health check -----
 @app.get("/api/health")
 def health_check():
-    return {"message": "Backend is running 🚀"}
+    return {"message": "Backend is running 🚀", "ai_enabled": True}  # ✅ Show AI status
 
 
 # ----- File upload -----
@@ -274,3 +275,4 @@ async def spa_fallback(request: Request, path: str):
     
     # If no index.html exists, return 404
     raise HTTPException(status_code=404, detail="Page not found")
+    
