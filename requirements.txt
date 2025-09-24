@@ -40,6 +40,7 @@ scipy>=1.11.0
 
 # === Environment Management ===
 python-dotenv>=1.0.0
+psycopg2-binary
 
 # === Optional: Advanced ML ===
 # neuralprophet>=0.6.0  # Alternative to Prophet
