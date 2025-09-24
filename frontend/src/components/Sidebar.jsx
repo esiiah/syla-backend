@@ -13,6 +13,7 @@ import {
   FileText,
   FileSpreadsheet,
   FileArchive,
+  Cpu,            // ⬅️ added for AI Forecast
 } from "lucide-react";
 
 function Sidebar({ onReportChange, theme, setTheme }) {
