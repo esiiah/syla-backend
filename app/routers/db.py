@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, o
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.exc import IntegrityError
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db").strip()
 
 engine = create_engine(
     DATABASE_URL,
