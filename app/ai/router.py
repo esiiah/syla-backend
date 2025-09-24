@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 from .service import AIForecastService
 from .schemas import ForecastRequest, ForecastResponse, ScenarioRequest
-from ..routers.auth import get_current_user_from_token
+from ..routers.auth import require_auth
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/forecast", tags=["ai-forecast"])
@@ -29,7 +29,7 @@ class WhatIfRequest(BaseModel):
 @router.post("/whatif", response_model=ForecastResponse)
 async def create_whatif_forecast(
     request: WhatIfRequest,
-    current_user: dict = Depends(get_current_user_from_token)
+    current_user: dict = Depends(require_auth)
 ):
     """Generate AI-powered what-if forecasts from natural language scenarios"""
     try:
@@ -64,7 +64,7 @@ async def create_whatif_forecast(
 @router.post("/scenario/parse")
 async def parse_scenario_text(
     request: ScenarioRequest,
-    current_user: dict = Depends(get_current_user_from_token)
+    current_user: dict = Depends(require_auth)
 ):
     """Parse natural language scenario into structured parameters"""
     try:
@@ -79,7 +79,7 @@ async def parse_scenario_text(
         raise HTTPException(500, f"Scenario parsing failed: {str(e)}")
 
 @router.get("/models")
-async def list_available_models(current_user: dict = Depends(get_current_user_from_token)):
+async def list_available_models(current_user: dict = Depends(require_auth)):
     """List available forecasting models and their capabilities"""
     return {
         "models": {
@@ -93,7 +93,7 @@ async def list_available_models(current_user: dict = Depends(get_current_user_fr
 @router.get("/usage/{user_id}")
 async def get_user_usage(
     user_id: str,
-    current_user: dict = Depends(get_current_user_from_token)
+    current_user: dict = Depends(require_auth)
 ):
     """Get AI usage statistics for user"""
     if current_user.get("id") != user_id and not current_user.get("is_admin"):
@@ -103,7 +103,7 @@ async def get_user_usage(
     return {"usage": usage}
 
 @router.delete("/cache/clear")
-async def clear_user_cache(current_user: dict = Depends(get_current_user_from_token)):
+async def clear_user_cache(current_user: dict = Depends(require_auth)):
     """Clear cached forecasts for current user"""
     user_id = current_user.get("id")
     cleared_count = ai_service.clear_user_cache(user_id)
