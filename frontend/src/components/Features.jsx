@@ -36,16 +36,19 @@ export default function Features() {
               <Link
                 key={index}
                 to={feature.link}
-                className="p-6 bg-white dark:bg-ink/80 rounded-2xl shadow-sm hover:shadow-md transform hover:scale-101 transition-all duration-300 flex flex-col items-start space-y-4 border border-gray-200 dark:border-white/5 neon-border"
+                className="group p-6 flex flex-col items-center text-center 
+                           rounded-full bg-gradient-to-br from-blue-400/40 to-blue-600/40 
+                           border border-blue-200/30 shadow-lg shadow-blue-300/40
+                           hover:scale-105 active:scale-95 transition-all duration-200"
                 title={feature.title}
               >
-                <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300">
-                  <Icon size={28} />
+                <div className="relative w-20 h-20 flex items-center justify-center">
+                  <Icon size={32} className="text-white drop-shadow-lg" />
+                  {/* Optional soft glint for watery bubble */}
+                  <span className="absolute top-2 left-2 w-3 h-3 rounded-full bg-white/30 blur-sm"></span>
                 </div>
-                <h3 className="text-lg font-display font-semibold text-gray-900 dark:text-white">
-                  {feature.title}
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-300">{feature.description}</p>
+                <h3 className="mt-4 font-display font-semibold text-white">{feature.title}</h3>
+                <p className="mt-2 text-sm text-white/80">{feature.description}</p>
               </Link>
             );
           })}
