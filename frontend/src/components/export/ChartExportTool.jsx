@@ -178,18 +178,17 @@ export default function ChartExportTool({
     { value: "#000000", label: "Black", preview: "#000000" }
   ];
 
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      {/* Floating Export Panel */}
+    return (
+      // No fullscreen overlay, just the floating draggable panel
       <div
         ref={panelRef}
-        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-600 w-full max-w-md max-h-[90vh] overflow-hidden"
+        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-600 w-full max-w-md max-h-[90vh] overflow-hidden z-50"
         style={{
-          position: 'fixed',
+          position: "fixed",
           left: `${dragPosition.x}%`,
           top: `${dragPosition.y}%`,
-          transform: isDragging ? 'scale(1.02)' : 'scale(1)',
-          transition: isDragging ? 'none' : 'transform 0.2s ease-out'
+          transform: isDragging ? "scale(1.02)" : "scale(1)",
+          transition: isDragging ? "none" : "transform 0.2s ease-out"
         }}
         onMouseDown={handleMouseDown}
       >
@@ -209,7 +208,7 @@ export default function ChartExportTool({
                 </p>
               </div>
             </div>
-            
+
             <button
               onClick={onClose}
               className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
@@ -218,6 +217,7 @@ export default function ChartExportTool({
             </button>
           </div>
         </div>
+
 
         {/* Export Configuration */}
         <div className="p-4 max-h-96 overflow-y-auto">
