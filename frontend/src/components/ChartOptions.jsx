@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { 
   Settings, Palette, BarChart, TrendingUp, SortAsc, Ruler, Download, 
   Filter, Sliders, Grid, Eye, Save, RefreshCw, ChevronDown, ChevronUp,
-  BarChart2, LineChart, AreaChart, PieChart, Circle, BarChart
+  BarChart2, LineChart, AreaChart, PieChart, Circle
 } from "lucide-react";
 
 function ChartOptions({ 
