@@ -74,21 +74,31 @@ function App() {
     compareField: "",
   });
   
-// Function to update greeting
-const updateGreeting = () => {
-  if (user) {
-    setHeroGreeting(createHeroGreeting(user.name));
-  }
+// helper to format how we show greeting + username (avoid duplicate punctuation)
+const formatGreetingNode = (greeting, userName) => {
+  if (!greeting) return null;
+  const endsWithPunct = /[!?.]$/.test(greeting);
+  return (
+    <>
+      <span>{greeting}{endsWithPunct ? "" : ","} </span>
+      <span className="text-neonYellow font-bold">{userName}</span>
+    </>
+  );
 };
 
 useEffect(() => {
-  updateGreeting(); // Initial call when component mounts
+  const updateGreeting = () => {
+    if (!user) {
+      setHeroGreeting("");
+      return;
+    }
+    // createHeroGreeting now returns text WITHOUT username
+    setHeroGreeting(createHeroGreeting());
+  };
 
-  const interval = setInterval(() => {
-    updateGreeting(); // Update every minute
-  }, 60000); // 60,000 ms = 1 minute
-
-  return () => clearInterval(interval); // Cleanup on unmount
+  updateGreeting(); // initial
+  const interval = setInterval(updateGreeting, 60_000); // refresh every minute (keeps time-of-day transitions accurate)
+  return () => clearInterval(interval);
 }, [user]);
 
   
@@ -139,7 +149,9 @@ useEffect(() => {
               {user ? (
                 <>
                   <h1 className="font-body text-4xl md:text-5xl tracking-wide mb-6 text-gray-800 dark:text-slate-200">
-                    {heroGreeting.split(',')[0]}, <span className="text-neonYellow font-bold">{user.name}</span>
+                    {heroGreeting}
+                    {/[!?.]$/.test(heroGreeting) ? " " : ", "}
+                    <span className="text-neonYellow font-bold">{user.name}</span>
                   </h1>
                   <p className="text-lg text-gray-700 dark:text-slate-300 max-w-3xl mx-auto">
                     Ready to dive into your data? Upload files for cleaning and visualization, 
