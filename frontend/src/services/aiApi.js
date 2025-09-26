@@ -1,64 +1,61 @@
 // frontend/src/services/aiApi.js
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+
+const API_BASE_URL = '/api';
 
 class AIApiService {
   constructor() {
-    this.baseURL = `${API_BASE_URL}/forecast`;
+    this.baseURL = API_BASE_URL;
   }
 
-  // Get auth token from localStorage
-  getAuthToken() {
-    return localStorage.getItem('token');
-  }
-
-  // Common fetch wrapper with auth and error handling
-  async fetchWithAuth(endpoint, options = {}) {
-    const token = this.getAuthToken();
-    
+  // Helper method for making HTTP requests with error handling
+  async makeRequest(endpoint, options = {}) {
+    const url = `${this.baseURL}${endpoint}`;
     const config = {
       headers: {
         'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
         ...options.headers,
       },
+      credentials: 'include', // Include cookies for auth
       ...options,
     };
 
     try {
-      const response = await fetch(`${this.baseURL}${endpoint}`, config);
+      const response = await fetch(url, config);
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(
-          errorData.detail || 
-          errorData.error || 
-          `API Error: ${response.status} ${response.statusText}`
-        );
+        let errorMessage = 'Request failed';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.detail || errorData.message || errorMessage;
+        } catch {
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
-      return await response.json();
-    } catch (error) {
-      console.error(`API call failed: ${endpoint}`, error);
-      
-      if (error.name === 'TypeError' && error.message.includes('fetch')) {
-        throw new Error('Network error - please check your connection');
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        return await response.json();
+      } else {
+        return await response.text();
       }
-      
+    } catch (error) {
+      console.error(`API request failed: ${endpoint}`, error);
       throw error;
     }
   }
 
   // Create what-if forecast
-  async createWhatIfForecast(requestData) {
-    return this.fetchWithAuth('/whatif', {
+  async createWhatIfForecast(payload) {
+    return await this.makeRequest('/forecast/whatif', {
       method: 'POST',
-      body: JSON.stringify(requestData),
+      body: JSON.stringify(payload),
     });
   }
 
   // Parse scenario text into structured parameters
   async parseScenario(scenarioText, availableColumns) {
-    return this.fetchWithAuth('/scenario/parse', {
+    return await this.makeRequest('/forecast/scenario/parse', {
       method: 'POST',
       body: JSON.stringify({
         scenario_text: scenarioText,
@@ -67,184 +64,276 @@ class AIApiService {
     });
   }
 
-  // Get available AI models and their capabilities
+  // Get available forecasting models
   async getAvailableModels() {
-    return this.fetchWithAuth('/models', {
+    return await this.makeRequest('/forecast/models', {
       method: 'GET',
     });
   }
 
   // Get user's AI usage statistics
   async getUserUsage(userId) {
-    return this.fetchWithAuth(`/usage/${userId}`, {
+    return await this.makeRequest(`/forecast/usage/${userId}`, {
       method: 'GET',
     });
   }
 
-  // Clear user's cached forecasts
-  async clearUserCache() {
-    return this.fetchWithAuth('/cache/clear', {
+  // Clear user's forecast cache
+  async clearCache() {
+    return await this.makeRequest('/forecast/cache/clear', {
       method: 'DELETE',
     });
   }
 
-  // Utility: Validate forecast request before sending
-  validateForecastRequest(data) {
-    const errors = [];
-
-    if (!data.csv_data && !data.dataset_id) {
-      errors.push('Either csv_data or dataset_id is required');
-    }
-
-    if (!data.scenario_text || data.scenario_text.trim().length === 0) {
-      errors.push('Scenario text is required');
-    }
-
-    if (data.scenario_text && data.scenario_text.length > 500) {
-      errors.push('Scenario text must be 500 characters or less');
-    }
-
-    if (!data.target_column) {
-      errors.push('Target column is required');
-    }
-
-    if (data.periods_ahead && (data.periods_ahead < 1 || data.periods_ahead > 120)) {
-      errors.push('Periods ahead must be between 1 and 120');
-    }
-
-    if (data.confidence_level && (data.confidence_level < 0.5 || data.confidence_level > 0.99)) {
-      errors.push('Confidence level must be between 0.5 and 0.99');
-    }
-
-    const validModels = ['auto', 'gpt', 'prophet', 'hybrid'];
-    if (data.model_preference && !validModels.includes(data.model_preference)) {
-      errors.push(`Model preference must be one of: ${validModels.join(', ')}`);
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-    };
+  // Chart-related API endpoints
+  
+  // Generate chart payload from data
+  async generateChartPayload(payload) {
+    return await this.makeRequest('/chart/payload', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   }
 
-  // Utility: Format forecast data for charting
-  formatForecastForChart(forecastResult) {
-    if (!forecastResult || !forecastResult.forecast) {
+  // Save chart configuration
+  async saveChart(chartPayload, description = '', ownerId = null) {
+    return await this.makeRequest('/charts/save', {
+      method: 'POST',
+      body: JSON.stringify({
+        chart_payload: chartPayload,
+        description,
+        owner_id: ownerId,
+      }),
+    });
+  }
+
+  // Export chart
+  async exportChart(exportConfig) {
+    return await this.makeRequest('/charts/export', {
+      method: 'POST',
+      body: JSON.stringify(exportConfig),
+    });
+  }
+
+  // Get export job status
+  async getExportStatus(jobId) {
+    return await this.makeRequest(`/export/status/${jobId}`, {
+      method: 'GET',
+    });
+  }
+
+  // Data management endpoints
+
+  // Get available datasets
+  async getDatasets() {
+    return await this.makeRequest('/datasets', {
+      method: 'GET',
+    });
+  }
+
+  // Get data preview
+  async getDataPreview(fileId, rows = 10) {
+    return await this.makeRequest(`/preview?file_id=${fileId}&n=${rows}`, {
+      method: 'GET',
+    });
+  }
+
+  // Upload file
+  async uploadFile(file, onProgress = null) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      return await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        if (onProgress) {
+          xhr.upload.onprogress = (e) => {
+            if (e.lengthComputable) {
+              const percentComplete = (e.loaded / e.total) * 100;
+              onProgress(Math.round(percentComplete));
+            }
+          };
+        }
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const response = JSON.parse(xhr.responseText);
+              resolve(response);
+            } catch (error) {
+              reject(new Error('Invalid JSON response'));
+            }
+          } else {
+            try {
+              const errorData = JSON.parse(xhr.responseText);
+              reject(new Error(errorData.detail || 'Upload failed'));
+            } catch {
+              reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+            }
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Network error during upload'));
+        xhr.ontimeout = () => reject(new Error('Upload timeout'));
+
+        xhr.open('POST', `${this.baseURL}/upload`);
+        xhr.withCredentials = true; // Include cookies
+        xhr.timeout = 300000; // 5 minutes timeout
+        xhr.send(formData);
+      });
+    } catch (error) {
+      console.error('File upload failed:', error);
+      throw error;
+    }
+  }
+
+  // Forecast management endpoints
+
+  // Create standard forecast (non-AI)
+  async createForecast(payload) {
+    return await this.makeRequest('/forecast', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  // Get forecast status
+  async getForecastStatus(jobId) {
+    return await this.makeRequest(`/forecast/${jobId}`, {
+      method: 'GET',
+    });
+  }
+
+  // Get model metadata
+  async getModelMetadata(modelId) {
+    return await this.makeRequest(`/models/${modelId}`, {
+      method: 'GET',
+    });
+  }
+
+  // Utility methods
+
+  // Check if user is authenticated (simple check)
+  async checkAuth() {
+    try {
+      const response = await this.makeRequest('/auth/me', {
+        method: 'GET',
+      });
+      return response;
+    } catch (error) {
       return null;
     }
-
-    const { forecast, lower, upper, timestamps } = forecastResult.forecast;
-
-    return {
-      labels: timestamps || forecast.map((_, i) => `Period ${i + 1}`),
-      datasets: [
-        {
-          label: 'Forecast',
-          data: forecast,
-          borderColor: '#3b82f6',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-          tension: 0.4,
-        },
-        ...(lower && upper ? [
-          {
-            label: 'Upper Bound',
-            data: upper,
-            borderColor: 'rgba(59, 130, 246, 0.3)',
-            backgroundColor: 'rgba(59, 130, 246, 0.05)',
-            fill: '+1',
-            tension: 0.4,
-          },
-          {
-            label: 'Lower Bound', 
-            data: lower,
-            borderColor: 'rgba(59, 130, 246, 0.3)',
-            backgroundColor: 'rgba(59, 130, 246, 0.05)',
-            tension: 0.4,
-          }
-        ] : [])
-      ],
-    };
   }
 
-  // Utility: Export forecast data as CSV
-  exportForecastToCSV(forecastResult, filename = 'forecast_data.csv') {
-    if (!forecastResult || !forecastResult.forecast) {
-      throw new Error('No forecast data to export');
-    }
+  // Health check
+  async healthCheck() {
+    return await this.makeRequest('/health', {
+      method: 'GET',
+    });
+  }
 
-    const { forecast, lower, upper, timestamps } = forecastResult.forecast;
+  // Retry mechanism for failed requests
+  async retryRequest(requestFn, maxRetries = 3, delay = 1000) {
+    let lastError;
     
-    const headers = ['Date', 'Forecast'];
-    if (lower && upper) {
-      headers.push('Lower_Bound', 'Upper_Bound');
-    }
-
-    const rows = [headers.join(',')];
-
-    for (let i = 0; i < forecast.length; i++) {
-      const row = [
-        timestamps ? timestamps[i] : `Period_${i + 1}`,
-        forecast[i].toFixed(2)
-      ];
-
-      if (lower && upper) {
-        row.push(lower[i].toFixed(2), upper[i].toFixed(2));
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        return await requestFn();
+      } catch (error) {
+        lastError = error;
+        
+        // Don't retry on authentication errors
+        if (error.message.includes('401') || error.message.includes('403')) {
+          throw error;
+        }
+        
+        // Don't retry on validation errors
+        if (error.message.includes('400')) {
+          throw error;
+        }
+        
+        if (i < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+        }
       }
-
-      rows.push(row.join(','));
-    }
-
-    const csvContent = rows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    
-    // Create download link
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    link.click();
-    
-    // Clean up
-    URL.revokeObjectURL(link.href);
-  }
-
-  // Utility: Get cost estimate for forecast request
-  getCostEstimate(modelPreference, periodsAhead = 12) {
-    const costMap = {
-      'prophet': '$0.00',
-      'gpt': '$0.02 - $0.05',
-      'hybrid': '$0.01 - $0.03',
-      'auto': '$0.01 - $0.03'
-    };
-
-    const baseCost = costMap[modelPreference] || costMap['auto'];
-    
-    if (periodsAhead > 50) {
-      return `${baseCost} (extended forecast)`;
     }
     
-    return baseCost;
+    throw lastError;
   }
 
-  // Health check for AI services
-  async checkAIHealth() {
+  // Batch operations
+  async batchOperation(operations, concurrencyLimit = 5) {
+    const results = [];
+    const errors = [];
+    
+    for (let i = 0; i < operations.length; i += concurrencyLimit) {
+      const batch = operations.slice(i, i + concurrencyLimit);
+      const batchPromises = batch.map(async (operation, index) => {
+        try {
+          const result = await operation();
+          return { index: i + index, result, error: null };
+        } catch (error) {
+          return { index: i + index, result: null, error };
+        }
+      });
+      
+      const batchResults = await Promise.all(batchPromises);
+      
+      for (const item of batchResults) {
+        if (item.error) {
+          errors.push({ index: item.index, error: item.error });
+        } else {
+          results.push({ index: item.index, result: item.result });
+        }
+      }
+    }
+    
+    return { results, errors };
+  }
+
+  // Cache management
+  getFromCache(key) {
     try {
-      const response = await fetch(`${API_BASE_URL}/health`);
-      const data = await response.json();
-      return {
-        available: response.ok,
-        ai_enabled: data.ai_enabled || false,
-        message: data.message || 'Unknown status'
-      };
+      const cached = localStorage.getItem(`aiApi_cache_${key}`);
+      if (cached) {
+        const { data, timestamp, ttl } = JSON.parse(cached);
+        if (Date.now() - timestamp < ttl) {
+          return data;
+        } else {
+          localStorage.removeItem(`aiApi_cache_${key}`);
+        }
+      }
     } catch (error) {
-      return {
-        available: false,
-        ai_enabled: false,
-        error: error.message
+      console.warn('Cache read error:', error);
+    }
+    return null;
+  }
+
+  setCache(key, data, ttlMinutes = 30) {
+    try {
+      const cacheItem = {
+        data,
+        timestamp: Date.now(),
+        ttl: ttlMinutes * 60 * 1000
       };
+      localStorage.setItem(`aiApi_cache_${key}`, JSON.stringify(cacheItem));
+    } catch (error) {
+      console.warn('Cache write error:', error);
+    }
+  }
+
+  clearCache() {
+    try {
+      const keys = Object.keys(localStorage).filter(key => key.startsWith('aiApi_cache_'));
+      keys.forEach(key => localStorage.removeItem(key));
+    } catch (error) {
+      console.warn('Cache clear error:', error);
     }
   }
 }
 
-// Export singleton instance
-export const aiApi = new AIApiService();
+// Create singleton instance
+const aiApi = new AIApiService();
+
 export default aiApi;
