@@ -1,6 +1,7 @@
 // frontend/src/App.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { createHeroGreeting } from "./greetings.jsx";
 import FileUpload from "./components/FileUpload.jsx";
 import ChartView from "./components/ChartView.jsx";
 import Sidebar from "./components/Sidebar.jsx";
@@ -49,6 +50,7 @@ function App() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [heroGreeting, setHeroGreeting] = useState("");
 
   const [data, setData] = useState([]);
   const [columns, setColumns] = useState([]);
@@ -71,7 +73,31 @@ function App() {
     logMin: 1,
     compareField: "",
   });
+  
+  const updateGreeting = () => {
+  if (user) {
+    setHeroGreeting(createHeroGreeting(user.name));
+  }
+};
+  
+  
+const updateGreeting = () => {
+  if (user) {
+    setHeroGreeting(createHeroGreeting(user.name));
+  }
+};
 
+useEffect(() => {
+  updateGreeting(); // Initial call when component mounts
+
+  const interval = setInterval(() => {
+    updateGreeting(); // Update every minute
+  }, 60000); // 60,000 ms = 1 minute
+
+  return () => clearInterval(interval); // Cleanup on unmount
+}, [user]);
+
+  
   const [showOptions, setShowOptions] = useState(false);
 
   useEffect(() => {
@@ -119,7 +145,7 @@ function App() {
               {user ? (
                 <>
                   <h1 className="font-body text-4xl md:text-5xl tracking-wide mb-6 text-gray-800 dark:text-slate-200">
-                    Hi, <span className="text-neonYellow font-bold">{user.name}</span>. Welcome Back!
+                    {heroGreeting}
                   </h1>
                   <p className="text-lg text-gray-700 dark:text-slate-300 max-w-3xl mx-auto">
                     Ready to dive into your data? Upload files for cleaning and visualization, 
