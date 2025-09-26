@@ -76,7 +76,6 @@ export default function FileUpload({
     console.info("r.columns:", r.columns);
     console.info("First few items of r.data:", r.data?.slice(0, 3));
 
-    const raw = r.data;
     // Primary source: r.data (records). Fallbacks: preview_rows, preview, data_preview
     const raw = Array.isArray(r.data) ? r.data
       : Array.isArray(r.preview_rows) ? r.preview_rows
