@@ -3,6 +3,19 @@ import React, { useState, useRef, useEffect } from "react";
 import VisualUploadPanel from "./upload/VisualUploadPanel";
 import ChartExportTool from "./export/ChartExportTool";
 
+/**
+ * FileUpload
+ * Props:
+ *  - action, accept, multiple, maxFiles
+ *  - onResult(r)
+ *  - onData(dataArray)
+ *  - onColumns(columnsArray)
+ *  - onTypes(typesObj)
+ *  - onSummary(summaryObj)
+ *  - onChartTitle(title)
+ *  - onXAxis(xAxis)
+ *  - onYAxis(yAxis)
+ */
 export default function FileUpload({
   action = null,
   accept = ".csv,.xlsx,.xls",
@@ -52,6 +65,80 @@ export default function FileUpload({
       return f;
     });
 
+  /**
+   * Normalize backend response data into an array of row objects:
+   *  - If r.data is already an array of objects -> keep as is
+   *  - If r.data is array of arrays AND r.columns provided -> map arrays -> objects
+   *  - If r.data is object of arrays (column-oriented) -> transform to row objects
+   *  - Otherwise return [].
+   */
+  const normalizeResponseData = (r) => {
+    if (!r) return { data: [], columns: [] };
+
+    const raw = r.data;
+    let columns = Array.isArray(r.columns) ? r.columns.slice() : null;
+
+    // Case 1: already an array of objects
+    if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === "object" && !Array.isArray(raw[0])) {
+      // If columns missing, infer from keys of first row
+      if (!columns) columns = Object.keys(raw[0]);
+      return { data: raw, columns: columns || [] };
+    }
+
+    // Case 2: array of arrays + columns provided
+    if (Array.isArray(raw) && raw.length > 0 && Array.isArray(raw[0]) && Array.isArray(columns)) {
+      const data = raw.map((row) => {
+        const obj = {};
+        for (let i = 0; i < columns.length; i++) {
+          obj[columns[i]] = row[i];
+        }
+        return obj;
+      });
+      return { data, columns };
+    }
+
+    // Case 3: column-oriented object (e.g., { col1: [..], col2: [..] })
+    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+      // If columns not provided, use object keys
+      if (!columns) columns = Object.keys(raw);
+
+      // Determine row count from longest column array (fall back to 0)
+      const lengths = columns.map((c) => (Array.isArray(raw[c]) ? raw[c].length : 0));
+      const rowCount = Math.max(0, ...lengths);
+
+      const data = [];
+      for (let i = 0; i < rowCount; i++) {
+        const row = {};
+        for (const col of columns) {
+          const colArr = raw[col];
+          row[col] = Array.isArray(colArr) ? colArr[i] : colArr;
+        }
+        data.push(row);
+      }
+      return { data, columns };
+    }
+
+    // Case 4: raw is an array but empty or unknown shape
+    if (Array.isArray(raw)) {
+      // If columns known, try to map empty array-of-arrays
+      if (columns) {
+        const data = raw.map((row) => {
+          if (Array.isArray(row)) {
+            const obj = {};
+            for (let i = 0; i < columns.length; i++) obj[columns[i]] = row[i];
+            return obj;
+          }
+          return row;
+        });
+        return { data, columns };
+      }
+      return { data: raw, columns: columns || [] };
+    }
+
+    // Default fallback
+    return { data: [], columns: columns || [] };
+  };
+
   const handleUpload = () => {
     if (!files.length) return alert("Select a file first");
     setUploading(true);
@@ -71,24 +158,39 @@ export default function FileUpload({
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const r = JSON.parse(xhr.responseText);
+
+          // Helpful debug logs (remove or guard in production)
+          console.info("File upload response:", r);
+          console.info("typeof r.data:", typeof r.data, "Array.isArray(r.data):", Array.isArray(r.data));
           onResult(r);
-          
-          // Store data for export
-          setUploadedData(r.data || []);
+
+          // Normalize data so ChartView always gets rows-of-objects
+          const normalized = normalizeResponseData(r);
+          const finalData = normalized.data || [];
+          const finalColumns = normalized.columns || [];
+
+          // Store data for export and local preview
+          setUploadedData(finalData);
           setChartTitleState(r.chart_title || r.filename || "Chart");
-          
-          onData && onData(r.data || []);
-          onColumns && onColumns(r.columns || []);
+
+          // Callbacks with normalized values
+          onData && onData(finalData);
+          onColumns && onColumns(finalColumns);
           onTypes && onTypes(r.types || {});
           onSummary && onSummary(r.summary || {});
           onChartTitle && onChartTitle(r.chart_title || "");
-          onXAxis && onXAxis(r.x_axis || "");
-          onYAxis && onYAxis(r.y_axis || "");
+          onXAxis && onXAxis(r.x_axis || (finalColumns[0] || ""));
+          onYAxis && onYAxis(r.y_axis || (finalColumns[1] || ""));
+
           alert(r.filename ? `Uploaded: ${r.filename}` : "Upload OK");
-        } catch {
+        } catch (err) {
+          console.error("Upload response parse error:", err);
           alert("Upload ok but invalid JSON");
         }
-      } else alert("Upload failed");
+      } else {
+        console.warn("Upload failed status:", xhr.status, xhr.responseText);
+        alert("Upload failed");
+      }
     };
 
     xhr.onerror = () => {
