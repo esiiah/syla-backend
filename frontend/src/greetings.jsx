@@ -1,11 +1,18 @@
 // frontend/src/greetings.jsx
 
-export const getTimeGreeting = () => {
+export const getTimePeriod = () => {
   const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return "Good morning";
-  else if (hour >= 12 && hour < 17) return "Good afternoon";
-  else if (hour >= 17 && hour < 21) return "Good evening";
-  else return "Hello";
+  if (hour >= 5 && hour < 12) return "morning";
+  if (hour >= 12 && hour < 17) return "afternoon";
+  if (hour >= 17 && hour < 21) return "evening";
+  return "night";
+};
+
+export const getTimeGreeting = (period) => {
+  if (period === "morning") return "Good morning";
+  if (period === "afternoon") return "Good afternoon";
+  if (period === "evening") return "Good evening";
+  return "Hello";
 };
 
 export const getDayGreeting = () => {
@@ -14,33 +21,33 @@ export const getDayGreeting = () => {
 };
 
 export const getCasualGreeting = () => {
-  // Short casual greetings
   const phrases = [
     "Welcome back",
     "How are you doing today?",
     "Good to see you",
-    "What's New?",
+    "What's new?",
     "How’s your day going?",
     "Hope you’re doing well!",
     "Ready to crush today?",
-    "Let’s make it a productive day!"    
+    "Let’s make it a productive day!"
   ];
   return phrases[Math.floor(Math.random() * phrases.length)];
 };
 
-// This chooses which greeting to show based on priority
 export const createHeroGreeting = (userName) => {
-  const now = new Date();
-  const hour = now.getHours();
+  const period = getTimePeriod();
+  const lastPeriod = localStorage.getItem("lastGreetingPeriod");
 
-  // Prioritize greetings
-  if (hour >= 5 && hour < 12) return `Good morning, ${userName}`;
-  if (hour >= 12 && hour < 17) return `Good afternoon, ${userName}`;
-  if (hour >= 17 && hour < 21) return `Good evening, ${userName}`;
+  let greeting;
 
-  // Weekend/day-specific greeting as fallback
-  if (hour >= 21 || hour < 5) return `${getDayGreeting()}, ${userName}`;
+  // If it's a new time period → show time greeting first
+  if (lastPeriod !== period) {
+    greeting = `${getTimeGreeting(period)}, ${userName}`;
+    localStorage.setItem("lastGreetingPeriod", period);
+  } else {
+    // Otherwise → show casual greeting
+    greeting = `${getCasualGreeting()} ${userName}`;
+  }
 
-  // fallback casual greeting
-  return `${getCasualGreeting()} ${userName}`;
+  return greeting;
 };
