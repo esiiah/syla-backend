@@ -1,7 +1,7 @@
 // frontend/src/components/FileUpload.jsx
 import React, { useState, useRef, useEffect } from "react";
 import VisualUploadPanel from "./upload/VisualUploadPanel";
-import ChartExportPanel from "./export/ChartExportPanel";
+import ChartExportPanel from "./export/ChartExportTool";
 
 export default function FileUpload({
   action = null,
@@ -153,7 +153,7 @@ export default function FileUpload({
 
       {/* Only show export panel when data is available */}
       {uploadedData && uploadedData.length > 0 && (
-        <ChartExportPanel
+        <ChartExportTool
           chartData={uploadedData}
           chartTitle={chartTitle}
           onExportImage={(format) => console.log("Export image", format)}
