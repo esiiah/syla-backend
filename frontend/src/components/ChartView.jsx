@@ -10,7 +10,7 @@ import {
 import { Bar, Line, Pie, Scatter } from "react-chartjs-2";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import { TrendingUp, Download, Palette, Settings } from "lucide-react";
-import ChartExportTool from "./ChartExportTool";
+import ChartExportTool from "./export/ChartExportTool";
 
 ChartJS.register(
   CategoryScale, LinearScale, LogarithmicScale,
