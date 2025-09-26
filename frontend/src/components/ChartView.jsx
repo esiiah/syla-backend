@@ -1,5 +1,6 @@
 // frontend/src/components/ChartView.jsx
 import React, { useMemo, useRef, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Chart as ChartJS,
   CategoryScale, LinearScale, LogarithmicScale,
@@ -8,6 +9,8 @@ import {
 } from "chart.js";
 import { Bar, Line, Pie, Scatter } from "react-chartjs-2";
 import ChartDataLabels from "chartjs-plugin-datalabels";
+import { TrendingUp, Download, Palette, Settings } from "lucide-react";
+import ChartExportTool from "./export/ChartExportTool";
 
 ChartJS.register(
   CategoryScale, LinearScale, LogarithmicScale,
@@ -15,7 +18,7 @@ ChartJS.register(
   Title, Tooltip, Legend, Filler, ChartDataLabels
 );
 
-// ------- helpers -------
+// Helper functions
 const parseNum = v => (v == null || v === "" ? 0 : +String(v).replace(/,/g, "") || 0);
 const lerp = (a, b, t) => a + (b - a) * t;
 const hexToRgb = h => { if (!h) return null; const n = h.replace("#",""); const x = parseInt(n.length===3?n.split("").map(c=>c+c).join(""):n,16); return {r:(x>>16)&255,g:(x>>8)&255,b:x&255}; };
@@ -24,81 +27,472 @@ const interpolate = (stops,t) => { if(stops.length<2)return stops[0]||"#999"; co
 const trendline = vals => {const n=vals.length;if(n<2)return vals.map(()=>null);const xs=vals.map((_,i)=>i),ys=vals;const xm=xs.reduce((a,b)=>a+b,0)/n,ym=ys.reduce((a,b)=>a+b,0)/n;let num=0,den=0;for(let i=0;i<n;i++){num+=(xs[i]-xm)*(ys[i]-ym);den+=(xs[i]-xm)**2;}const m=den?num/den:0,b=ym-m*xm;return xs.map(x=>m*x+b);};
 const themeText = () => (document?.body?.classList.contains("dark") ? "#E6EEF8" : "#0f172a");
 
-// ------- component -------
-export default function ChartView({ data=[], columns=[], types={}, options={}, chartTitle="", xAxis="", yAxis="", setXAxis=()=>{}, setYAxis=()=>{} }) {
+export default function ChartView({ 
+  data = [], 
+  columns = [], 
+  types = {}, 
+  options = {}, 
+  chartTitle = "", 
+  xAxis = "", 
+  yAxis = "", 
+  setXAxis = () => {}, 
+  setYAxis = () => {},
+  onBarClick = () => {},
+  onLegendToggle = () => {},
+  selectedBars = [],
+  dataPayload = null
+}) {
+  const navigate = useNavigate();
   const ref = useRef(null);
-  const [perColor,setPerColor]=useState([]), [editing,setEditing]=useState(null);
+  const [perColor, setPerColor] = useState([]);
+  const [editing, setEditing] = useState(null);
+  const [showExportTool, setShowExportTool] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(()=>{ if(!xAxis&&columns[0])setXAxis(columns[0]); if(!yAxis&&columns[1])setYAxis(columns[1]); setPerColor(new Array(data.length).fill(null)); },[columns,data.length]);
+  // Store data for export and forecast
+  useEffect(() => {
+    if (data && data.length > 0) {
+      localStorage.setItem("uploadedData", JSON.stringify(data));
+      localStorage.setItem("uploadedColumns", JSON.stringify(columns));
+      setPerColor(new Array(data.length).fill(null));
+    }
+  }, [data, columns]);
 
-  const labels = useMemo(()=>data.map((r,i)=>r?.[xAxis]??`Row ${i+1}`),[data,xAxis]);
-  const values = useMemo(()=>data.map(r=>parseNum(r?.[yAxis])),[data,yAxis]);
-  const compareVals = useMemo(()=>options.compareField?data.map(r=>parseNum(r?.[options.compareField])):null,[data,options.compareField]);
+  useEffect(() => {
+    if (!xAxis && columns[0]) setXAxis(columns[0]);
+    if (!yAxis && columns[1]) setYAxis(columns[1]);
+  }, [columns, xAxis, yAxis, setXAxis, setYAxis]);
 
-  // sort + mapping
-  const pairs = labels.map((l,i)=>({l,v:values[i],c:compareVals?compareVals[i]:null,raw:data[i],i}));
-  if(options.sort==="asc")pairs.sort((a,b)=>a.v-b.v);
-  if(options.sort==="desc")pairs.sort((a,b)=>b.v-a.v);
-  const lbls=pairs.map(p=>p.l), vals=pairs.map(p=>p.v), cmp=compareVals?pairs.map(p=>p.c):null, map=pairs.map(p=>p.i);
+  // Process data for chart
+  const labels = useMemo(() => data.map((r, i) => r?.[xAxis] ?? `Row ${i + 1}`), [data, xAxis]);
+  const values = useMemo(() => data.map(r => parseNum(r?.[yAxis])), [data, yAxis]);
+  const compareVals = useMemo(() => 
+    options.compareField ? data.map(r => parseNum(r?.[options.compareField])) : null, 
+    [data, options.compareField]
+  );
 
-  const minPos=Math.max(1e-6,Math.min(...[...vals,...(cmp||[])].filter(v=>v>0))||1);
-  const safeVals=options.logScale?vals.map(v=>v>0?v:minPos*0.01):vals;
-  const safeCmp=cmp? (options.logScale?cmp.map(v=>v>0?v:minPos*0.01):cmp):null;
+  // Sort and map data
+  const pairs = labels.map((l, i) => ({
+    l, 
+    v: values[i], 
+    c: compareVals ? compareVals[i] : null, 
+    raw: data[i], 
+    i
+  }));
 
-  // chartData
-  const chartData=useMemo(()=>{
-    const base=options.color||"#2563eb", stops=options.gradientStops?.length?options.gradientStops:[base,base],N=lbls.length||1;
-    const pickColor=(i)=>perColor[map[i]]|| (options.gradient?interpolate(stops,N===1?0:i/(N-1)):base);
+  if (options.sort === "asc") pairs.sort((a, b) => a.v - b.v);
+  if (options.sort === "desc") pairs.sort((a, b) => b.v - a.v);
 
-    if(options.type==="pie") return {labels:lbls,datasets:[{label:yAxis||"Value",data:vals,backgroundColor:vals.map((_,i)=>pickColor(i)),borderColor:"#fff",borderWidth:1}]};
-    if(options.type==="scatter") return {labels:lbls,datasets:[{label:yAxis||"Value",data:safeVals.map((v,i)=>({x:i,y:v})),backgroundColor:safeVals.map((_,i)=>pickColor(i)),showLine:false,pointRadius:4}]};
+  const lbls = pairs.map(p => p.l);
+  const vals = pairs.map(p => p.v);
+  const cmp = compareVals ? pairs.map(p => p.c) : null;
+  const map = pairs.map(p => p.i);
 
-    const core={label:yAxis||"Value",type:options.type==="line"?"line":"bar",data:safeVals,originalData:vals,backgroundColor:vals.map((_,i)=>pickColor(i)),borderColor:base};
-    const ds=[core];
-    if(safeCmp)ds.push({label:options.compareField,type:core.type,data:safeCmp,originalData:cmp,backgroundColor:cmp.map((_,i)=>pickColor(i)),yAxisID:"y1"});
-    if(options.trendline)ds.push({label:`${yAxis} trend`,type:"line",data:trendline(safeVals),borderColor:"#222",fill:false,pointRadius:0});
-    return{labels:lbls,datasets:ds};
-  },[options.type,lbls,vals,safeVals,perColor,options.gradient,options.gradientStops,options.color,options.compareField,safeCmp,options.trendline,yAxis,map]);
+  // Handle log scale
+  const minPos = Math.max(1e-6, Math.min(...[...vals, ...(cmp || [])].filter(v => v > 0)) || 1);
+  const safeVals = options.logScale ? vals.map(v => v > 0 ? v : minPos * 0.01) : vals;
+  const safeCmp = cmp ? (options.logScale ? cmp.map(v => v > 0 ? v : minPos * 0.01) : cmp) : null;
 
-  // chart options
-  const opts=useMemo(()=>{
-    const tc=themeText(),ys=options.logScale?"logarithmic":"linear";
-    const o={maintainAspectRatio:false,responsive:true,plugins:{legend:{labels:{color:tc}},datalabels:{color:tc,display:ctx=>ctx.dataset?.datalabels?.display??!!options.showLabels},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.dataset.originalData?.[ctx.dataIndex]??ctx.formattedValue}`}}},scales:{x:{ticks:{color:tc}},y:{type:ys,ticks:{color:tc}}}};
-    if(options.compareField&&options.type!=="pie"&&options.type!=="scatter")o.scales.y1={position:"right",grid:{drawOnChartArea:false},ticks:{color:tc}};
-    if(options.type==="scatter")o.scales.x={type:"linear",ticks:{color:tc,callback:v=>(Number.isInteger(v)&&lbls[v])?lbls[v]:"",stepSize:1},min:-.5,max:lbls.length-.5};
-    if(options.type==="pie")delete o.scales;
-    return o;
-  },[options,lbls,yAxis]);
+  // Generate chart data
+  const chartData = useMemo(() => {
+    const base = options.color || "#2563eb";
+    const stops = options.gradientStops?.length ? options.gradientStops : [base, base];
+    const N = lbls.length || 1;
+    
+    const pickColor = (i) => {
+      const originalIndex = map[i];
+      return perColor[originalIndex] || 
+        (options.gradient ? interpolate(stops, N === 1 ? 0 : i / (N - 1)) : base);
+    };
 
-  const Comp=options.type==="line"?Line:options.type==="pie"?Pie:options.type==="scatter"?Scatter:Bar;
+    if (options.type === "pie") {
+      return {
+        labels: lbls,
+        datasets: [{
+          label: yAxis || "Value",
+          data: vals,
+          backgroundColor: vals.map((_, i) => pickColor(i)),
+          borderColor: "#fff",
+          borderWidth: 2
+        }]
+      };
+    }
 
-  // exports
-  const dlImg=f=>{const c=ref.current;if(!c?.toBase64Image)return;const url=c.toBase64Image(f==="jpeg"?"image/jpeg":"image/png");const a=document.createElement("a");a.href=url;a.download=`chart.${f}`;a.click();};
-  const dlCSV=()=>{if(!data.length)return;const keys=Object.keys(data[0]);const rows=[keys.join(",")].concat(data.map(r=>keys.map(k=>`"${r[k]??""}"`).join(",")));const b=new Blob([rows.join("\n")],{type:"text/csv"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download="data.csv";a.click();};
-  const dlJSON=()=>{const b=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="data.json";a.click();};
+    if (options.type === "scatter") {
+      return {
+        labels: lbls,
+        datasets: [{
+          label: yAxis || "Value",
+          data: safeVals.map((v, i) => ({ x: i, y: v })),
+          backgroundColor: safeVals.map((_, i) => pickColor(i)),
+          showLine: false,
+          pointRadius: 6,
+          pointHoverRadius: 8
+        }]
+      };
+    }
+
+    const core = {
+      label: yAxis || "Value",
+      type: options.type === "line" ? "line" : "bar",
+      data: safeVals,
+      originalData: vals,
+      backgroundColor: vals.map((_, i) => pickColor(i)),
+      borderColor: base,
+      borderWidth: options.type === "line" ? 3 : 1,
+      tension: options.type === "line" ? 0.4 : undefined,
+      fill: options.type === "area" ? true : false
+    };
+
+    const ds = [core];
+
+    if (safeCmp) {
+      ds.push({
+        label: options.compareField,
+        type: core.type,
+        data: safeCmp,
+        originalData: cmp,
+        backgroundColor: cmp.map((_, i) => pickColor(i)),
+        borderColor: "#dc2626",
+        yAxisID: "y1"
+      });
+    }
+
+    if (options.trendline && options.type !== "pie") {
+      ds.push({
+        label: `${yAxis} Trend`,
+        type: "line",
+        data: trendline(safeVals),
+        borderColor: "#059669",
+        backgroundColor: "transparent",
+        fill: false,
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        borderWidth: 2,
+        borderDash: [5, 5]
+      });
+    }
+
+    return { labels: lbls, datasets: ds };
+  }, [options, lbls, vals, safeVals, perColor, yAxis, map, safeCmp, cmp]);
+
+  // Chart options
+  const chartOptions = useMemo(() => {
+    const tc = themeText();
+    const ys = options.logScale ? "logarithmic" : "linear";
+    
+    const opts = {
+      maintainAspectRatio: false,
+      responsive: true,
+      interaction: {
+        intersect: false,
+        mode: 'index'
+      },
+      onClick: (event, elements) => {
+        if (elements.length > 0) {
+          const element = elements[0];
+          const dataIndex = element.index;
+          const seriesKey = element.datasetIndex;
+          onBarClick(seriesKey, lbls[dataIndex]);
+        }
+      },
+      plugins: {
+        legend: {
+          labels: { color: tc, usePointStyle: true },
+          onClick: (e, legendItem, legend) => {
+            const index = legendItem.datasetIndex;
+            const chart = legend.chart;
+            const meta = chart.getDatasetMeta(index);
+            meta.hidden = meta.hidden === null ? !chart.data.datasets[index].hidden : null;
+            chart.update();
+            onLegendToggle(index);
+          }
+        },
+        datalabels: {
+          color: tc,
+          display: ctx => ctx.dataset?.datalabels?.display ?? !!options.showLabels,
+          formatter: (value, ctx) => {
+            if (options.type === "pie") {
+              const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+              const percentage = ((value / total) * 100).toFixed(1);
+              return `${percentage}%`;
+            }
+            return ctx.dataset.originalData ? ctx.dataset.originalData[ctx.dataIndex] : value;
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          titleColor: '#fff',
+          bodyColor: '#fff',
+          borderColor: '#2563eb',
+          borderWidth: 1,
+          callbacks: {
+            label: ctx => {
+              const originalValue = ctx.dataset.originalData ? ctx.dataset.originalData[ctx.dataIndex] : ctx.formattedValue;
+              return `${ctx.dataset.label}: ${originalValue?.toLocaleString() || originalValue}`;
+            }
+          }
+        }
+      },
+      scales: options.type === "pie" ? {} : {
+        x: {
+          ticks: { 
+            color: tc,
+            maxRotation: 45,
+            minRotation: 0
+          },
+          grid: { color: "rgba(0,0,0,0.1)" }
+        },
+        y: {
+          type: ys,
+          ticks: { 
+            color: tc,
+            callback: function(value) {
+              return value.toLocaleString();
+            }
+          },
+          grid: { color: "rgba(0,0,0,0.1)" }
+        }
+      }
+    };
+
+    if (options.compareField && options.type !== "pie" && options.type !== "scatter") {
+      opts.scales.y1 = {
+        type: ys,
+        position: "right",
+        grid: { drawOnChartArea: false },
+        ticks: { 
+          color: tc,
+          callback: function(value) {
+            return value.toLocaleString();
+          }
+        }
+      };
+    }
+
+    if (options.type === "scatter") {
+      opts.scales.x = {
+        type: "linear",
+        ticks: {
+          color: tc,
+          callback: v => (Number.isInteger(v) && lbls[v]) ? lbls[v] : "",
+          stepSize: 1
+        },
+        min: -0.5,
+        max: lbls.length - 0.5
+      };
+    }
+
+    return opts;
+  }, [options, lbls, yAxis, onBarClick, onLegendToggle]);
+
+  const ChartComponent = options.type === "line" || options.type === "area" ? Line :
+    options.type === "pie" ? Pie :
+    options.type === "scatter" ? Scatter : Bar;
+
+  // Export functions
+  const exportImage = (format) => {
+    const chart = ref.current;
+    if (!chart?.toBase64Image) {
+      alert('Chart not ready for export');
+      return;
+    }
+    
+    const url = chart.toBase64Image(format === "jpeg" ? "image/jpeg" : "image/png");
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${chartTitle || 'chart'}.${format}`;
+    a.click();
+  };
+
+  const exportData = (format) => {
+    if (!data.length) return;
+    
+    if (format === "csv") {
+      const keys = Object.keys(data[0]);
+      const csvContent = [
+        keys.join(","),
+        ...data.map(row => keys.map(k => `"${row[k] ?? ""}"`).join(","))
+      ].join("\n");
+      
+      const blob = new Blob([csvContent], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${chartTitle || 'data'}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } else if (format === "json") {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${chartTitle || 'data'}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  // Navigate to forecast page
+  const goToForecast = () => {
+    // Store current data for forecast page
+    localStorage.setItem("chartTitle", chartTitle);
+    localStorage.setItem("currentXAxis", xAxis);
+    localStorage.setItem("currentYAxis", yAxis);
+    navigate("/forecast");
+  };
+
+  const handleBarClick = (seriesKey, label) => {
+    const index = lbls.indexOf(label);
+    if (index !== -1) {
+      const originalIndex = map[index];
+      setEditing({ index: originalIndex, label });
+    }
+    onBarClick(seriesKey, label);
+  };
+
+  const updateBarColor = (color) => {
+    if (editing) {
+      const newColors = [...perColor];
+      newColors[editing.index] = color;
+      setPerColor(newColors);
+      setEditing(null);
+    }
+  };
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="rounded-2xl bg-white border shadow-sm dark:bg-ink/80 dark:border-white/5 p-8 text-center">
+        <div className="text-gray-500 dark:text-slate-400">
+          No data available for visualization
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-2xl bg-white border shadow-sm dark:bg-ink/80 dark:border-white/5 p-5">
-      <div className="flex justify-between items-start">
-        <div>
-          <h3 className="font-display text-sm mb-2">{chartTitle||"Visualization"}</h3>
-          <div className="flex flex-wrap gap-2 text-sm">
-            <label>X:<select value={xAxis} onChange={e=>setXAxis(e.target.value)} className="ml-1 border rounded px-2 py-1">{columns.map(c=><option key={c}>{c}</option>)}</select></label>
-            <label>Y:<select value={yAxis} onChange={e=>setYAxis(e.target.value)} className="ml-1 border rounded px-2 py-1">{columns.map(c=><option key={c}>{c}</option>)}</select></label>
+      {/* Header */}
+      <div className="flex justify-between items-start mb-4">
+        <div className="flex-1">
+          <h3 className="font-display text-lg font-medium mb-2 text-gray-800 dark:text-slate-200">
+            {chartTitle || "Data Visualization"}
+          </h3>
+          
+          {/* Axis selectors */}
+          <div className="flex flex-wrap gap-3 text-sm">
+            <div className="flex items-center gap-2">
+              <label className="text-gray-600 dark:text-slate-400 font-medium">X-Axis:</label>
+              <select
+                value={xAxis}
+                onChange={e => setXAxis(e.target.value)}
+                className="border rounded-lg px-3 py-1 bg-white dark:bg-slate-800 dark:border-slate-600 min-w-[120px]"
+              >
+                {columns.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <label className="text-gray-600 dark:text-slate-400 font-medium">Y-Axis:</label>
+              <select
+                value={yAxis}
+                onChange={e => setYAxis(e.target.value)}
+                className="border rounded-lg px-3 py-1 bg-white dark:bg-slate-800 dark:border-slate-600 min-w-[120px]"
+              >
+                {columns.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
           </div>
         </div>
-        <div className="flex gap-2 text-xs items-center">
-          <span>Export:</span>
-          <button onClick={()=>dlImg("png")} className="px-2 py-1 border rounded">PNG</button>
-          <button onClick={()=>dlImg("jpeg")} className="px-2 py-1 border rounded">JPEG</button>
-          <button onClick={dlCSV} className="px-2 py-1 border rounded">CSV</button>
-          <button onClick={dlJSON} className="px-2 py-1 border rounded">JSON</button>
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={goToForecast}
+            className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg text-sm font-medium"
+            title="Generate AI Forecast"
+          >
+            <TrendingUp size={16} />
+            Forecast
+          </button>
+          
+          <button
+            onClick={() => setShowExportTool(!showExportTool)}
+            className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 dark:border-white/20 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors text-sm font-medium"
+            title="Export Chart"
+          >
+            <Download size={16} />
+            Export
+          </button>
         </div>
       </div>
-      <div className="mt-3 rounded-xl p-3 bg-gradient-to-b from-white to-gray-50 border dark:from-black/30 dark:to-black/10">
-        <div style={{height:360}}><Comp ref={ref} data={chartData} options={opts}/></div>
+
+      {/* Chart container */}
+      <div className="mt-4 rounded-xl p-4 bg-gradient-to-b from-gray-50 to-white border dark:from-black/20 dark:to-black/10 dark:border-white/10">
+        <div style={{ height: 400, position: 'relative' }}>
+          <ChartComponent
+            ref={ref}
+            data={chartData}
+            options={{
+              ...chartOptions,
+              onClick: (event, elements) => {
+                if (elements.length > 0) {
+                  const element = elements[0];
+                  const dataIndex = element.index;
+                  const seriesKey = element.datasetIndex;
+                  handleBarClick(seriesKey, lbls[dataIndex]);
+                }
+              }
+            }}
+          />
+        </div>
       </div>
-      {editing&&<div className="mt-3 p-3 border rounded bg-white dark:bg-black/40 flex gap-3 items-center">Editing #{editing.index+1}<input type="color" onChange={e=>{const c=[...perColor];c[editing.index]=e.target.value;setPerColor(c);setEditing(null);}}/><button onClick={()=>setEditing(null)} className="px-2 py-1 border rounded">Close</button></div>}
+
+      {/* Color editing panel */}
+      {editing && (
+        <div className="mt-4 p-4 border rounded-xl bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium">
+              Edit color for: <span className="text-blue-600 dark:text-blue-400">{editing.label}</span>
+            </span>
+            <input
+              type="color"
+              onChange={e => updateBarColor(e.target.value)}
+              className="w-10 h-8 rounded border"
+            />
+            <button
+              onClick={() => setEditing(null)}
+              className="px-3 py-1 text-sm border rounded-lg hover:bg-white dark:hover:bg-slate-800 transition-colors"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Export tool overlay */}
+      {showExportTool && (
+        <ChartExportTool
+          onClose={() => setShowExportTool(false)}
+          onExportImage={exportImage}
+          onExportCSV={() => exportData("csv")}
+          onExportJSON={() => exportData("json")}
+          chartData={data}
+          chartTitle={chartTitle}
+        />
+      )}
+
+      {/* Data quality indicator */}
+      {data.length > 0 && (
+        <div className="mt-4 text-xs text-gray-500 dark:text-slate-400 flex items-center justify-between">
+          <span>{data.length.toLocaleString()} data points visualized</span>
+          {selectedBars.length > 0 && (
+            <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
+              {selectedBars.length} selected
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
