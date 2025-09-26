@@ -43,6 +43,14 @@ scipy>=1.11.0
 python-dotenv>=1.0.0
 psycopg2-binary
 
+# === Missing Dependencies (ADD THESE) ===
+xlrd>=2.0.1          # For reading .xls files
+pystan>=3.5.0        # Required by Prophet
+cmdstanpy>=1.1.0     # Prophet backend
+holidays>=0.34       # Prophet dependency
+tqdm>=4.64.0         # Progress bars for Prophet
+matplotlib>=3.6.0    # For Prophet plots (optional but recommended)
+
 # === Optional: Advanced ML ===
 # neuralprophet>=0.6.0  # Alternative to Prophet
 # xgboost>=1.7.0        # For ensemble methods
