@@ -85,8 +85,13 @@ export default function FileUpload({
       return { data: raw, columns: columns || [] };
     }
 
-    // Case 2: array of arrays + columns provided
-    if (Array.isArray(raw) && raw.length > 0 && Array.isArray(raw[0]) && Array.isArray(columns)) {
+    // Case 2: array of arrays
+    if (Array.isArray(raw) && raw.length > 0 && Array.isArray(raw[0])) {
+      // if no columns provided, auto-generate
+      if (!columns) {
+        const colCount = raw[0].length;
+        columns = Array.from({ length: colCount }, (_, i) => `Column${i + 1}`);
+      }
       const data = raw.map((row) => {
         const obj = {};
         for (let i = 0; i < columns.length; i++) {
@@ -168,6 +173,10 @@ export default function FileUpload({
           const normalized = normalizeResponseData(r);
           const finalData = normalized.data || [];
           const finalColumns = normalized.columns || [];
+
+          // 🔎 Add these here
+          console.log("Final normalized data:", finalData);
+          console.log("Final normalized columns:", finalColumns);
 
           // Store data for export and local preview
           setUploadedData(finalData);
