@@ -124,6 +124,34 @@ function App() {
                     Ready to dive into your data? Upload files for cleaning and visualization, 
                     or use our powerful file conversion tools.
                   </p>
+
+                  {/* ------------------ */}
+                  {/* User Hero Buttons */}
+                  {/* ------------------ */}
+                  <div className="flex flex-wrap gap-4 justify-center mt-8">
+                    {/* AI Forecasting Button */}
+                    <Link
+                      to="/forecast"
+                      className="relative flex items-center justify-center p-5 rounded-full
+                                       bg-gradient-to-br from-blue-400/40 to-blue-600/40
+                                       border border-blue-200/30 shadow-lg shadow-blue-300/40
+                                       hover:scale-105 active:scale-95 transition-all duration-200"
+                      >
+                      
+                      {/* Moving blue dots */}
+                      <span className="absolute top-2 left-2 w-2 h-2 bg-blue-300 rounded-full animate-dot1"></span>
+                      <span className="absolute bottom-3 right-3 w-2 h-2 bg-blue-400 rounded-full animate-dot2"></span>
+                      <span className="absolute top-1 right-4 w-1.5 h-1.5 bg-blue-500 rounded-full animate-dot3"></span>
+
+                      <Brain size={28} className="text-white drop-shadow-lg z-10" />
+                      <span className="ml-2 text-white font-semibold z-10">AI Forecasting</span>
+                    </Link>
+
+                    {/* Price Listing Button */}
+                    <button className="px-6 py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors duration-200">
+                      Price Listing
+                    </button>
+                  </div>
                 </>
               ) : (
                 <>
