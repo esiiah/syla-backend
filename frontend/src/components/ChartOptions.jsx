@@ -1,9 +1,27 @@
 // frontend/src/components/ChartOptions.jsx
 import React, { useState, useEffect } from "react";
-import { Settings, Palette, BarChart, TrendingUp, SortAsc, Ruler, Download } from "lucide-react";
+import { 
+  Settings, Palette, BarChart, TrendingUp, SortAsc, Ruler, Download, 
+  Filter, Sliders, Grid, Eye, Save, RefreshCw, ChevronDown, ChevronUp
+} from "lucide-react";
 
-function ChartOptions({ options = {}, setOptions = () => {}, columns = [] }) {
+function ChartOptions({ 
+  options = {}, 
+  setOptions = () => {}, 
+  columns = [],
+  data = [],
+  onSaveChart = () => {},
+  onLoadPreset = () => {}
+}) {
   const [local, setLocal] = useState({ ...options });
+  const [activeTab, setActiveTab] = useState("display");
+  const [expandedSections, setExpandedSections] = useState({
+    filters: true,
+    display: true,
+    colors: false,
+    advanced: false
+  });
+
   useEffect(() => setLocal({ ...options }), [options]);
 
   const commit = (patch) => {
@@ -12,239 +30,712 @@ function ChartOptions({ options = {}, setOptions = () => {}, columns = [] }) {
     setOptions(prev => ({ ...prev, ...patch }));
   };
 
-  // gradient stops editing helpers
-  const addStop = () => {
-    if (!local.gradientStops || local.gradientStops.length >= 5) return;
-    const arr = [...(local.gradientStops || []), '#ffffff'];
-    commit({ gradientStops: arr, gradient: true });
-  };
-  const removeStop = () => {
-    if (!local.gradientStops || local.gradientStops.length <= 2) return;
-    const arr = local.gradientStops.slice(0, -1);
-    commit({ gradientStops: arr });
-  };
-  const updateStop = (idx, val) => {
-    const arr = [...(local.gradientStops || [])];
-    arr[idx] = val;
-    commit({ gradientStops: arr, gradient: true });
+  // Get numeric and categorical columns
+  const numericColumns = columns.filter(col => {
+    if (!data.length) return true;
+    const sample = data.slice(0, 100);
+    return sample.some(row => typeof row[col] === 'number' || !isNaN(Number(row[col])));
+  });
+
+  const categoricalColumns = columns.filter(col => !numericColumns.includes(col));
+  
+  // Get unique values for filter dropdowns
+  const getUniqueValues = (column) => {
+    if (!data.length) return [];
+    const values = [...new Set(data.map(row => row[col]).filter(v => v != null))];
+    return values.slice(0, 50); // Limit to prevent UI overflow
   };
 
+  // Gradient management
+  const addGradientStop = () => {
+    if (!local.gradientStops || local.gradientStops.length >= 5) return;
+    const stops = [...(local.gradientStops || [local.color || '#2563eb']), '#ffffff'];
+    commit({ gradientStops: stops, gradient: true });
+  };
+
+  const removeGradientStop = () => {
+    if (!local.gradientStops || local.gradientStops.length <= 2) return;
+    const stops = local.gradientStops.slice(0, -1);
+    commit({ gradientStops: stops });
+  };
+
+  const updateGradientStop = (idx, color) => {
+    const stops = [...(local.gradientStops || [])];
+    stops[idx] = color;
+    commit({ gradientStops: stops, gradient: true });
+  };
+
+  // Color presets
+  const colorPresets = [
+    { name: "Blue", colors: ['#2563eb', '#3b82f6', '#60a5fa'] },
+    { name: "Green", colors: ['#059669', '#10b981', '#34d399'] },
+    { name: "Purple", colors: ['#7c3aed', '#8b5cf6', '#a78bfa'] },
+    { name: "Orange", colors: ['#ea580c', '#f97316', '#fb923c'] },
+    { name: "Pink", colors: ['#db2777', '#ec4899', '#f472b6'] },
+    { name: "Teal", colors: ['#0d9488', '#14b8a6', '#5eead4'] }
+  ];
+
+  const applyColorPreset = (preset) => {
+    commit({ 
+      color: preset.colors[0],
+      gradientStops: preset.colors,
+      gradient: preset.colors.length > 1
+    });
+  };
+
+  // Validation and chart type compatibility
   const chartType = local.type || "bar";
-  const supportsCompare = chartType !== "pie" && chartType !== "scatter";
-  const supportsTrendline = chartType === "bar" || chartType === "line";
-  const supportsLog = chartType === "bar" || chartType === "line";
+  const supportsCompare = !["pie", "scatter"].includes(chartType);
+  const supportsTrendline = ["bar", "line"].includes(chartType);
+  const supportsLog = ["bar", "line", "scatter"].includes(chartType);
+  const supportsStacking = ["bar"].includes(chartType);
+
+  const toggleSection = (section) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
+
+  const resetToDefaults = () => {
+    const defaults = {
+      type: "bar",
+      color: "#2563eb",
+      gradient: false,
+      gradientStops: ["#2563eb", "#ff6b6b"],
+      showLabels: false,
+      trendline: false,
+      sort: "none",
+      logScale: false,
+      compareField: "",
+      topN: 0,
+      groupOthers: false
+    };
+    commit(defaults);
+  };
+
+  const tabs = [
+    { id: "filters", label: "Filters", icon: Filter },
+    { id: "display", label: "Display", icon: BarChart },
+    { id: "colors", label: "Colors", icon: Palette },
+    { id: "advanced", label: "Advanced", icon: Settings }
+  ];
 
   return (
-    <div className="mt-4 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
+    <div className="mt-4 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5">
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-white/10">
-        <h3 className="font-display text-sm flex items-center gap-2">
-          <Settings size={16} className="text-neonBlue" /> Chart Options
+        <h3 className="font-display text-sm flex items-center gap-2 font-medium">
+          <Settings size={16} className="text-neonBlue" />
+          Chart Options
         </h3>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={resetToDefaults}
+            className="p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-slate-300 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+            title="Reset to defaults"
+          >
+            <RefreshCw size={14} />
+          </button>
+          <button
+            onClick={() => onSaveChart(local)}
+            className="p-1.5 text-blue-500 hover:text-blue-700 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+            title="Save configuration"
+          >
+            <Save size={14} />
+          </button>
+        </div>
       </div>
 
-      <div className="p-4 space-y-4 text-sm text-gray-700 dark:text-slate-300">
-        {/* Chart Type */}
-        <div>
-          <label className="flex items-center gap-2 font-medium mb-1">
-            <BarChart size={14} /> Chart Type
-          </label>
-          <select
-            value={local.type}
-            onChange={(e) => commit({ type: e.target.value })}
-            className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
+      {/* Tab navigation */}
+      <div className="flex border-b border-gray-200 dark:border-white/10">
+        {tabs.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
+              activeTab === tab.id
+                ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50 dark:bg-blue-900/20 dark:text-blue-400"
+                : "text-gray-600 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700"
+            }`}
           >
-            <option value="bar">Bar</option>
-            <option value="line">Line</option>
-            <option value="scatter">Scatter</option>
-            <option value="pie">Pie</option>
-          </select>
-        </div>
+            <tab.icon size={16} />
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-        {/* Color + gradient */}
-        <div>
-          <label className="flex items-center gap-2 font-medium mb-1">
-            <Palette size={14} /> Chart Color
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              type="color"
-              value={local.color || "#2563eb"}
-              onChange={(e) => commit({ color: e.target.value })}
-              className="w-12 h-8 p-0 border rounded"
-            />
-            <label className="ml-2 text-xs inline-flex items-center">
-              <input
-                type="checkbox"
-                checked={!!local.gradient}
-                onChange={(e) => commit({ gradient: e.target.checked })}
-                className="mr-1"
-              />
-              Gradient
-            </label>
-          </div>
-
-          {local.gradient && (
-            <div className="mt-2">
-              <div className="text-xs mb-1">Gradient stops (2–5)</div>
-              <div className="flex gap-2 items-center">
-                {(local.gradientStops || ['#2563eb', '#ff6b6b']).map((col, i) => (
-                  <input
-                    key={i}
-                    type="color"
-                    value={col}
-                    onChange={(e) => updateStop(i, e.target.value)}
-                  />
-                ))}
-                <button onClick={addStop} className="px-2 py-1 border rounded text-xs">+ stop</button>
-                <button onClick={removeStop} className="px-2 py-1 border rounded text-xs">- stop</button>
-              </div>
+      {/* Tab content */}
+      <div className="p-4">
+        {/* Filters Tab */}
+        {activeTab === "filters" && (
+          <div className="space-y-4">
+            {/* Dataset selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                Dataset Source
+              </label>
+              <select className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800">
+                <option>Current uploaded data</option>
+                <option>Load from saved dataset...</option>
+              </select>
             </div>
-          )}
-        </div>
 
-        {/* Labels */}
-        <div>
-          <label className="flex items-center gap-2 font-medium">
-            Show Data Labels
-            <input
-              type="checkbox"
-              checked={!!local.showLabels}
-              onChange={(e) => commit({ showLabels: e.target.checked })}
-              className="ml-auto"
-            />
-          </label>
-          <div className="text-xs text-gray-500 mt-1">
-            Data labels appear on bars/pie slices only when enabled. Axis labels remain visible by default.
-          </div>
-        </div>
-
-        {/* Trendline */}
-        {supportsTrendline && (
-          <div>
-            <label className="flex items-center gap-2 font-medium">
-              <TrendingUp size={14} /> Trendline
-              <input
-                type="checkbox"
-                checked={!!local.trendline}
-                onChange={(e) => commit({ trendline: e.target.checked })}
-                className="ml-auto"
-              />
-            </label>
-          </div>
-        )}
-        {!supportsTrendline && (
-          <div className="text-xs text-amber-600 dark:text-amber-400">
-            ⚠ Trendline not available for {chartType} charts
-          </div>
-        )}
-
-        {/* Sorting */}
-        <div>
-          <label className="flex items-center gap-2 font-medium mb-1">
-            <SortAsc size={14} /> Sorting
-          </label>
-          <select
-            value={local.sort}
-            onChange={(e) => commit({ sort: e.target.value })}
-            className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
-          >
-            <option value="none">None</option>
-            <option value="asc">Ascending</option>
-            <option value="desc">Descending</option>
-          </select>
-        </div>
-
-        {/* Log scale */}
-        {supportsLog && (
-          <div>
-            <label className="flex items-center gap-2 font-medium">
-              <Ruler size={14} /> Log Scale
-              <input
-                type="checkbox"
-                checked={!!local.logScale}
-                onChange={(e) => commit({ logScale: e.target.checked })}
-                className="ml-auto"
-              />
-            </label>
-            {local.logScale && (
-              <div className="mt-2 text-xs">
-                <label className="flex items-center gap-2">
-                  Min for log (optional)
-                  <input
-                    type="number"
-                    value={local.logMin || ''}
-                    onChange={(e) => commit({ logMin: e.target.value })}
-                    className="ml-2 border rounded px-2 py-1 w-28 text-xs"
-                    placeholder="auto"
-                  />
+            {/* Country filter */}
+            {categoricalColumns.includes('Country') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  Country Filter
                 </label>
-                <div className="text-xs text-gray-500 mt-1">
-                  Chart will replace zeros/negatives with a small positive fallback for plotting (originals shown in tooltips).
+                <select
+                  multiple
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
+                  style={{ minHeight: '80px' }}
+                >
+                  {getUniqueValues('Country').map(country => (
+                    <option key={country} value={country}>{country}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple</p>
+              </div>
+            )}
+
+            {/* Company filter */}
+            {categoricalColumns.includes('Company') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  Company Filter
+                </label>
+                <select
+                  multiple
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
+                  style={{ minHeight: '80px' }}
+                >
+                  {getUniqueValues('Company').map(company => (
+                    <option key={company} value={company}>{company}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Campaign filter with search */}
+            {categoricalColumns.includes('Campaign') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  Campaign Filter
+                </label>
+                <input
+                  type="text"
+                  placeholder="Search campaigns..."
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-2 dark:border-slate-600 dark:bg-slate-800"
+                />
+                <div className="max-h-32 overflow-y-auto border rounded-lg p-2 bg-gray-50 dark:bg-slate-700">
+                  {getUniqueValues('Campaign').map(campaign => (
+                    <label key={campaign} className="flex items-center gap-2 py-1 text-sm">
+                      <input type="checkbox" className="rounded" />
+                      <span>{campaign}</span>
+                      <span className="text-xs text-gray-500 ml-auto">
+                        ({data.filter(row => row.Campaign === campaign).length})
+                      </span>
+                    </label>
+                  ))}
                 </div>
+              </div>
+            )}
+
+            {/* Date range picker */}
+            {columns.includes('Date') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  Date Range
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">End Date</label>
+                    <input
+                      type="date"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Numeric filters */}
+            {numericColumns.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  Numeric Filters
+                </label>
+                {numericColumns.slice(0, 2).map(col => (
+                  <div key={col} className="mb-3">
+                    <label className="block text-xs text-gray-500 mb-1">{col} Range</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        placeholder="Min"
+                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Max"
+                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
+                      />
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
         )}
-        {!supportsLog && (
-          <div className="text-xs text-amber-600 dark:text-amber-400">
-            ⚠ Log scale not available for {chartType} charts
-          </div>
-        )}
 
-        {/* Compare field */}
-        {supportsCompare && (
-          <div>
-            <label className="flex items-center gap-2 font-medium mb-1">
-              Compare (second metric)
-            </label>
-            <select
-              value={local.compareField || ""}
-              onChange={(e) => commit({ compareField: e.target.value || "" })}
-              className="w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm"
-            >
-              <option value="">None</option>
-              {columns.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <div className="text-xs text-gray-500 mt-1">
-              When set, a second dataset is rendered for quick comparison (placed on a secondary axis).
+        {/* Display Tab */}
+        {activeTab === "display" && (
+          <div className="space-y-4">
+            {/* Aggregation settings */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  Group By
+                </label>
+                <select
+                  value={local.aggregateBy || ""}
+                  onChange={e => commit({ aggregateBy: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
+                >
+                  <option value="">No grouping</option>
+                  {categoricalColumns.map(col => (
+                    <option key={col} value={col}>{col}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  Metric
+                </label>
+                <select
+                  value={local.metric || ""}
+                  onChange={e => commit({ metric: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
+                >
+                  {numericColumns.map(col => (
+                    <option key={col} value={col}>{col}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  Function
+                </label>
+                <select
+                  value={local.aggregateFunction || "sum"}
+                  onChange={e => commit({ aggregateFunction: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
+                >
+                  <option value="sum">Sum</option>
+                  <option value="mean">Average</option>
+                  <option value="median">Median</option>
+                  <option value="count">Count</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Chart type */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                Chart Type
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {[
+                  { value: "bar", label: "Bar", icon: "📊" },
+                  { value: "line", label: "Line", icon: "📈" },
+                  { value: "area", label: "Area", icon: "📉" },
+                  { value: "pie", label: "Pie", icon: "🥧" },
+                  { value: "scatter", label: "Scatter", icon: "⚫" },
+                  { value: "stacked_bar", label: "Stacked", icon: "📚" }
+                ].map(type => (
+                  <button
+                    key={type.value}
+                    onClick={() => commit({ type: type.value })}
+                    className={`p-3 rounded-lg border-2 text-sm font-medium transition-all ${
+                      local.type === type.value
+                        ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
+                        : "border-gray-200 hover:border-gray-300 dark:border-slate-600 dark:hover:border-slate-500"
+                    }`}
+                  >
+                    <div className="text-lg mb-1">{type.icon}</div>
+                    {type.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Display options */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  Orientation
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => commit({ orientation: "horizontal" })}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm ${
+                      local.orientation === "horizontal"
+                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
+                        : "bg-gray-100 hover:bg-gray-200 dark:bg-slate-700"
+                    }`}
+                  >
+                    Horizontal
+                  </button>
+                  <button
+                    onClick={() => commit({ orientation: "vertical" })}
+                    className={`flex-1 py-2 px-3 rounded-lg text-sm ${
+                      local.orientation !== "horizontal"
+                        ? "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
+                        : "bg-gray-100 hover:bg-gray-200 dark:bg-slate-700"
+                    }`}
+                  >
+                    Vertical
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  Sort By
+                </label>
+                <select
+                  value={local.sort || "none"}
+                  onChange={e => commit({ sort: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
+                >
+                  <option value="none">None</option>
+                  <option value="asc">Ascending</option>
+                  <option value="desc">Descending</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Top N selector */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                Show Top N Groups
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min="0"
+                  max="50"
+                  value={local.topN || 0}
+                  onChange={e => commit({ topN: parseInt(e.target.value) || 0 })}
+                  className="w-24 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
+                  placeholder="All"
+                />
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={local.groupOthers || false}
+                    onChange={e => commit({ groupOthers: e.target.checked })}
+                    className="rounded"
+                  />
+                  Group remainder as "Others"
+                </label>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">0 = show all groups</p>
             </div>
           </div>
         )}
-        {!supportsCompare && (
-          <div className="text-xs text-amber-600 dark:text-amber-400">
-            ⚠ Compare not available for Pie or Scatter
+
+        {/* Colors Tab */}
+        {activeTab === "colors" && (
+          <div className="space-y-4">
+            {/* Color presets */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                Color Presets
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {colorPresets.map(preset => (
+                  <button
+                    key={preset.name}
+                    onClick={() => applyColorPreset(preset)}
+                    className="p-3 rounded-lg border border-gray-200 hover:border-gray-300 dark:border-slate-600 dark:hover:border-slate-500 transition-colors"
+                  >
+                    <div className="flex gap-1 justify-center mb-2">
+                      {preset.colors.map((color, i) => (
+                        <div
+                          key={i}
+                          className="w-4 h-4 rounded-full"
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
+                    </div>
+                    <div className="text-xs font-medium">{preset.name}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Primary color */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                Primary Color
+              </label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={local.color || "#2563eb"}
+                  onChange={e => commit({ color: e.target.value })}
+                  className="w-12 h-10 rounded-lg border border-gray-300"
+                />
+                <input
+                  type="text"
+                  value={local.color || "#2563eb"}
+                  onChange={e => commit({ color: e.target.value })}
+                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono dark:border-slate-600 dark:bg-slate-800"
+                  placeholder="#2563eb"
+                />
+              </div>
+            </div>
+
+            {/* Gradient toggle */}
+            <div>
+              <label className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={local.gradient || false}
+                  onChange={e => commit({ gradient: e.target.checked })}
+                  className="rounded"
+                />
+                <span className="text-sm font-medium">Enable Gradient</span>
+              </label>
+            </div>
+
+            {/* Gradient stops */}
+            {local.gradient && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-gray-700 dark:text-slate-300">
+                    Gradient Stops
+                  </label>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={addGradientStop}
+                      disabled={!local.gradientStops || local.gradientStops.length >= 5}
+                      className="px-2 py-1 text-xs bg-blue-500 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      + Add
+                    </button>
+                    <button
+                      onClick={removeGradientStop}
+                      disabled={!local.gradientStops || local.gradientStops.length <= 2}
+                      className="px-2 py-1 text-xs bg-red-500 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {(local.gradientStops || [local.color || '#2563eb']).map((color, i) => (
+                    <div key={i} className="flex flex-col items-center gap-1">
+                      <input
+                        type="color"
+                        value={color}
+                        onChange={e => updateGradientStop(i, e.target.value)}
+                        className="w-8 h-8 rounded border"
+                      />
+                      <span className="text-xs text-gray-500">{i + 1}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Per-series colors */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                Series Colors
+              </label>
+              <div className="text-xs text-gray-500 mb-2">
+                Click on chart elements to customize individual colors
+              </div>
+              <div className="p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                <div className="text-sm">Interactive color editing:</div>
+                <ul className="text-xs text-gray-600 dark:text-slate-400 mt-1 space-y-1">
+                  <li>• Click any bar/point to open color picker</li>
+                  <li>• Use "Apply to all" to extend color to similar items</li>
+                  <li>• Save color profiles for reuse</li>
+                </ul>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* Exports */}
-        <div>
-          <label className="flex items-center gap-2 font-medium">
-            <Download size={14} /> Quick Export (Client-side)
-          </label>
-          <div className="mt-2 flex gap-2">
+        {/* Advanced Tab */}
+        {activeTab === "advanced" && (
+          <div className="space-y-4">
+            {/* Interactive features */}
+            <div>
+              <h4 className="font-medium text-gray-700 dark:text-slate-300 mb-3">Interactivity</h4>
+              <div className="space-y-3">
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={local.showLabels || false}
+                    onChange={e => commit({ showLabels: e.target.checked })}
+                    className="rounded"
+                  />
+                  <span className="text-sm">Show Data Labels</span>
+                </label>
+
+                {supportsTrendline && (
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={local.trendline || false}
+                      onChange={e => commit({ trendline: e.target.checked })}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Show Trendline</span>
+                  </label>
+                )}
+
+                {supportsLog && (
+                  <div>
+                    <label className="flex items-center gap-3 mb-2">
+                      <input
+                        type="checkbox"
+                        checked={local.logScale || false}
+                        onChange={e => commit({ logScale: e.target.checked })}
+                        className="rounded"
+                      />
+                      <span className="text-sm">Logarithmic Scale</span>
+                    </label>
+                    {local.logScale && (
+                      <input
+                        type="number"
+                        min="0.001"
+                        step="0.001"
+                        value={local.logMin || ""}
+                        onChange={e => commit({ logMin: parseFloat(e.target.value) || undefined })}
+                        placeholder="Min value (auto)"
+                        className="ml-6 w-32 rounded border px-2 py-1 text-xs dark:border-slate-600 dark:bg-slate-800"
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Comparison */}
+            {supportsCompare && (
+              <div>
+                <h4 className="font-medium text-gray-700 dark:text-slate-300 mb-3">Comparison</h4>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                    Compare with Second Metric
+                  </label>
+                  <select
+                    value={local.compareField || ""}
+                    onChange={e => commit({ compareField: e.target.value })}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
+                  >
+                    <option value="">None</option>
+                    {numericColumns.map(col => (
+                      <option key={col} value={col}>{col}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Second metric will be displayed on a secondary axis
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Export settings */}
+            <div>
+              <h4 className="font-medium text-gray-700 dark:text-slate-300 mb-3">Export Settings</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Default Format</label>
+                  <select
+                    value={local.exportFormat || "png"}
+                    onChange={e => commit({ exportFormat: e.target.value })}
+                    className="w-full rounded border px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-800"
+                  >
+                    <option value="png">PNG</option>
+                    <option value="svg">SVG</option>
+                    <option value="pdf">PDF</option>
+                    <option value="csv">CSV (data)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">DPI</label>
+                  <input
+                    type="number"
+                    min="72"
+                    max="600"
+                    value={local.exportDPI || 300}
+                    onChange={e => commit({ exportDPI: parseInt(e.target.value) || 300 })}
+                    className="w-full rounded border px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-800"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Performance */}
+            <div>
+              <h4 className="font-medium text-gray-700 dark:text-slate-300 mb-3">Performance</h4>
+              <div className="space-y-2">
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={local.enableAnimations !== false}
+                    onChange={e => commit({ enableAnimations: e.target.checked })}
+                    className="rounded"
+                  />
+                  <span className="text-sm">Enable Animations</span>
+                </label>
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={local.enableTooltips !== false}
+                    onChange={e => commit({ enableTooltips: e.target.checked })}
+                    className="rounded"
+                  />
+                  <span className="text-sm">Enable Tooltips</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Quick actions footer */}
+        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-white/10 flex items-center justify-between">
+          <div className="text-xs text-gray-500">
+            {data.length > 0 && `${data.length.toLocaleString()} data points`}
+          </div>
+          <div className="flex gap-2">
             <button
               onClick={() => window.dispatchEvent(new CustomEvent('exportChart', { detail: { format: 'png' } }))}
-              className="px-2 py-1 rounded-lg border text-xs hover:bg-gray-100 dark:hover:bg-white/10"
+              className="px-3 py-1.5 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
             >
-              PNG
-            </button>
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent('exportChart', { detail: { format: 'jpeg' } }))}
-              className="px-2 py-1 rounded-lg border text-xs hover:bg-gray-100 dark:hover:bg-white/10"
-            >
-              JPEG
+              Export PNG
             </button>
             <button
               onClick={() => window.dispatchEvent(new CustomEvent('exportData', { detail: { format: 'csv' } }))}
-              className="px-2 py-1 rounded-lg border text-xs hover:bg-gray-100 dark:hover:bg-white/10"
+              className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 dark:border-slate-600 dark:hover:bg-slate-700 transition-colors"
             >
-              CSV
-            </button>
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent('exportData', { detail: { format: 'json' } }))}
-              className="px-2 py-1 rounded-lg border text-xs hover:bg-gray-100 dark:hover:bg-white/10"
-            >
-              JSON
+              Export CSV
             </button>
           </div>
         </div>
