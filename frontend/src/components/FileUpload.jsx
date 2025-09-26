@@ -1,7 +1,7 @@
 // frontend/src/components/FileUpload.jsx
 import React, { useState, useRef, useEffect } from "react";
 import VisualUploadPanel from "./upload/VisualUploadPanel";
-import ChartExportPanel from "./export/ChartExportTool";
+import ChartExportTool from "./export/ChartExportTool";
 
 export default function FileUpload({
   action = null,
