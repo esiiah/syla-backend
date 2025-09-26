@@ -535,3 +535,110 @@ def suggest_chart_type(df: pd.DataFrame, target_column: str = None) -> Dict[str,
     suggestions.sort(key=lambda x: x["confidence"], reverse=True)
     
     return {"recommended": suggestions[0]["chart_type"], "all_suggestions": suggestions}
+
+def validate_forecast_data(
+    df: pd.DataFrame, 
+    target_column: str, 
+    date_column: Optional[str] = None
+) -> pd.DataFrame:
+    """Validate and clean data for forecasting - universal approach"""
+    
+    if df.empty:
+        raise ValueError("DataFrame is empty")
+    
+    if target_column not in df.columns:
+        # Try to find a similar column name
+        possible_targets = [col for col in df.columns if target_column.lower() in col.lower()]
+        if possible_targets:
+            target_column = possible_targets[0]
+            logger.warning(f"Target column adjusted to: {target_column}")
+        else:
+            raise ValueError(f"Target column '{target_column}' not found. Available: {list(df.columns)}")
+    
+    df_clean = df.copy()
+    
+    # Universal target column conversion
+    try:
+        df_clean[target_column] = pd.to_numeric(df_clean[target_column], errors='coerce')
+    except Exception as e:
+        raise ValueError(f"Target column '{target_column}' cannot be converted to numeric: {e}")
+    
+    # Remove rows where target is null and fill with 0
+    initial_rows = len(df_clean)
+    df_clean[target_column] = df_clean[target_column].fillna(0)
+    
+    # Validate date column universally
+    if date_column and date_column in df.columns:
+        try:
+            df_clean[date_column] = pd.to_datetime(df_clean[date_column], errors='coerce')
+            df_clean = df_clean.sort_values(date_column).reset_index(drop=True)
+        except Exception as e:
+            logger.warning(f"Could not parse date column '{date_column}': {e}")
+            date_column = None
+    
+    # Minimum data requirements - be flexible
+    if len(df_clean) < 1:
+        raise ValueError("No data remaining after cleaning")
+    
+    logger.info(f"Forecast data validation complete: {len(df_clean)} valid rows")
+    return df_clean
+
+def prepare_time_series(
+    df: pd.DataFrame,
+    target_column: str,
+    date_column: Optional[str] = None,
+    freq: str = 'M'
+) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+    """Prepare time series data for forecasting models - universal"""
+    
+    metadata = {
+        "original_rows": len(df),
+        "has_date_column": date_column is not None,
+        "frequency": freq,
+        "target_stats": {}
+    }
+    
+    # Calculate target statistics
+    target_values = pd.to_numeric(df[target_column], errors='coerce').fillna(0)
+    metadata["target_stats"] = {
+        "mean": float(target_values.mean()),
+        "std": float(target_values.std()),
+        "min": float(target_values.min()),
+        "max": float(target_values.max()),
+        "null_count": int(target_values.isnull().sum())
+    }
+    
+    # Create time series DataFrame
+    ts_df = pd.DataFrame()
+    
+    if date_column and date_column in df.columns:
+        # Use provided date column
+        try:
+            ts_df['ds'] = pd.to_datetime(df[date_column], errors='coerce')
+            ts_df['y'] = target_values
+            
+            # Remove rows with invalid dates
+            ts_df = ts_df.dropna(subset=['ds']).sort_values('ds').reset_index(drop=True)
+            
+            if len(ts_df) == 0:
+                raise ValueError("No valid dates found")
+                
+        except Exception as e:
+            logger.warning(f"Date column processing failed: {e}, creating synthetic dates")
+            date_column = None
+    
+    if not date_column:
+        # Create synthetic time index
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=30 * len(df))
+        
+        ts_df['ds'] = pd.date_range(start=start_date, periods=len(df), freq=freq)
+        ts_df['y'] = target_values.reset_index(drop=True)
+        metadata["synthetic_dates"] = True
+    
+    # Handle missing values in target
+    ts_df['y'] = ts_df['y'].fillna(method='ffill').fillna(method='bfill').fillna(0)
+    
+    metadata["final_rows"] = len(ts_df)
+    
+    return ts_df, metadata
