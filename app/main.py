@@ -110,130 +110,116 @@ def unique_filename(name: str) -> str:
 def health_check():
     return {"message": "Backend is running 🚀", "ai_enabled": True}
 
+# Replace the upload_file function in main.py with this universal version
+
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
-    """Enhanced upload with fallback when cleaned dataframe is empty."""
+    """Universal file upload - accepts ANY format and cleans it"""
     filename = file.filename or "uploaded_file"
-
+    
     try:
         raw = await file.read()
         if not raw:
             raise HTTPException(status_code=400, detail="File is empty")
-
+        
         # Save raw file first
         saved_name = unique_filename(filename)
         raw_path = visual.RAW_DIR / saved_name
         with open(raw_path, "wb") as f:
             f.write(raw)
-
-        if filename.lower().endswith(('.csv', '.xlsx', '.xls')):
+        
+        # Universal processing - NO expectations, just clean whatever we get
+        try:
+            # Use universal loader instead of expecting specific format
+            df = visual.universal_load_any_file(str(raw_path))
+            
+            # Universal cleaning - handles ANY data structure
+            df_clean, cleaning_metadata = visual.universal_clean_pipeline(df, aggressive=False)
+            
+            # At this point we ALWAYS have a valid DataFrame
+            logger.info(f"Universal processing result: {len(df_clean)} rows, {len(df_clean.columns)} columns")
+            
+            # Generate basic metadata
+            column_types = detect_column_types(df_clean)
+            summary = summarize_numeric(df_clean)
+            
+            # Save cleaned version
+            cleaned_name = f"cleaned_{saved_name}"
+            cleaned_path = visual.CLEANED_DIR / cleaned_name
+            df_clean.to_csv(cleaned_path, index=False)
+            
+            # Determine axis suggestions - work with whatever we have
+            x_axis = df_clean.columns[0] if len(df_clean.columns) > 0 else "Column_1"
+            
+            # Find first numeric column for y-axis, fallback to second column
+            numeric_cols = [c for c, t in column_types.items() if t == "numeric"]
+            if numeric_cols:
+                y_axis = numeric_cols[0]
+            elif len(df_clean.columns) > 1:
+                y_axis = df_clean.columns[1]
+            else:
+                y_axis = x_axis
+            
+            # Always return success - we've cleaned whatever we could
+            return JSONResponse(content={
+                "file_id": saved_name,
+                "filename": filename,
+                "path": str(raw_path),
+                "cleaned_path": str(cleaned_path),
+                "rows": len(df_clean),
+                "columns": list(df_clean.columns),
+                "types": column_types,
+                "summary": summary,
+                "data": df_clean.to_dict(orient="records"),
+                "chart_title": filename.split('.')[0],  # Remove extension
+                "x_axis": x_axis,
+                "y_axis": y_axis,
+                "download_url": f"/api/files/{saved_name}",
+                "cleaning_metadata": cleaning_metadata,
+                "processing_mode": "universal",
+                "message": f"Successfully processed {len(df_clean)} rows and {len(df_clean.columns)} columns"
+            })
+            
+        except Exception as e:
+            logger.error(f"Universal processing failed: {e}")
+            
+            # Ultimate fallback - create a basic structure from raw file content
             try:
-                df = visual.load_raw_csv(str(raw_path))
-
-                quality_info = visual.describe_missing_and_duplicates(df)
-                data_quality = visual.calculate_data_quality_score(df)
-
-                df_clean, cleaning_metadata = visual.clean_pipeline(df, {
-                    'deduplicate': True,
-                    'fill_method': 'none',
-                    'remove_negatives': False,
-                    'drop_threshold': 0.0
-                })
-
-                preview_data = visual.preview_rows(df, 10)
-                column_types = detect_column_types(df_clean if not df_clean.empty else df)
-                summary = summarize_numeric(df_clean if not df_clean.empty else df)
-
-                chart_suggestions = visual.suggest_chart_type(df_clean if not df_clean.empty else df)
-
+                with open(raw_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                
+                # Create minimal DataFrame from raw content
+                lines = [line.strip() for line in content.split('\n')[:1000] if line.strip()]
+                df_fallback = pd.DataFrame({'Raw_Content': lines})
+                
+                # Save fallback
                 cleaned_name = f"cleaned_{saved_name}"
                 cleaned_path = visual.CLEANED_DIR / cleaned_name
-                # always write a csv even if empty to keep pipeline consistent
-                (df_clean if not df_clean.empty else df).to_csv(cleaned_path, index=False)
-
-                visual.log_action(
-                    action="upload",
-                    user_id="system",
-                    input_file_id=saved_name,
-                    output_path=str(cleaned_path),
-                    summary_stats={
-                        "original_rows": len(df),
-                        "cleaned_rows": len(df_clean),
-                        "columns": len(df.columns)
-                    }
-                )
-
-                x_axis = (df_clean if not df_clean.empty else df).columns[0] if len((df_clean if not df_clean.empty else df).columns) else ""
-                numeric_cols = [c for c, t in column_types.items() if t == "numeric"]
-                y_axis = numeric_cols[0] if numeric_cols else x_axis
-
-                # --------- Fallback fix ---------
-                if df_clean is None or df_clean.empty:
-                    logger.warning("Cleaned DataFrame is empty — returning preview from original data to frontend")
-                    response_data = {
-                        "file_id": saved_name,
-                        "filename": filename,
-                        "path": str(raw_path),
-                        "cleaned_path": str(cleaned_path),
-                        "rows": len(df),
-                        "columns": list(df.columns),
-                        "types": column_types,
-                        "summary": summary,
-                        "data": preview_data.to_dict(orient="records"),
-                        "preview_rows": preview_data.to_dict(orient="records"),
-                        "chart_title": filename,
-                        "x_axis": x_axis,
-                        "y_axis": y_axis,
-                        "download_url": f"/api/files/{saved_name}",
-                        "quality_analysis": quality_info,
-                        "data_quality_score": data_quality,
-                        "chart_suggestions": chart_suggestions,
-                        "cleaning_metadata": cleaning_metadata
-                    }
-                else:
-                    response_data = {
-                        "file_id": saved_name,
-                        "filename": filename,
-                        "path": str(raw_path),
-                        "cleaned_path": str(cleaned_path),
-                        "rows": len(df_clean),
-                        "columns": list(df_clean.columns),
-                        "types": column_types,
-                        "summary": summary,
-                        "data": df_clean.to_dict(orient="records"),
-                        "preview_rows": preview_data.to_dict(orient="records"),
-                        "chart_title": filename,
-                        "x_axis": x_axis,
-                        "y_axis": y_axis,
-                        "download_url": f"/api/files/{saved_name}",
-                        "quality_analysis": quality_info,
-                        "data_quality_score": data_quality,
-                        "chart_suggestions": chart_suggestions,
-                        "cleaning_metadata": cleaning_metadata
-                    }
-                return JSONResponse(content=response_data)
-
-            except Exception as e:
-                logger.error(f"Visual processing failed: {e}")
-                # Fallback to original processing if visual fails
-
-        return JSONResponse(content={
-            "file_id": saved_name,
-            "filename": filename,
-            "path": str(raw_path),
-            "size": len(raw),
-            "download_url": f"/api/files/{saved_name}",
-            "rows": 0,
-            "columns": [],
-            "types": {},
-            "summary": {},
-            "data": []
-        })
-
+                df_fallback.to_csv(cleaned_path, index=False)
+                
+                return JSONResponse(content={
+                    "file_id": saved_name,
+                    "filename": filename,
+                    "rows": len(df_fallback),
+                    "columns": ["Raw_Content"],
+                    "types": {"Raw_Content": "categorical"},
+                    "summary": {"Raw_Content": {"unique": len(set(lines)), "top_values": {}}},
+                    "data": df_fallback.to_dict(orient="records"),
+                    "chart_title": filename,
+                    "x_axis": "Raw_Content",
+                    "y_axis": "Raw_Content",
+                    "message": "File processed as raw text content",
+                    "processing_mode": "fallback"
+                })
+                
+            except Exception as fallback_error:
+                logger.error(f"Even fallback processing failed: {fallback_error}")
+                raise HTTPException(status_code=500, detail=f"Could not process file: {str(e)}")
+        
     except HTTPException:
         raise
     except Exception as e:
-        logger.exception("Upload failed")
+        logger.exception("Upload failed completely")
         raise HTTPException(status_code=500, detail=f"Server error: {e}")
     finally:
         try:
