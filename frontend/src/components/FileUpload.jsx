@@ -77,13 +77,20 @@ export default function FileUpload({
     console.info("First few items of r.data:", r.data?.slice(0, 3));
 
     const raw = r.data;
+    // Primary source: r.data (records). Fallbacks: preview_rows, preview, data_preview
+    const raw = Array.isArray(r.data) ? r.data
+      : Array.isArray(r.preview_rows) ? r.preview_rows
+      : Array.isArray(r.preview) ? r.preview
+      : Array.isArray(r.data_preview) ? r.data_preview
+      : r.data;
     let columns = Array.isArray(r.columns) ? r.columns.slice() : null;
 
-    // FIXED: Case 1 - Array of objects (most common CSV case)
+     // FIXED: Case 1 - Array of objects (most common CSV case)
+    if (Array.isArray(raw) && raw.length > 0) {
     if (Array.isArray(raw) && raw.length > 0) {
       const firstItem = raw[0];
       console.info("First item:", firstItem, "type:", typeof firstItem, "isArray:", Array.isArray(firstItem));
-      
+       
       // Check if it's an array of objects (not array of arrays)
       if (firstItem && typeof firstItem === "object" && !Array.isArray(firstItem)) {
         // If columns not provided, infer from keys of first row
@@ -135,6 +142,14 @@ export default function FileUpload({
 
     // Case 4: Empty or unknown format - try to handle gracefully
     if (Array.isArray(raw)) {
+      // If r.data is empty but we have columns provided by backend, or preview exists,
+      // try to return that preview as data.
+      if ((!raw.length || raw.length === 0) && Array.isArray(r.preview_rows) && r.preview_rows.length > 0) {
+        const preview = r.preview_rows;
+        if (!columns && preview.length > 0 && typeof preview[0] === "object") columns = Object.keys(preview[0]);
+        return { data: preview, columns: columns || [] };
+      }
+
       if (columns && raw.length > 0) {
         const data = raw.map((row) => {
           if (Array.isArray(row)) {
@@ -145,15 +160,17 @@ export default function FileUpload({
           return row;
         });
         console.info("Case 4: Fallback array conversion", { columns, dataLength: data.length });
-        return { data, columns: columns || [] };
-      }
-      return { data: raw, columns: columns || [] };
-    }
+        return { data, columns: columns || [] };        
+        }
 
-    // Default fallback
-    console.warn("No matching case for data normalization, returning empty");
-    return { data: [], columns: columns || [] };
-  };
+        return { data: raw, columns: columns || [] };
+      }
+      
+ 
+      // Default fallback
+      console.warn("No matching case for data normalization, returning empty");
+      return { data: [], columns: columns || [] };
+      };
 
   const handleUpload = () => {
     if (!files.length) return alert("Select a file first");
