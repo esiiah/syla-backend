@@ -86,7 +86,6 @@ export default function FileUpload({
 
      // FIXED: Case 1 - Array of objects (most common CSV case)
     if (Array.isArray(raw) && raw.length > 0) {
-    if (Array.isArray(raw) && raw.length > 0) {
       const firstItem = raw[0];
       console.info("First item:", firstItem, "type:", typeof firstItem, "isArray:", Array.isArray(firstItem));
        
@@ -308,5 +307,3 @@ export default function FileUpload({
     </div>
   );
 }
-
-export default FileUpload;
