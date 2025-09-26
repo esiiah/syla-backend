@@ -74,13 +74,7 @@ function App() {
     compareField: "",
   });
   
-  const updateGreeting = () => {
-  if (user) {
-    setHeroGreeting(createHeroGreeting(user.name));
-  }
-};
-  
-  
+// Function to update greeting
 const updateGreeting = () => {
   if (user) {
     setHeroGreeting(createHeroGreeting(user.name));
