@@ -1,18 +1,14 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  // Scan all relevant files for Tailwind classes
   content: ["./index.html", "./public/index.html", "./src/**/*.{js,jsx,ts,tsx,html}"],
-
-  // Dark mode controlled by <body class="dark"> (set in App.jsx)
   darkMode: "class",
-
   theme: {
     extend: {
       colors: {
-        midnight: "#0f172a", // deep slate
-        ink: "#0b1220", // darker panel bg
-        neonBlue: "#2563eb", // primary blue
-        neonYellow: "#facc15", // accent yellow
+        midnight: "#0f172a",
+        ink: "#0b1220",
+        neonBlue: "#2563eb",
+        neonYellow: "#facc15",
       },
       fontFamily: {
         display: ["Orbitron", "Inter", "system-ui"],
@@ -35,11 +31,32 @@ module.exports = {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
         },
+        dot1: {
+          "0%, 100%": { transform: "translate(0, 0)" },
+          "25%": { transform: "translate(2px, -2px)" },
+          "50%": { transform: "translate(4px, 2px)" },
+          "75%": { transform: "translate(1px, 4px)" },
+        },
+        dot2: {
+          "0%, 100%": { transform: "translate(0, 0)" },
+          "25%": { transform: "translate(-2px, 3px)" },
+          "50%": { transform: "translate(-4px, -2px)" },
+          "75%": { transform: "translate(-1px, -3px)" },
+        },
+        dot3: {
+          "0%, 100%": { transform: "translate(0, 0)" },
+          "25%": { transform: "translate(1px, -3px)" },
+          "50%": { transform: "translate(3px, 2px)" },
+          "75%": { transform: "translate(0, 4px)" },
+        },
       },
       animation: {
         glow: "glowPulse 2.6s ease-in-out infinite",
         float: "float 4s ease-in-out infinite",
         shimmer: "shimmer 1.75s linear infinite",
+        dot1: "dot1 3s ease-in-out infinite",
+        dot2: "dot2 3.5s ease-in-out infinite",
+        dot3: "dot3 4s ease-in-out infinite",
       },
       backgroundImage: {
         "grid-faint":
@@ -48,9 +65,11 @@ module.exports = {
       backgroundSize: {
         grid: "24px 24px",
       },
-      // Keep Tailwind’s default radius scale intact
     },
   },
-
-  plugins: [require("@tailwindcss/forms"), require("@tailwindcss/typography"), require("@tailwindcss/aspect-ratio")],
+  plugins: [
+    require("@tailwindcss/forms"),
+    require("@tailwindcss/typography"),
+    require("@tailwindcss/aspect-ratio"),
+  ],
 };
