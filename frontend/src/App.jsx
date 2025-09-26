@@ -149,7 +149,7 @@ function App() {
                     </Link>
 
                     {/* Price Listing Button */}
-                    <button className="px-6 py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors duration-200">
+                    <button className="px-6 py-3 rounded-full border-2 border-neonBlue text-neonBlue font-semibold hover:bg-neonBlue hover:text-white transition-all duration-300">
                       Price Listing
                     </button>
                   </div>
