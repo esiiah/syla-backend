@@ -141,7 +141,7 @@ async def upload_file(file: UploadFile = File(...)):
                     'deduplicate': True,
                     'fill_method': 'none',
                     'remove_negatives': False,
-                    'drop_threshold': 0.9
+                    'drop_threshold': 0.0
                 })
                 
                 # Get preview and summary
