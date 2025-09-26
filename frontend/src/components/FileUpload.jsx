@@ -72,6 +72,9 @@ export default function FileUpload({
     if (!r) return { data: [], columns: [] };
 
     console.info("Raw response for normalization:", r);
+    console.info("r.data type:", typeof r.data, "isArray:", Array.isArray(r.data));
+    console.info("r.columns:", r.columns);
+    console.info("First few items of r.data:", r.data?.slice(0, 3));
 
     const raw = r.data;
     let columns = Array.isArray(r.columns) ? r.columns.slice() : null;
@@ -79,6 +82,7 @@ export default function FileUpload({
     // FIXED: Case 1 - Array of objects (most common CSV case)
     if (Array.isArray(raw) && raw.length > 0) {
       const firstItem = raw[0];
+      console.info("First item:", firstItem, "type:", typeof firstItem, "isArray:", Array.isArray(firstItem));
       
       // Check if it's an array of objects (not array of arrays)
       if (firstItem && typeof firstItem === "object" && !Array.isArray(firstItem)) {
@@ -102,6 +106,9 @@ export default function FileUpload({
         console.info("Case 2: Array of arrays converted", { columns, dataLength: data.length });
         return { data, columns };
       }
+
+      // DEBUG: If we reach here, let's see what we actually have
+      console.info("No case matched. firstItem structure:", JSON.stringify(firstItem, null, 2));
     }
 
     // Case 3: Column-oriented object (e.g., { col1: [...], col2: [...] })
