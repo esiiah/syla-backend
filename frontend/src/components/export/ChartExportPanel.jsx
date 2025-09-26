@@ -1,4 +1,4 @@
-// frontend/src/components/export/ChartExportTool.jsx
+// frontend/src/components/export/ChartExportPanel.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { X, Download, FileImage, FileText, Settings, Check } from "lucide-react";
 
