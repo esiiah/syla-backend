@@ -10,7 +10,7 @@ export const getTimeGreeting = () => {
 
 export const getDayGreeting = () => {
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  return `Happy ${days[new Date().getDay()}!`;
+  return `Happy ${days[new Date().getDay()]}!`;
 };
 
 export const getCasualGreeting = () => {
