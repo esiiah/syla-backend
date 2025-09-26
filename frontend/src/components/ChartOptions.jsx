@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from "react";
 import { 
   Settings, Palette, BarChart, TrendingUp, SortAsc, Ruler, Download, 
-  Filter, Sliders, Grid, Eye, Save, RefreshCw, ChevronDown, ChevronUp
+  Filter, Sliders, Grid, Eye, Save, RefreshCw, ChevronDown, ChevronUp,
+  BarChart2, LineChart, AreaChart, PieChart, Circle, BarChart
 } from "lucide-react";
 
 function ChartOptions({ 
@@ -356,26 +357,29 @@ function ChartOptions({
               </label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {[
-                  { value: "bar", label: "Bar", icon: "📊" },
-                  { value: "line", label: "Line", icon: "📈" },
-                  { value: "area", label: "Area", icon: "📉" },
-                  { value: "pie", label: "Pie", icon: "🥧" },
-                  { value: "scatter", label: "Scatter", icon: "⚫" },
-                  { value: "stacked_bar", label: "Stacked", icon: "📚" }
-                ].map(type => (
-                  <button
-                    key={type.value}
-                    onClick={() => commit({ type: type.value })}
-                    className={`p-3 rounded-lg border-2 text-sm font-medium transition-all ${
-                      local.type === type.value
-                        ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
-                        : "border-gray-200 hover:border-gray-300 dark:border-slate-600 dark:hover:border-slate-500"
-                    }`}
-                  >
-                    <div className="text-lg mb-1">{type.icon}</div>
-                    {type.label}
-                  </button>
-                ))}
+                  { value: "bar", label: "Bar", icon: BarChart2 },
+                  { value: "line", label: "Line", icon: LineChart },
+                  { value: "area", label: "Area", icon: AreaChart },
+                  { value: "pie", label: "Pie", icon: PieChart },
+                  { value: "scatter", label: "Scatter", icon: Circle },
+                  { value: "stacked_bar", label: "Stacked", icon: BarChart }
+                ].map(type => {
+                  const Icon = type.icon;
+                  return (
+                    <button
+                      key={type.value}
+                      onClick={() => commit({ type: type.value })}
+                      className={`flex flex-col items-center p-4 rounded-2xl text-sm font-medium transition-all ${
+                        local.type === type.value
+                          ? "border-blue-500 bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-lg"
+                          : "border-gray-200 hover:border-gray-300 dark:border-slate-600 dark:hover:border-slate-500 bg-gradient-to-br from-blue-400/40 to-blue-600/40 text-white shadow-md"
+                      }`}
+                    >
+                      <Icon size={24} className="mb-1 drop-shadow-lg" />
+                      {type.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
