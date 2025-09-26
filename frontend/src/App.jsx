@@ -8,8 +8,9 @@ import Features from "./components/Features.jsx";
 import Footer from "./components/Footer.jsx";
 import Navbar from "./components/Navbar";
 import ChartOptions from "./components/ChartOptions.jsx";
-import { Settings } from "lucide-react";
 import "./App.css";
+import { Link } from "react-router-dom";
+import { Settings, Brain } from "lucide-react";
 
 const LoginRequiredModal = ({ onClose, onSignup, onLogin }) => (
   <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
