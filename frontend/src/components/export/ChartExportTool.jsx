@@ -23,10 +23,29 @@ export default function ChartExportTool({
 
   const [isExporting, setIsExporting] = useState(false);
   const [exportStatus, setExportStatus] = useState(null);
-  const [dragPosition, setDragPosition] = useState({ x: 50, y: 50 });
+  const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [isInitialized, setIsInitialized] = useState(false);
   const panelRef = useRef(null);
+
+  // Initialize position to right side center
+  useEffect(() => {
+    if (!isInitialized && panelRef.current) {
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const panelWidth = panelRef.current.offsetWidth;
+      const panelHeight = panelRef.current.offsetHeight;
+      
+      // Position on the right side, vertically centered
+      const rightMargin = 20; // 20px from right edge
+      const x = viewportWidth - panelWidth - rightMargin;
+      const y = (viewportHeight - panelHeight) / 2;
+      
+      setDragPosition({ x, y });
+      setIsInitialized(true);
+    }
+  }, [isInitialized]);
 
   // Set default filename based on chart title
   useEffect(() => {
@@ -63,10 +82,7 @@ export default function ChartExportTool({
       const newX = Math.max(0, Math.min(viewportWidth - panelWidth, e.clientX - dragOffset.x));
       const newY = Math.max(0, Math.min(viewportHeight - panelHeight, e.clientY - dragOffset.y));
       
-      setDragPosition({
-        x: (newX / (viewportWidth - panelWidth)) * 100,
-        y: (newY / (viewportHeight - panelHeight)) * 100
-      });
+      setDragPosition({ x: newX, y: newY });
     }
   };
 
@@ -182,71 +198,71 @@ export default function ChartExportTool({
       // No fullscreen overlay, just the floating draggable panel
       <div
         ref={panelRef}
-        className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-slate-600 w-full max-w-md max-h-[90vh] overflow-hidden z-50"
+        className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-600 w-80 max-h-[85vh] overflow-hidden z-50"
         style={{
           position: "fixed",
-          left: `${dragPosition.x}%`,
-          top: `${dragPosition.y}%`,
+          left: `${dragPosition.x}px`,
+          top: `${dragPosition.y}px`,
           transform: isDragging ? "scale(1.02)" : "scale(1)",
-          transition: isDragging ? "none" : "transform 0.2s ease-out"
+          transition: isDragging ? "none" : "transform 0.2s ease-out",
+          opacity: isInitialized ? 1 : 0
         }}
         onMouseDown={handleMouseDown}
       >
         {/* Header */}
-        <div className="drag-handle p-4 border-b border-gray-200 dark:border-slate-600 cursor-move bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+        <div className="drag-handle p-3 border-b border-gray-200 dark:border-slate-600 cursor-move bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
-                <Download size={18} className="text-blue-600 dark:text-blue-400" />
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
+                <Download size={16} className="text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <h3 className="font-semibold text-gray-800 dark:text-slate-200">
+                <h3 className="font-semibold text-sm text-gray-800 dark:text-slate-200">
                   Export Chart
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-slate-400">
-                  High-quality chart export with customization
+                  High-quality export
                 </p>
               </div>
             </div>
 
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              className="p-1.5 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
             >
-              <X size={18} className="text-gray-500" />
+              <X size={16} className="text-gray-500" />
             </button>
           </div>
         </div>
 
-
         {/* Export Configuration */}
-        <div className="p-4 max-h-96 overflow-y-auto">
+        <div className="p-3 max-h-80 overflow-y-auto">
           {/* Format Selection */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+          <div className="mb-3">
+            <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-2">
               Export Format
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1.5">
               {[
-                { value: "png", label: "PNG", desc: "High quality raster", icon: FileImage },
-                { value: "jpeg", label: "JPEG", desc: "Compressed image", icon: FileImage },
-                { value: "svg", label: "SVG", desc: "Vector graphics", icon: FileImage },
+                { value: "png", label: "PNG", desc: "High quality", icon: FileImage },
+                { value: "jpeg", label: "JPEG", desc: "Compressed", icon: FileImage },
+                { value: "svg", label: "SVG", desc: "Vector", icon: FileImage },
                 { value: "pdf", label: "PDF", desc: "Print ready", icon: FileText },
                 { value: "csv", label: "CSV", desc: "Raw data", icon: FileText },
-                { value: "json", label: "JSON", desc: "Structured data", icon: FileText }
+                { value: "json", label: "JSON", desc: "Structured", icon: FileText }
               ].map(format => (
                 <button
                   key={format.value}
                   onClick={() => updateConfig('format', format.value)}
-                  className={`p-3 rounded-lg border-2 text-left transition-all ${
+                  className={`p-2 rounded-lg border-2 text-left transition-all ${
                     exportConfig.format === format.value
                       ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
                       : "border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500"
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <format.icon size={16} />
-                    <span className="font-medium text-sm">{format.label}</span>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <format.icon size={14} />
+                    <span className="font-medium text-xs">{format.label}</span>
                   </div>
                   <div className="text-xs text-gray-500 dark:text-slate-400">
                     {format.desc}
@@ -260,59 +276,56 @@ export default function ChartExportTool({
           {["png", "jpeg", "svg", "pdf"].includes(exportConfig.format) && (
             <>
               {/* Background Color */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-2">
                   Background
                 </label>
-                <div className="grid grid-cols-1 gap-2">
+                <div className="grid grid-cols-1 gap-1.5">
                   {backgroundOptions.map(bg => (
                     <button
                       key={bg.value}
                       onClick={() => updateConfig('background', bg.value)}
-                      className={`p-3 rounded-lg border-2 text-left transition-all flex items-center gap-3 ${
+                      className={`p-2 rounded-lg border-2 text-left transition-all flex items-center gap-2 ${
                         exportConfig.background === bg.value
                           ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
                           : "border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500"
                       }`}
                     >
                       <div 
-                        className="w-8 h-8 rounded border border-gray-300 flex-shrink-0"
+                        className="w-6 h-6 rounded border border-gray-300 flex-shrink-0"
                         style={{ 
                           background: bg.value === "transparent" ? bg.preview : bg.value,
-                          backgroundSize: bg.value === "transparent" ? "8px 8px" : undefined
+                          backgroundSize: bg.value === "transparent" ? "6px 6px" : undefined
                         }}
                       />
-                      <div>
-                        <div className="font-medium text-sm">{bg.label}</div>
+                      <div className="flex-1">
+                        <div className="font-medium text-xs">{bg.label}</div>
                         {bg.value === "#ffffff" && (
                           <div className="text-xs text-green-600 dark:text-green-400">
-                            Default - Ensures compatibility
+                            Recommended
                           </div>
                         )}
                       </div>
                       {exportConfig.background === bg.value && (
-                        <Check size={16} className="text-blue-600 dark:text-blue-400 ml-auto" />
+                        <Check size={14} className="text-blue-600 dark:text-blue-400" />
                       )}
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  White background is recommended for most use cases and ensures proper visibility.
-                </p>
               </div>
 
               {/* DPI/Resolution */}
               {["png", "jpeg", "pdf"].includes(exportConfig.format) && (
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                <div className="mb-3">
+                  <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-2">
                     Resolution (DPI)
                   </label>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5">
                     {[72, 150, 300, 600].map(dpi => (
                       <button
                         key={dpi}
                         onClick={() => updateConfig('dpi', dpi)}
-                        className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                        className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all flex-1 ${
                           exportConfig.dpi === dpi
                             ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
                             : "bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600"
@@ -323,7 +336,7 @@ export default function ChartExportTool({
                     ))}
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    Higher DPI = better quality, larger file size. 300 DPI is standard for print.
+                    300 DPI recommended for print
                   </p>
                 </div>
               )}
@@ -331,8 +344,8 @@ export default function ChartExportTool({
           )}
 
           {/* Filename */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+          <div className="mb-3">
+            <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-2">
               Filename
             </label>
             <input
@@ -340,35 +353,32 @@ export default function ChartExportTool({
               value={exportConfig.filename}
               onChange={(e) => updateConfig('filename', e.target.value)}
               placeholder="chart_export"
-              className="w-full rounded-lg border border-gray-300 dark:border-slate-600 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700"
+              className="w-full rounded-lg border border-gray-300 dark:border-slate-600 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-700"
             />
-            <p className="text-xs text-gray-500 mt-1">
-              Extension will be added automatically based on format
-            </p>
           </div>
 
           {/* Additional Options */}
-          <div className="space-y-3">
-            <label className="flex items-center gap-3">
+          <div className="space-y-2">
+            <label className="flex items-center gap-2">
               <input
                 type="checkbox"
                 checked={exportConfig.includeMetadata}
                 onChange={(e) => updateConfig('includeMetadata', e.target.checked)}
-                className="rounded"
+                className="rounded w-3 h-3"
               />
-              <span className="text-sm">Include metadata file</span>
+              <span className="text-xs">Include metadata file</span>
             </label>
 
             {["png", "jpeg", "pdf"].includes(exportConfig.format) && (
               <>
-                <label className="flex items-center gap-3">
+                <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
                     checked={exportConfig.includeWatermark}
                     onChange={(e) => updateConfig('includeWatermark', e.target.checked)}
-                    className="rounded"
+                    className="rounded w-3 h-3"
                   />
-                  <span className="text-sm">Add watermark</span>
+                  <span className="text-xs">Add watermark</span>
                 </label>
 
                 {exportConfig.includeWatermark && (
@@ -377,7 +387,7 @@ export default function ChartExportTool({
                     value={exportConfig.watermarkText}
                     onChange={(e) => updateConfig('watermarkText', e.target.value)}
                     placeholder="Watermark text"
-                    className="w-full ml-6 rounded border border-gray-300 dark:border-slate-600 px-2 py-1 text-xs dark:bg-slate-700"
+                    className="w-full ml-5 rounded border border-gray-300 dark:border-slate-600 px-2 py-1 text-xs dark:bg-slate-700"
                   />
                 )}
               </>
@@ -387,7 +397,7 @@ export default function ChartExportTool({
 
         {/* Status Messages */}
         {exportStatus && (
-          <div className={`mx-4 mb-4 p-3 rounded-lg border ${
+          <div className={`mx-3 mb-3 p-2.5 rounded-lg border ${
             exportStatus.type === 'success' 
               ? 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300'
               : exportStatus.type === 'error'
@@ -395,27 +405,27 @@ export default function ChartExportTool({
               : 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300'
           }`}>
             <div className="flex items-center gap-2">
-              {exportStatus.type === 'success' && <Check size={16} />}
+              {exportStatus.type === 'success' && <Check size={14} />}
               {exportStatus.type === 'loading' && (
-                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
               )}
-              <span className="text-sm font-medium">{exportStatus.message}</span>
+              <span className="text-xs font-medium">{exportStatus.message}</span>
             </div>
             {exportStatus.action === 'download' && (
               <p className="text-xs mt-1 opacity-75">
-                Check your downloads folder for the exported file.
+                Check your downloads folder.
               </p>
             )}
           </div>
         )}
 
         {/* Action Buttons */}
-        <div className="p-4 border-t border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-800/50">
-          <div className="flex gap-3">
+        <div className="p-3 border-t border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-800/50">
+          <div className="flex gap-2">
             <button
               onClick={handleExport}
               disabled={isExporting || !exportConfig.filename.trim()}
-              className={`flex-1 px-4 py-3 rounded-lg font-medium text-white transition-all ${
+              className={`flex-1 px-3 py-2 rounded-lg font-medium text-white text-sm transition-all ${
                 isExporting || !exportConfig.filename.trim()
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-md hover:shadow-lg"
@@ -423,33 +433,33 @@ export default function ChartExportTool({
             >
               {isExporting ? (
                 <div className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   Exporting...
                 </div>
               ) : (
                 <div className="flex items-center justify-center gap-2">
-                  <Download size={16} />
-                  Export {exportConfig.format.toUpperCase()}
+                  <Download size={14} />
+                  Export
                 </div>
               )}
             </button>
             
             <button
               onClick={onClose}
-              className="px-4 py-3 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+              className="px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors text-sm"
             >
               Cancel
             </button>
           </div>
 
           {/* Export info */}
-          <div className="mt-3 text-xs text-gray-500 dark:text-slate-400 text-center">
-            <div className="flex items-center justify-center gap-4">
-              <span>Format: {exportConfig.format.toUpperCase()}</span>
+          <div className="mt-2 text-xs text-gray-500 dark:text-slate-400 text-center">
+            <div className="flex items-center justify-center gap-3">
+              <span>{exportConfig.format.toUpperCase()}</span>
               {["png", "jpeg", "pdf"].includes(exportConfig.format) && (
-                <span>DPI: {exportConfig.dpi}</span>
+                <span>{exportConfig.dpi} DPI</span>
               )}
-              <span>Background: {exportConfig.background === "#ffffff" ? "White" : "Custom"}</span>
+              <span>{exportConfig.background === "#ffffff" ? "White BG" : "Custom BG"}</span>
             </div>
           </div>
         </div>
