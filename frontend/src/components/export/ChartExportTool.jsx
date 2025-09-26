@@ -454,6 +454,5 @@ export default function ChartExportTool({
           </div>
         </div>
       </div>
-    </div>
   );
 }
