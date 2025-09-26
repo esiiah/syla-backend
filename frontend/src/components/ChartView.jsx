@@ -10,7 +10,7 @@ import {
 import { Bar, Line, Pie, Scatter } from "react-chartjs-2";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import { TrendingUp, Download, Palette, Settings } from "lucide-react";
-import ChartExportTool from "./export/ChartExportTool";
+import ChartExportPanel from "./export/ChartExportPanel";
 
 ChartJS.register(
   CategoryScale, LinearScale, LogarithmicScale,
@@ -46,7 +46,7 @@ export default function ChartView({
   const ref = useRef(null);
   const [perColor, setPerColor] = useState([]);
   const [editing, setEditing] = useState(null);
-  const [showExportTool, setShowExportTool] = useState(false);
+  const [showExportPanel, setShowExportPanel] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // Store data for export and forecast
@@ -417,7 +417,7 @@ export default function ChartView({
           </button>
           
           <button
-            onClick={() => setShowExportTool(!showExportTool)}
+            onClick={() => setShowExportPanel(!showExportPanel)}
             className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 dark:border-white/20 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors text-sm font-medium"
             title="Export Chart"
           >
@@ -470,10 +470,10 @@ export default function ChartView({
         </div>
       )}
 
-      {/* Export tool overlay */}
-      {showExportTool && (
-        <ChartExportTool
-          onClose={() => setShowExportTool(false)}
+      {/* Export Panel overlay */}
+      {showExportPanel && (
+        <ChartExportPanel
+          onClose={() => setShowExportPanel(false)}
           onExportImage={exportImage}
           onExportCSV={() => exportData("csv")}
           onExportJSON={() => exportData("json")}
