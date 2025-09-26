@@ -66,43 +66,45 @@ export default function FileUpload({
     });
 
   /**
-   * Normalize backend response data into an array of row objects:
-   *  - If r.data is already an array of objects -> keep as is
-   *  - If r.data is array of arrays AND r.columns provided -> map arrays -> objects
-   *  - If r.data is object of arrays (column-oriented) -> transform to row objects
-   *  - Otherwise return [].
+   * FIXED: Normalize backend response data into an array of row objects
    */
   const normalizeResponseData = (r) => {
     if (!r) return { data: [], columns: [] };
 
+    console.info("Raw response for normalization:", r);
+
     const raw = r.data;
     let columns = Array.isArray(r.columns) ? r.columns.slice() : null;
 
-    // Case 1: already an array of objects
-    if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === "object" && !Array.isArray(raw[0])) {
-      // If columns missing, infer from keys of first row
-      if (!columns) columns = Object.keys(raw[0]);
-      return { data: raw, columns: columns || [] };
-    }
-
-    // Case 2: array of arrays
-    if (Array.isArray(raw) && raw.length > 0 && Array.isArray(raw[0])) {
-      // if no columns provided, auto-generate
-      if (!columns) {
-        const colCount = raw[0].length;
-        columns = Array.from({ length: colCount }, (_, i) => `Column${i + 1}`);
-      }
-      const data = raw.map((row) => {
-        const obj = {};
-        for (let i = 0; i < columns.length; i++) {
-          obj[columns[i]] = row[i];
+    // FIXED: Case 1 - Array of objects (most common CSV case)
+    if (Array.isArray(raw) && raw.length > 0) {
+      const firstItem = raw[0];
+      
+      // Check if it's an array of objects (not array of arrays)
+      if (firstItem && typeof firstItem === "object" && !Array.isArray(firstItem)) {
+        // If columns not provided, infer from keys of first row
+        if (!columns) {
+          columns = Object.keys(firstItem);
         }
-        return obj;
-      });
-      return { data, columns };
+        console.info("Case 1: Array of objects detected", { columns, dataLength: raw.length });
+        return { data: raw, columns: columns || [] };
+      }
+      
+      // Case 2: Array of arrays with columns provided
+      if (Array.isArray(firstItem) && Array.isArray(columns)) {
+        const data = raw.map((row) => {
+          const obj = {};
+          for (let i = 0; i < columns.length; i++) {
+            obj[columns[i]] = row[i];
+          }
+          return obj;
+        });
+        console.info("Case 2: Array of arrays converted", { columns, dataLength: data.length });
+        return { data, columns };
+      }
     }
 
-    // Case 3: column-oriented object (e.g., { col1: [..], col2: [..] })
+    // Case 3: Column-oriented object (e.g., { col1: [...], col2: [...] })
     if (raw && typeof raw === "object" && !Array.isArray(raw)) {
       // If columns not provided, use object keys
       if (!columns) columns = Object.keys(raw);
@@ -120,13 +122,13 @@ export default function FileUpload({
         }
         data.push(row);
       }
+      console.info("Case 3: Column-oriented object converted", { columns, dataLength: data.length });
       return { data, columns };
     }
 
-    // Case 4: raw is an array but empty or unknown shape
+    // Case 4: Empty or unknown format - try to handle gracefully
     if (Array.isArray(raw)) {
-      // If columns known, try to map empty array-of-arrays
-      if (columns) {
+      if (columns && raw.length > 0) {
         const data = raw.map((row) => {
           if (Array.isArray(row)) {
             const obj = {};
@@ -135,12 +137,14 @@ export default function FileUpload({
           }
           return row;
         });
-        return { data, columns };
+        console.info("Case 4: Fallback array conversion", { columns, dataLength: data.length });
+        return { data, columns: columns || [] };
       }
       return { data: raw, columns: columns || [] };
     }
 
     // Default fallback
+    console.warn("No matching case for data normalization, returning empty");
     return { data: [], columns: columns || [] };
   };
 
@@ -169,14 +173,20 @@ export default function FileUpload({
           console.info("typeof r.data:", typeof r.data, "Array.isArray(r.data):", Array.isArray(r.data));
           onResult(r);
 
-          // Normalize data so ChartView always gets rows-of-objects
+          // FIXED: Normalize data so ChartView always gets rows-of-objects
           const normalized = normalizeResponseData(r);
           const finalData = normalized.data || [];
           const finalColumns = normalized.columns || [];
 
-          // 🔎 Add these here
-          console.log("Final normalized data:", finalData);
-          console.log("Final normalized columns:", finalColumns);
+          console.info("Final normalized data:", finalData);
+          console.info("Final normalized columns:", finalColumns);
+
+          // ADDITIONAL FIX: Ensure we have valid data before proceeding
+          if (finalData.length === 0) {
+            console.error("No data after normalization. Check backend response format.");
+            alert("Upload successful but no data could be processed. Please check file format.");
+            return;
+          }
 
           // Store data for export and local preview
           setUploadedData(finalData);
