@@ -308,3 +308,5 @@ export default function FileUpload({
     </div>
   );
 }
+
+export default FileUpload;
