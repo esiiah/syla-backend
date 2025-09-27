@@ -49,12 +49,13 @@ export default function ChartView({
   const [showExportTool, setShowExportTool] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Store data for export and forecast
+  // Store data for export and forecast - NO AUTOMATIC EXPORT PANEL
   useEffect(() => {
     if (data && data.length > 0) {
       localStorage.setItem("uploadedData", JSON.stringify(data));
       localStorage.setItem("uploadedColumns", JSON.stringify(columns));
       setPerColor(new Array(data.length).fill(null));
+      // Removed automatic showExportTool setting
     }
   }, [data, columns]);
 
@@ -479,10 +480,9 @@ export default function ChartView({
         </div>
       )}
 
-      {/* Export tool overlay */}
+      {/* Export tool overlay - only shows when user clicks Export button */}
       {showExportTool && (
         <ChartExportTool
-          isOpen={showExportTool}
           onClose={() => setShowExportTool(false)}
           onExportImage={exportImage}
           onExportCSV={() => exportData("csv")}
