@@ -2,8 +2,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
-  Menu, Settings, Palette, Type, Move, RotateCcw, RotateOrientation, 
-  BarChart3, LineChart, PieChart, Scatter, AreaChart, TrendingUp, 
+  Menu, Settings, Palette, Type, Move, RotateCcw, RotateCw, 
+  BarChart3, LineChart, PieChart, Circle, AreaChart, TrendingUp, 
   SortAsc, SortDesc, Grid, Layers, Eye, EyeOff, Sliders, 
   Plus, Minus, RefreshCw, Undo2, Redo2, Save, Download,
   Maximize2, Minimize2, ZoomIn, ZoomOut, Copy, Trash2
@@ -31,7 +31,7 @@ export default function EditingBar({
     { type: "line", icon: LineChart, label: "Line" },
     { type: "area", icon: AreaChart, label: "Area" },
     { type: "pie", icon: PieChart, label: "Pie" },
-    { type: "scatter", icon: Scatter, label: "Scatter" }
+    { type: "scatter", icon: Circle, label: "Scatter" }
   ];
 
   const colorPresets = [
