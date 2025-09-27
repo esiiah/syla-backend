@@ -195,20 +195,20 @@ export default function ChartExportTool({
   ];
 
     return (
-        <div
-          ref={panelRef}
-          className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-600 w-80 max-h-[85vh] overflow-hidden z-50"
-          style={{
-            position: "fixed",
-            left: `${dragPosition.x}px`,
-            top: `${dragPosition.y}px`,
-            transform: isDragging ? "scale(1.02)" : "scale(1)",
-            transition: isDragging ? "none" : "transform 0.2s ease-out",
-            opacity: isInitialized ? 1 : 0
-          }}
-          onMouseDown={handleMouseDown}
-        >
-    
+      // No fullscreen overlay, just the floating draggable panel
+      <div
+        ref={panelRef}
+        className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-600 w-80 max-h-[85vh] overflow-hidden z-50"
+        style={{
+          position: "fixed",
+          left: `${dragPosition.x}px`,
+          top: `${dragPosition.y}px`,
+          transform: isDragging ? "scale(1.02)" : "scale(1)",
+          transition: isDragging ? "none" : "transform 0.2s ease-out",
+          opacity: isInitialized ? 1 : 0
+        }}
+        onMouseDown={handleMouseDown}
+      >
         {/* Header */}
         <div className="drag-handle p-3 border-b border-gray-200 dark:border-slate-600 cursor-move bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
           <div className="flex items-center justify-between">
@@ -464,5 +464,5 @@ export default function ChartExportTool({
           </div>
         </div>
       </div>
-    )
-  }
+  );
+}
