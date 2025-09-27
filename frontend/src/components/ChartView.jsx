@@ -480,15 +480,15 @@ export default function ChartView({
       )}
 
       {/* Export tool overlay */}
-      {showExportPanel && (
+      {showExportTool && (
         <ChartExportTool
-          isOpen={showExportPanel}
-          onClose={() => setShowExportPanel(false)}
-          onExportImage={...}
-          onExportCSV={...}
-          onExportJSON={...}
+          isOpen={showExportTool}
+          onClose={() => setShowExportTool(false)}
+          onExportImage={exportImage}
+          onExportCSV={() => exportData("csv")}
+          onExportJSON={() => exportData("json")}
           chartData={data}
-          chartTitle="My Chart"
+          chartTitle={chartTitle}
         />
       )}
 
