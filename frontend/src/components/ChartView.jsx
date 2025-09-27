@@ -49,13 +49,13 @@ export default function ChartView({
   const [showExportTool, setShowExportTool] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Store data for export and forecast - NO AUTOMATIC EXPORT PANEL
+  // Store data for export and forecast - REMOVED AUTOMATIC EXPORT PANEL DISPLAY
   useEffect(() => {
     if (data && data.length > 0) {
       localStorage.setItem("uploadedData", JSON.stringify(data));
       localStorage.setItem("uploadedColumns", JSON.stringify(columns));
       setPerColor(new Array(data.length).fill(null));
-      // Removed automatic showExportTool setting
+      // REMOVED: setShowExportTool(true) - No automatic showing of export panel
     }
   }, [data, columns]);
 
@@ -480,7 +480,7 @@ export default function ChartView({
         </div>
       )}
 
-      {/* Export tool overlay - only shows when user clicks Export button */}
+      {/* Export tool overlay - ONLY shows when user clicks Export button */}
       {showExportTool && (
         <ChartExportTool
           onClose={() => setShowExportTool(false)}
