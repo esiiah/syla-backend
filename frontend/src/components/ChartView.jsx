@@ -408,8 +408,17 @@ export default function ChartView({
         {/* Action buttons */}
         <div className="flex items-center gap-2">
           <button
+            onClick={() => navigate('/editing')}
+            className="flex items-center gap-2 px-2.5 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg text-sm font-medium"
+            title="Edit Chart"
+          >
+            <Edit3 size={16} />
+            Edit Chart
+          </button>
+
+          <button
             onClick={goToForecast}
-            className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg text-sm font-medium"
+            className="flex items-center gap-2 px-2.5 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg text-sm font-medium"
             title="Generate AI Forecast"
           >
             <TrendingUp size={16} />
@@ -418,7 +427,7 @@ export default function ChartView({
           
           <button
             onClick={() => setShowExportTool(!showExportTool)}
-            className="flex items-center gap-2 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 dark:border-white/20 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors text-sm font-medium"
+            className="flex items-center gap-2 px-2.5 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 dark:border-white/20 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors text-sm font-medium"
             title="Export Chart"
           >
             <Download size={16} />
