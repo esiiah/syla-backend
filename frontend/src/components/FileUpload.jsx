@@ -1,7 +1,7 @@
 // frontend/src/components/FileUpload.jsx
 import React, { useState, useRef, useEffect } from "react";
 import VisualUploadPanel from "./upload/VisualUploadPanel";
-import ChartExportTool from "./export/ChartExportTool";
+// REMOVED: ChartExportTool import - no auto-showing export panel
 
 /**
  * FileUpload
@@ -215,7 +215,7 @@ const handleUpload = () => {
             columns: finalColumns 
           });
 
-          // Store data for export
+          // Store data for export (but don't show export panel automatically)
           setUploadedData(finalData);
           setChartTitleState(r.chart_title || r.filename || "Processed Data");
 
@@ -302,16 +302,8 @@ const handleUpload = () => {
         </div>
       )}
 
-      {/* Only show export panel when data is available */}
-      {uploadedData && uploadedData.length > 0 && (
-        <ChartExportTool
-          chartData={uploadedData}
-          chartTitle={chartTitle}
-          onExportImage={(format) => console.log("Export image", format)}
-          onExportCSV={() => console.log("Export CSV")}
-          onExportJSON={() => console.log("Export JSON")}
-        />
-      )}
+      {/* REMOVED: Automatic ChartExportTool rendering 
+          Export functionality is now only available through the Export button in ChartView */}
     </div>
   );
 }
