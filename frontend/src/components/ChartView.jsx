@@ -9,7 +9,7 @@ import {
 } from "chart.js";
 import { Bar, Line, Pie, Scatter } from "react-chartjs-2";
 import ChartDataLabels from "chartjs-plugin-datalabels";
-import { TrendingUp, Download, Palette, Settings } from "lucide-react";
+import { TrendingUp, Download, Palette, Settings, Edit3 } from "lucide-react";
 import ChartExportTool from "./export/ChartExportTool";
 
 ChartJS.register(
