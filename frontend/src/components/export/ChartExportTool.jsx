@@ -195,7 +195,6 @@ export default function ChartExportTool({
   ];
 
     return (
-      isOpen && (
         <div
           ref={panelRef}
           className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-600 w-80 max-h-[85vh] overflow-hidden z-50"
@@ -466,5 +465,4 @@ export default function ChartExportTool({
         </div>
       </div>
     )
-  )
-}
+  }
