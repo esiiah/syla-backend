@@ -46,16 +46,15 @@ export default function ChartView({
   const ref = useRef(null);
   const [perColor, setPerColor] = useState([]);
   const [editing, setEditing] = useState(null);
-  const [showExportTool, setShowExportTool] = useState(false);
+  const [showExportTool, setShowExportTool] = useState(false); // Explicitly set to false - no auto-show
   const [isLoading, setIsLoading] = useState(false);
 
-  // Store data for export and forecast - REMOVED AUTOMATIC EXPORT PANEL DISPLAY
+  // Store data for export and forecast - NO AUTO EXPORT PANEL
   useEffect(() => {
     if (data && data.length > 0) {
       localStorage.setItem("uploadedData", JSON.stringify(data));
       localStorage.setItem("uploadedColumns", JSON.stringify(columns));
       setPerColor(new Array(data.length).fill(null));
-      // REMOVED: setShowExportTool(true) - No automatic showing of export panel
     }
   }, [data, columns]);
 
