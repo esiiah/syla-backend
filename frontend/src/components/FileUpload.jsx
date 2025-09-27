@@ -1,42 +1,21 @@
 // frontend/src/components/FileUpload.jsx
 import React, { useState, useRef, useEffect } from "react";
+import { useChartData } from "../context/ChartDataContext";
 import VisualUploadPanel from "./upload/VisualUploadPanel";
-// REMOVED: ChartExportTool import - no auto-showing export panel
 
-/**
- * FileUpload
- * Props:
- *  - action, accept, multiple, maxFiles
- *  - onResult(r)
- *  - onData(dataArray)
- *  - onColumns(columnsArray)
- *  - onTypes(typesObj)
- *  - onSummary(summaryObj)
- *  - onChartTitle(title)
- *  - onXAxis(xAxis)
- *  - onYAxis(yAxis)
- */
 export default function FileUpload({
   action = null,
   accept = ".csv,.xlsx,.xls",
   multiple = false,
   maxFiles = 10,
   onResult = () => {},
-  onData,
-  onColumns,
-  onTypes,
-  onSummary,
-  onChartTitle,
-  onXAxis,
-  onYAxis,
   initialFiles = null,
 }) {
+  const { updateChartData } = useChartData();
   const [files, setFiles] = useState(initialFiles ? [].concat(initialFiles) : []);
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [view, setView] = useState("grid");
-  const [uploadedData, setUploadedData] = useState(null);
-  const [chartTitle, setChartTitleState] = useState("");
   const inputRef = useRef(null);
 
   useEffect(
@@ -65,107 +44,88 @@ export default function FileUpload({
       return f;
     });
 
-// Replace the entire normalizeResponseData function with this universal approach
-const normalizeResponseData = (r) => {
+  const normalizeResponseData = (r) => {
     if (!r) return { data: [], columns: [] };
 
     console.info("Raw response for normalization:", r);
     
-    // Universal approach: Whatever the backend sends, we accept
     let finalData = [];
     let finalColumns = [];
     
-    // Try to extract data from any possible structure
     const possibleDataSources = [
-        r.data,           // Standard response
-        r.rows,           // Alternative naming
-        r.records,        // Alternative naming  
-        r.content,        // Alternative naming
-        r                 // Response itself might be the data
+      r.data, r.rows, r.records, r.content, r
     ];
     
     for (const source of possibleDataSources) {
-        if (source && Array.isArray(source) && source.length > 0) {
-            finalData = source;
-            break;
-        }
+      if (source && Array.isArray(source) && source.length > 0) {
+        finalData = source;
+        break;
+      }
     }
     
-    // If still no data, try to convert whatever we have
     if (finalData.length === 0 && r) {
-        // Try to convert any object structure to array of objects
-        if (typeof r === 'object' && !Array.isArray(r)) {
-            const keys = Object.keys(r);
-            
-            // Check if it's column-oriented data like {col1: [1,2,3], col2: [4,5,6]}
-            const firstKey = keys[0];
-            if (firstKey && Array.isArray(r[firstKey])) {
-                const maxLength = Math.max(...keys.map(k => Array.isArray(r[k]) ? r[k].length : 0));
-                finalData = [];
-                for (let i = 0; i < maxLength; i++) {
-                    const row = {};
-                    keys.forEach(key => {
-                        row[key] = Array.isArray(r[key]) ? r[key][i] : r[key];
-                    });
-                    finalData.push(row);
-                }
-                finalColumns = keys;
-            }
-        }
-    }
-    
-    // Extract columns universally
-    if (finalColumns.length === 0) {
-        const possibleColumnSources = [
-            r.columns,
-            r.headers,
-            r.fields,
-            finalData.length > 0 ? Object.keys(finalData[0]) : []
-        ];
-        
-        for (const source of possibleColumnSources) {
-            if (Array.isArray(source) && source.length > 0) {
-                finalColumns = source;
-                break;
-            }
-        }
-    }
-    
-    // Ensure data is in object format (not arrays)
-    if (finalData.length > 0 && Array.isArray(finalData[0])) {
-        // Convert array of arrays to array of objects
-        finalData = finalData.map((row, rowIndex) => {
-            const obj = {};
-            row.forEach((value, colIndex) => {
-                const columnName = finalColumns[colIndex] || `Column_${colIndex + 1}`;
-                obj[columnName] = value;
+      if (typeof r === 'object' && !Array.isArray(r)) {
+        const keys = Object.keys(r);
+        const firstKey = keys[0];
+        if (firstKey && Array.isArray(r[firstKey])) {
+          const maxLength = Math.max(...keys.map(k => Array.isArray(r[k]) ? r[k].length : 0));
+          finalData = [];
+          for (let i = 0; i < maxLength; i++) {
+            const row = {};
+            keys.forEach(key => {
+              row[key] = Array.isArray(r[key]) ? r[key][i] : r[key];
             });
-            return obj;
+            finalData.push(row);
+          }
+          finalColumns = keys;
+        }
+      }
+    }
+    
+    if (finalColumns.length === 0) {
+      const possibleColumnSources = [
+        r.columns, r.headers, r.fields,
+        finalData.length > 0 ? Object.keys(finalData[0]) : []
+      ];
+      
+      for (const source of possibleColumnSources) {
+        if (Array.isArray(source) && source.length > 0) {
+          finalColumns = source;
+          break;
+        }
+      }
+    }
+    
+    if (finalData.length > 0 && Array.isArray(finalData[0])) {
+      finalData = finalData.map((row) => {
+        const obj = {};
+        row.forEach((value, colIndex) => {
+          const columnName = finalColumns[colIndex] || `Column_${colIndex + 1}`;
+          obj[columnName] = value;
         });
+        return obj;
+      });
     }
     
-    // Generate columns if still missing
     if (finalColumns.length === 0 && finalData.length > 0) {
-        finalColumns = Object.keys(finalData[0]);
+      finalColumns = Object.keys(finalData[0]);
     }
     
-    // Final safety: if we have absolutely nothing, create empty structure
     if (finalData.length === 0) {
-        console.warn("No data could be extracted from response, returning empty structure");
-        return { data: [], columns: [] };
+      console.warn("No data could be extracted from response, returning empty structure");
+      return { data: [], columns: [] };
     }
     
     console.info("Universal normalization result:", { 
-        dataLength: finalData.length, 
-        columns: finalColumns,
-        sampleRow: finalData[0]
+      dataLength: finalData.length, 
+      columns: finalColumns,
+      sampleRow: finalData[0]
     });
     
     return { data: finalData, columns: finalColumns };
-};
+  };
 
-// Update the handleUpload function in FileUpload.jsx
-const handleUpload = () => {
+  const handleUpload = () => {
     if (!files.length) return alert("Select a file first");
     setUploading(true);
     setProgress(0);
@@ -184,49 +144,33 @@ const handleUpload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const r = JSON.parse(xhr.responseText);
-
           console.info("Backend response:", r);
           
-          // Universal data extraction - no expectations
-          let finalData = [];
-          let finalColumns = [];
-          
-          // Extract data universally
-          if (r.data && Array.isArray(r.data)) {
-            finalData = r.data;
-          } else if (r.rows && Array.isArray(r.rows)) {
-            finalData = r.rows;
-          } else {
-            // Create minimal data structure
-            finalData = [{ "Message": "Data processed but no structured data available" }];
-          }
-          
-          // Extract columns universally
-          if (r.columns && Array.isArray(r.columns)) {
-            finalColumns = r.columns;
-          } else if (finalData.length > 0) {
-            finalColumns = Object.keys(finalData[0]);
-          } else {
-            finalColumns = ["Message"];
-          }
+          const { data: finalData, columns: finalColumns } = normalizeResponseData(r);
 
-          console.info("Processed data:", { 
-            dataLength: finalData.length, 
-            columns: finalColumns 
-          });
+          // Update chart data context with all the processed information
+          const chartDataUpdate = {
+            data: finalData,
+            columns: finalColumns,
+            types: r.types || {},
+            summary: r.summary || {},
+            chartTitle: r.chart_title || r.filename || "Processed Data",
+            xAxis: r.x_axis || (finalColumns[0] || ""),
+            yAxis: r.y_axis || (finalColumns[1] || finalColumns[0] || ""),
+            chartOptions: {
+              type: "bar",
+              color: "#2563eb",
+              gradient: false,
+              showLabels: false,
+              sort: "none",
+              orientation: "vertical"
+            }
+          };
 
-          // Store data for export (but don't show export panel automatically)
-          setUploadedData(finalData);
-          setChartTitleState(r.chart_title || r.filename || "Processed Data");
+          updateChartData(chartDataUpdate);
 
-          // Fire all callbacks with the cleaned data
-          onData && onData(finalData);
-          onColumns && onColumns(finalColumns);
-          onTypes && onTypes(r.types || {});
-          onSummary && onSummary(r.summary || {});
-          onChartTitle && onChartTitle(r.chart_title || r.filename || "");
-          onXAxis && onXAxis(r.x_axis || (finalColumns[0] || ""));
-          onYAxis && onYAxis(r.y_axis || (finalColumns[1] || finalColumns[0] || ""));
+          // Fire callback for backward compatibility
+          onResult(r);
 
           // Success message
           const message = r.message || `Processed: ${r.filename || "file"}`;
@@ -301,9 +245,6 @@ const handleUpload = () => {
           </div>
         </div>
       )}
-
-      {/* REMOVED: Automatic ChartExportTool rendering 
-          Export functionality is now only available through the Export button in ChartView */}
     </div>
   );
 }
