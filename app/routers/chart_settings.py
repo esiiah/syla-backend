@@ -257,14 +257,18 @@ async def delete_chart_settings(
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+class CloneChartRequest(BaseModel):
+    new_name: str = Field(..., max_length=100)
+
 @router.post("/{settings_id}/clone", response_model=ChartSettingsResponse)
 async def clone_chart_settings(
     settings_id: int,
-    new_name: str = Field(..., max_length=100),
+    payload: CloneChartRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Clone a chart settings preset (useful for public presets)"""
+    new_name = payload.new_name  # Extract from request body
     try:
         original_setting = db.query(ChartSettings).filter(ChartSettings.id == settings_id).first()
         
