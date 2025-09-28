@@ -14,6 +14,7 @@ import UserProvider from "./context/UserContext.jsx";
 import { ChartDataProvider } from "./context/ChartDataContext.jsx";
 import ForecastPage from "./pages/ForecastPage.jsx";
 import EditingPage from "./pages/EditingPage.jsx";
+import NotificationPage from "./pages/NotificationPage.jsx";
 import "./index.css";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 
@@ -33,6 +34,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <Route path="/tools/:action" element={<FileToolPage />} />
             <Route path="/forecast" element={<ForecastPage />} />
             <Route path="/editing" element={<EditingPage />} />
+            <Route path="/notifications" element={<NotificationPage />} />
             <Route
               path="*"
               element={
