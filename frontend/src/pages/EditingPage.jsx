@@ -14,7 +14,7 @@ import ChartExportTool from "../components/export/ChartExportTool";
 export default function EditingPage() {
   const navigate = useNavigate();
   const { user, theme, setTheme } = useContext(UserContext);
-  const { chartData, updateChartOptions, hasData, isDataLoaded } = useChartData();
+  const { chartData, updateChartOptions, updateChartData, hasData, isDataLoaded } = useChartData();
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showExportTool, setShowExportTool] = useState(false);
@@ -22,7 +22,11 @@ export default function EditingPage() {
   const [selectedBars, setSelectedBars] = useState([]);
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [navbarHidden, setNavbarHidden] = useState(false);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  
   const fileInputRef = useRef(null);
+  const mainContentRef = useRef(null);
 
   useEffect(() => {
     if (!user) {
@@ -36,35 +40,112 @@ export default function EditingPage() {
     }
   }, [user, hasData, isDataLoaded, navigate]);
 
-  const addToHistory = (state) => {
+  // Initialize history with current state
+  useEffect(() => {
+    if (chartData && history.length === 0) {
+      const initialState = {
+        chartData: { ...chartData },
+        timestamp: Date.now(),
+        action: 'initial'
+      };
+      setHistory([initialState]);
+      setHistoryIndex(0);
+    }
+  }, [chartData, history.length]);
+
+  // Scrollable navbar behavior
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!mainContentRef.current) return;
+      
+      const currentScrollY = mainContentRef.current.scrollTop;
+      const scrollingDown = currentScrollY > lastScrollY;
+      const scrollThreshold = 50;
+
+      if (currentScrollY > scrollThreshold) {
+        setNavbarHidden(scrollingDown);
+      } else {
+        setNavbarHidden(false);
+      }
+
+      setLastScrollY(currentScrollY);
+    };
+
+    const mainContent = mainContentRef.current;
+    if (mainContent) {
+      mainContent.addEventListener('scroll', handleScroll, { passive: true });
+      return () => mainContent.removeEventListener('scroll', handleScroll);
+    }
+  }, [lastScrollY]);
+
+  const addToHistory = (newData, action = 'change') => {
+    const newState = {
+      chartData: { ...newData },
+      timestamp: Date.now(),
+      action
+    };
+    
+    // Remove any history after current index
     const newHistory = history.slice(0, historyIndex + 1);
-    newHistory.push(state);
+    newHistory.push(newState);
+    
+    // Limit history to 50 entries
+    if (newHistory.length > 50) {
+      newHistory.shift();
+    } else {
+      setHistoryIndex(newHistory.length - 1);
+    }
+    
     setHistory(newHistory);
-    setHistoryIndex(newHistory.length - 1);
   };
 
   const handleUndo = () => {
     if (historyIndex > 0) {
-      setHistoryIndex(historyIndex - 1);
+      const newIndex = historyIndex - 1;
+      const previousState = history[newIndex];
+      setHistoryIndex(newIndex);
+      updateChartData(previousState.chartData);
     }
   };
 
   const handleRedo = () => {
     if (historyIndex < history.length - 1) {
-      setHistoryIndex(historyIndex + 1);
+      const newIndex = historyIndex + 1;
+      const nextState = history[newIndex];
+      setHistoryIndex(newIndex);
+      updateChartData(nextState.chartData);
     }
   };
 
   const handleOptionsChange = (newOptions) => {
+    const updatedData = {
+      ...chartData,
+      chartOptions: { ...chartData.chartOptions, ...newOptions }
+    };
     updateChartOptions(newOptions);
-    addToHistory({ options: newOptions, timestamp: Date.now() });
+    addToHistory(updatedData, 'options_change');
+  };
+
+  const handleDataChange = (updates) => {
+    const updatedData = { ...chartData, ...updates };
+    updateChartData(updates);
+    addToHistory(updatedData, 'data_change');
   };
 
   const handleSave = () => {
-    localStorage.setItem("chartSaved", JSON.stringify({
+    const saveData = {
       ...chartData,
       savedAt: new Date().toISOString()
-    }));
+    };
+    
+    localStorage.setItem("chartSaved", JSON.stringify(saveData));
+    
+    // Also save to backend if user is authenticated
+    if (user) {
+      // TODO: Implement backend save
+      console.log("Saving to backend:", saveData);
+    }
+    
     alert("Chart saved successfully!");
   };
 
@@ -73,6 +154,8 @@ export default function EditingPage() {
   };
 
   const handleForecast = () => {
+    // Store current state before navigating
+    localStorage.setItem("chartBeforeForecast", JSON.stringify(chartData));
     navigate("/forecast");
   };
 
@@ -81,6 +164,26 @@ export default function EditingPage() {
       ? selectedBars.filter(s => s !== label)
       : [...selectedBars, label];
     setSelectedBars(newSelected);
+  };
+
+  const handleSelectionDelete = () => {
+    if (selectedBars.length === 0) return;
+    
+    const filteredData = chartData.data.filter((row, index) => {
+      const rowLabel = row[chartData.xAxis] || `Row ${index + 1}`;
+      return !selectedBars.includes(rowLabel);
+    });
+    
+    const updatedData = { ...chartData, data: filteredData };
+    updateChartData({ data: filteredData });
+    addToHistory(updatedData, 'delete_selection');
+    setSelectedBars([]);
+    
+    alert(`Deleted ${selectedBars.length} items`);
+  };
+
+  const handleSelectionClear = () => {
+    setSelectedBars([]);
   };
 
   const handleFileUpload = (event) => {
@@ -172,10 +275,12 @@ export default function EditingPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-slate-950">
-      {/* User Navbar */}
-      <Navbar user={user} />
+      {/* User Navbar - Scrollable */}
+      <div className={`transition-transform duration-300 ${navbarHidden ? '-translate-y-full' : 'translate-y-0'}`}>
+        <Navbar user={user} />
+      </div>
       
-      {/* Editing Toolbar */}
+      {/* Editing Toolbar - Always Visible */}
       <EditingBar
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
@@ -189,9 +294,15 @@ export default function EditingPage() {
         canRedo={historyIndex < history.length - 1}
         onResetView={() => console.log("Reset view")}
         onFitToScreen={() => console.log("Fit to screen")}
+        className="sticky top-0 z-40"
       />
 
-      <div className="flex flex-1 relative">
+      {/* Main Content Area */}
+      <div 
+        ref={mainContentRef}
+        className="flex flex-1 relative overflow-auto"
+        style={{ height: 'calc(100vh - 60px)' }}
+      >
         {/* Sidebar */}
         {sidebarOpen && (
           <>
@@ -208,11 +319,13 @@ export default function EditingPage() {
         {/* Main Editing Panel */}
         <EditingPanel
           sidebarOpen={sidebarOpen}
-          onTitleEdit={(title) => console.log("Title edited:", title)}
+          onTitleEdit={(title) => handleDataChange({ chartTitle: title })}
           onExport={handleExport}
           onForecast={handleForecast}
           selectedBars={selectedBars}
           onBarClick={handleBarClick}
+          onSelectionDelete={handleSelectionDelete}
+          onSelectionClear={handleSelectionClear}
         />
 
         {/* Floating Preview Button */}
