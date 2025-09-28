@@ -190,7 +190,10 @@ export default function Navbar() {  // Removed user prop
               </button>
 
               {showNotifications && (
-                <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg z-50">
+                <div 
+                  className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg" 
+                  style={{ zIndex: 'var(--z-dropdowns)' }}
+                >
                   <div className="p-3 border-b border-gray-200 dark:border-slate-600">
                     <h3 className="font-medium text-gray-800 dark:text-slate-200">Notifications</h3>
                   </div>
@@ -234,7 +237,10 @@ export default function Navbar() {  // Removed user prop
               </button>
 
               {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg z-50">
+                <div 
+                  className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg" 
+                  style={{ zIndex: 'var(--z-dropdowns)' }}
+                >
                   <div className="p-3 border-b border-gray-200 dark:border-slate-600">
                     <div className="font-medium text-gray-800 dark:text-slate-200">{user.name}</div>
                     <div className="text-sm text-gray-600 dark:text-slate-400">{user.email}</div>
