@@ -7,13 +7,13 @@ import {
 } from "lucide-react";
 import { UserContext } from "../context/UserContext";
 
-export default function Navbar({ user }) {
+export default function Navbar() {  // Removed user prop
   const navigate = useNavigate();
-  const { logout, theme, setTheme } = useContext(UserContext);
+  const { user, logout, theme, setTheme } = useContext(UserContext);  // Get user from context
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [results, setResults] = useState([]); // added state for results
+  const [results, setResults] = useState([]);
 
   const userMenuRef = useRef(null);
   const notificationRef = useRef(null);
@@ -23,9 +23,13 @@ export default function Navbar({ user }) {
     if (!searchQuery) return;
 
     const fetchResults = async () => {
-      const response = await fetch(`/api/search?q=${searchQuery}`);
-      const data = await response.json();
-      setResults(data);
+      try {
+        const response = await fetch(`/api/search?q=${searchQuery}`);
+        const data = await response.json();
+        setResults(data);
+      } catch (error) {
+        console.error("Search failed:", error);
+      }
     };
 
     fetchResults();
@@ -45,7 +49,6 @@ export default function Navbar({ user }) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
 
   const handleLogout = async () => {
     try {
