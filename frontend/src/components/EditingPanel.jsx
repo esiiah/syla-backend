@@ -281,8 +281,9 @@ export default function EditingPanel({
               setYAxis={(yAxis) => updateAxes(chartData.xAxis, yAxis)}
               onBarClick={onBarClick}
               selectedBars={selectedBars}
-              selectionMode={selectionMode}
-            />
+              selectionMode={selectionMode} 
+              />            
+            </div>
           </div>
         </div>
       </div>
