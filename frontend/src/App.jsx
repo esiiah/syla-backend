@@ -9,6 +9,7 @@ import Features from "./components/Features.jsx";
 import Footer from "./components/Footer.jsx";
 import Navbar from "./components/Navbar";
 import ChartOptions from "./components/ChartOptions.jsx";
+import { useChartData } from "./context/ChartDataContext";  // ADD THIS
 import "./App.css";
 import { Link } from "react-router-dom";
 import { Settings, Brain } from "lucide-react";
@@ -52,57 +53,38 @@ function App() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [heroGreeting, setHeroGreeting] = useState("");
 
-  const [data, setData] = useState([]);
-  const [columns, setColumns] = useState([]);
-  const [types, setTypes] = useState({});
-  const [summary, setSummary] = useState({});
-  const [chartTitle, setChartTitle] = useState("");
-  const [xAxis, setXAxis] = useState("");
-  const [yAxis, setYAxis] = useState("");
-  const [theme, setTheme] = useState("light");
-
-  const [chartOptions, setChartOptions] = useState({
-    type: "bar",
-    color: "#2563eb",
-    gradient: false,
-    gradientStops: ["#2563eb", "#ff6b6b"],
-    showLabels: false,
-    trendline: false,
-    sort: "none",
-    logScale: false,
-    logMin: 1,
-    compareField: "",
-  });
+  // REPLACE LOCAL STATE WITH CONTEXT
+  const { chartData, updateChartOptions, updateChartData, hasData } = useChartData();
   
-// helper to format how we show greeting + username (avoid duplicate punctuation)
-const formatGreetingNode = (greeting, userName) => {
-  if (!greeting) return null;
-  const endsWithPunct = /[!?.]$/.test(greeting);
-  return (
-    <>
-      <span>{greeting}{endsWithPunct ? "" : ","} </span>
-      <span className="text-neonYellow font-bold">{userName}</span>
-    </>
-  );
-};
+  const [theme, setTheme] = useState("light");
+  const [showOptions, setShowOptions] = useState(false);
 
-useEffect(() => {
-  const updateGreeting = () => {
-    if (!user) {
-      setHeroGreeting("");
-      return;
-    }
-    // createHeroGreeting now returns text WITHOUT username
-    setHeroGreeting(createHeroGreeting());
+  // helper to format how we show greeting + username (avoid duplicate punctuation)
+  const formatGreetingNode = (greeting, userName) => {
+    if (!greeting) return null;
+    const endsWithPunct = /[!?.]$/.test(greeting);
+    return (
+      <>
+        <span>{greeting}{endsWithPunct ? "" : ","} </span>
+        <span className="text-neonYellow font-bold">{userName}</span>
+      </>
+    );
   };
 
-  updateGreeting(); // initial
-  const interval = setInterval(updateGreeting, 60_000); // refresh every minute (keeps time-of-day transitions accurate)
-  return () => clearInterval(interval);
-}, [user]);
+  useEffect(() => {
+    const updateGreeting = () => {
+      if (!user) {
+        setHeroGreeting("");
+        return;
+      }
+      // createHeroGreeting now returns text WITHOUT username
+      setHeroGreeting(createHeroGreeting());
+    };
 
-  
-  const [showOptions, setShowOptions] = useState(false);
+    updateGreeting(); // initial
+    const interval = setInterval(updateGreeting, 60_000); // refresh every minute (keeps time-of-day transitions accurate)
+    return () => clearInterval(interval);
+  }, [user]);
 
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
@@ -158,18 +140,15 @@ useEffect(() => {
                     or use our powerful file conversion tools.
                   </p>
 
-                  {/* ------------------ */}
-                  {/* User Hero Buttons */}
-                  {/* ------------------ */}
                   <div className="flex flex-wrap gap-4 justify-center mt-8">
                     {/* AI Forecasting Button */}
                     <Link
                       to="/forecast"
                       className="relative flex items-center justify-center p-5 rounded-full
-                                       bg-gradient-to-br from-red-400/40 to-red-600/40
-                                       border border-red-200/30 shadow-lg shadow-blue-300/40
-                                       hover:scale-105 active:scale-95 transition-all duration-200"
-                      >
+                                         bg-gradient-to-br from-red-400/40 to-red-600/40
+                                         border border-red-200/30 shadow-lg shadow-blue-300/40
+                                         hover:scale-105 active:scale-95 transition-all duration-200"
+                        >
                       
                       {/* Moving blue dots */}
                       <span className="absolute top-2 left-2 w-2 h-2 bg-blue-300 rounded-full animate-dot1"></span>            
@@ -231,14 +210,8 @@ useEffect(() => {
                       setShowLoginModal(true);
                       return;
                     }
-                    setData(d);
+                    // FileUpload now handles context updating automatically
                   }}
-                  onColumns={setColumns}
-                  onTypes={setTypes}
-                  onSummary={setSummary}
-                  onChartTitle={setChartTitle}
-                  onXAxis={setXAxis}
-                  onYAxis={setYAxis}
                 />
               </div>
             </section>
@@ -258,21 +231,26 @@ useEffect(() => {
 
                 {showOptions && (
                   <div className="mb-4">
-                    <ChartOptions options={chartOptions} setOptions={setChartOptions} columns={columns} />
+                    <ChartOptions 
+                      options={chartData.chartOptions} 
+                      setOptions={updateChartOptions} 
+                      columns={chartData.columns}
+                      data={chartData.data}
+                    />
                   </div>
                 )}
 
-                {user && data.length > 0 ? (
+                {user && hasData ? (
                   <ChartView
-                    data={data}
-                    columns={columns}
-                    types={types}
-                    options={chartOptions}
-                    chartTitle={chartTitle}
-                    xAxis={xAxis}
-                    yAxis={yAxis}
-                    setXAxis={setXAxis}
-                    setYAxis={setYAxis}
+                    data={chartData.data}
+                    columns={chartData.columns}
+                    types={chartData.types}
+                    options={chartData.chartOptions}
+                    chartTitle={chartData.chartTitle}
+                    xAxis={chartData.xAxis}
+                    yAxis={chartData.yAxis}
+                    setXAxis={(xAxis) => updateChartData({ xAxis })}
+                    setYAxis={(yAxis) => updateChartData({ yAxis })}
                   />
                 ) : !user ? (
                   <div className="rounded-2xl p-8 bg-gray-50 dark:bg-black/20 text-center text-gray-500">
@@ -300,7 +278,7 @@ useEffect(() => {
           </div>
 
           {/* Summary Section */}
-          {Object.keys(summary).length > 0 && user && (
+          {Object.keys(chartData.summary || {}).length > 0 && user && (
             <section className="mt-6 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
               <div className="p-5">
                 <h2 className="font-display text-lg mb-4">Summary</h2>
@@ -313,7 +291,7 @@ useEffect(() => {
                       </tr>
                     </thead>
                     <tbody>
-                      {Object.entries(summary).map(([col, details], i) => (
+                      {Object.entries(chartData.summary || {}).map(([col, details], i) => (
                         <tr key={i} className="odd:bg-gray-50 dark:odd:bg-black/20 border-b border-gray-200 dark:border-white/5 align-top">
                           <td className="px-4 py-2 text-sm font-medium text-gray-800 dark:text-slate-200">{col}</td>
                           <td className="px-4 py-2 text-sm text-gray-600 dark:text-slate-300">
