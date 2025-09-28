@@ -117,7 +117,10 @@ export default function EditingBar({
   };
 
   return (
-    <div className={`bg-white dark:bg-slate-800 shadow-lg ${className}`}>
+    <div
+      className={`bg-white dark:bg-slate-800 shadow-lg ${className}`}
+      style={{ zIndex: 'var(--z-editing-bar)' }}
+      >
       {/* Main Toolbar */}
       <div className="px-4 py-2 flex items-center justify-between">
         {/* Left Section - Sidebar Toggle & File Operations */}
@@ -168,7 +171,10 @@ export default function EditingBar({
               }
             </button>
             {activeDropdown === 'chartType' && (
-              <div className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg z-50 min-w-[120px]">
+              <div 
+                className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg min-w-[120px]"
+                style={{ zIndex: 'var(--z-dropdowns)' }}
+              >
                 {chartTypes.map(({ type, icon: Icon, label }) => (
                   <button
                     key={type}
@@ -199,7 +205,10 @@ export default function EditingBar({
               <Palette size={18} />
             </button>
             {activeDropdown === 'colors' && (
-              <div className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg z-50 p-3 min-w-[280px]">
+              <div 
+                className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg p-3 min-w-[280px]"
+                style={{ zIndex: 'var(--z-dropdowns)' }}
+              >
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   {colorPresets.map(({ name, color }) => (
                     <button
@@ -302,7 +311,10 @@ export default function EditingBar({
               <SortAsc size={18} />
             </button>
             {activeDropdown === 'sort' && (
-              <div className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg z-50 min-w-[120px]">
+              <div 
+                className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg min-w-[120px]"
+                style={{ zIndex: 'var(--z-dropdowns)' }}
+              >
                 <button
                   onClick={() => handleSortChange('none')}
                   className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors ${
