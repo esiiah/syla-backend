@@ -171,40 +171,8 @@ export default function EditingPanel({
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setSelectionMode(!selectionMode)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                  selectionMode 
-                    ? 'bg-orange-100 text-orange-700 border border-orange-300' 
-                    : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-                } dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700`}
-              >
-                <Square size={16} />
-                {selectionMode ? 'Exit Selection' : 'Select Mode'}
-              </button>
-
-              <button
-                onClick={onForecast}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg"
-              >
-                <TrendingUp size={16} />
-                Forecast
-              </button>
-              
-              <button
-                onClick={onExport}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors"
-              >
-                <Download size={16} />
-                Export
-              </button>
-            </div>
-          </div>
-
-          {/* Axis Controls */}
-          <div className="flex flex-wrap gap-6 mb-6">
+          {/* Axis Controls with Selection Mode */}
+          <div className="flex flex-wrap gap-6 mb-6 items-center">
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <EditableText
@@ -247,6 +215,21 @@ export default function EditingPanel({
                   <option key={col} value={col}>{col}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Selection Mode Button */}
+            <div className="ml-auto">
+              <button
+                onClick={() => setSelectionMode(!selectionMode)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                  selectionMode 
+                    ? 'bg-orange-100 text-orange-700 border border-orange-300' 
+                    : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                } dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700`}
+              >
+                <Square size={16} />
+                {selectionMode ? 'Exit Selection' : 'Select Mode'}
+              </button>
             </div>
           </div>
 
