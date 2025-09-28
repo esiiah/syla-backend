@@ -21,8 +21,14 @@ ChartJS.register(
 // Helper functions
 const parseNum = v => (v == null || v === "" ? 0 : +String(v).replace(/,/g, "") || 0);
 const lerp = (a, b, t) => a + (b - a) * t;
-const hexToRgb = h => { if (!h) return null; const n = h.replace("#",""); const x = parseInt(n.length===3?n.split("").map(c=>c+c).join("":n,16); return {r:(x>>16)&255,g:(x>>8)&255,b:x&255}; };
-const rgbToHex = ({r,g,b}) => "#" + [r,g,b].map(c=>c.toString(16).padStart(2,"0")).join("");
+const hexToRgb = h => {
+  if (!h) return null;
+  const n = h.replace("#", "");
+  const x = parseInt(n.length === 3 ? n.split("").map(c => c + c).join("") : n, 16);
+  return { r: (x >> 16) & 255, g: (x >> 8) & 255, b: x & 255 };
+};
+const rgbToHex = ({ r, g, b }) => "#" + [r, g, b].map(c => c.toString(16).padStart(2, "0")).join("");
+
 
 const interpolateColor = (color1, color2, factor) => {
   const rgb1 = hexToRgb(color1);
