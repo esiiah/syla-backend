@@ -277,19 +277,6 @@ function App() {
             </section>
           </div>
           
-          <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6409016707149459"
-               crossorigin="anonymous"></script>
-          <!-- between sections -->
-          <ins class="adsbygoogle"
-               style="display:block"
-               data-ad-client="ca-pub-6409016707149459"
-               data-ad-slot="6340139765"
-               data-ad-format="auto"
-               data-full-width-responsive="true"></ins>
-          <script>
-               (adsbygoogle = window.adsbygoogle || []).push({});
-          </script>
-  
           {/* Summary Section */}
           {Object.keys(chartData.summary || {}).length > 0 && user && (
             <section className="mt-6 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
@@ -335,18 +322,7 @@ function App() {
             <Features />
           </div>
         </main>
-
-        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6409016707149459"
-             crossorigin="anonymous"></script>
-        <ins class="adsbygoogle"
-             style="display:block"
-             data-ad-format="autorelaxed"
-             data-ad-client="ca-pub-6409016707149459"
-             data-ad-slot="1000183175"></ins>
-        <script>
-             (adsbygoogle = window.adsbygoogle || []).push({});
-        </script>
-        
+          
         {/* Footer */}
         <Footer />
       </div>
