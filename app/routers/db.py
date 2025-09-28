@@ -1,10 +1,9 @@
-# app/routers/db.py
 import os
 from datetime import datetime
 from typing import Optional, Dict, Any
 
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, or_
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from sqlalchemy.exc import IntegrityError
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db").strip()
@@ -270,3 +269,13 @@ def remove_user_avatar(user_id: int) -> Optional[Dict[str, Any]]:
         session.commit()
         session.refresh(user)
         return _serialize_user(user)
+
+
+# ---- FastAPI Dependency ----
+def get_db():
+    """Provide a database session for FastAPI dependency injection"""
+    db: Session = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
