@@ -2,7 +2,7 @@
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from app.database import Base
+from app.routers.db import Base
 
 class ChartSettings(Base):
     __tablename__ = "chart_settings"
