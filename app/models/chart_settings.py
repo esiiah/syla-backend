@@ -1,3 +1,4 @@
+
 # syla-backend/app/models/chart_settings.py
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
