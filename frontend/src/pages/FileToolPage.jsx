@@ -247,6 +247,19 @@ export default function FileToolPage({ theme, setTheme }) {
               </div>
             </div>
           )}
+
+          <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6409016707149459"
+               crossorigin="anonymous"></script>
+          <!-- File Tool ads -->
+          <ins class="adsbygoogle"
+               style="display:block"
+               data-ad-client="ca-pub-6409016707149459"
+               data-ad-slot="7844793128"
+               data-ad-format="auto"
+               data-full-width-responsive="true"></ins>
+          <script>
+               (adsbygoogle = window.adsbygoogle || []).push({});
+          </script>  
         </div>
       </div>
     </div>
