@@ -45,7 +45,7 @@ export default function Navbar({ user }) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-}
+
 
   const handleLogout = async () => {
     try {
