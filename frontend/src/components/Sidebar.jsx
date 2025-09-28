@@ -137,6 +137,19 @@ function Sidebar({ onReportChange, theme, setTheme }) {
           </div>
         </div>
       </div>
+      
+      <div id="sidebar">
+          <!-- Sidebar Ad -->
+          <ins class="adsbygoogle"
+               style="display:block"
+               data-ad-client="ca-pub-6409016707149459"
+               data-ad-slot="2450470994"
+               data-ad-format="auto"
+               data-full-width-responsive="true"></ins>
+          <script>
+               (adsbygoogle = window.adsbygoogle || []).push({});
+          </script>
+      </div>
 
       {/* Footer buttons */}
       <div className="px-3 py-4 border-t border-gray-200 dark:border-white/10 space-y-2">
