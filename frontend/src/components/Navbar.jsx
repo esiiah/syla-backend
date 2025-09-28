@@ -13,10 +13,23 @@ export default function Navbar({ user }) {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [results, setResults] = useState([]); // added state for results
+
   const userMenuRef = useRef(null);
   const notificationRef = useRef(null);
-  const response = await fetch(`/api/search?q=${searchQuery}`);
-  const results = await response.json();
+
+  // Fetch search results whenever searchQuery changes
+  useEffect(() => {
+    if (!searchQuery) return;
+
+    const fetchResults = async () => {
+      const response = await fetch(`/api/search?q=${searchQuery}`);
+      const data = await response.json();
+      setResults(data);
+    };
+
+    fetchResults();
+  }, [searchQuery]);
 
   // Close menus when clicking outside
   useEffect(() => {
@@ -32,6 +45,7 @@ export default function Navbar({ user }) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+}
 
   const handleLogout = async () => {
     try {
