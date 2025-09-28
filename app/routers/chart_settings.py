@@ -6,10 +6,10 @@ from pydantic import BaseModel, Field
 import json
 from datetime import datetime
 
-from app.database import get_db
+from .db import get_db
 from app.models.user import User
 from app.models.chart_settings import ChartSettings
-from app.auth.jwt_handler import get_current_user
+from .auth import get_current_user
 
 router = APIRouter(prefix="/api/chart-settings", tags=["Chart Settings"])
 
