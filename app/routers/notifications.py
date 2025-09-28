@@ -50,7 +50,7 @@ class Notification(Base):
     read = Column(Boolean, default=False)
     archived = Column(Boolean, default=False)
     action_url = Column(String(512), nullable=True)
-    metadata = Column(Text, nullable=True)  # JSON string for additional data
+    meta_info = Column("metadata", Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     read_at = Column(DateTime, nullable=True)
     archived_at = Column(DateTime, nullable=True)
@@ -130,8 +130,9 @@ def create_notification_for_user(
         category=category,
         priority=priority,
         action_url=action_url,
-        metadata=json.dumps(metadata) if metadata else None
+        meta_info=json.dumps(metadata) if metadata else None
     )
+
     
     db.add(notification)
     db.commit()
