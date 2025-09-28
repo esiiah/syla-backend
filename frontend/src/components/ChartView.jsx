@@ -9,7 +9,7 @@ import {
 } from "chart.js";
 import { Bar, Line, Pie, Scatter } from "react-chartjs-2";
 import ChartDataLabels from "chartjs-plugin-datalabels";
-import { TrendingUp, Download, Palette, Settings, Edit3 } from "lucide-react";
+import { TrendingUp, Download, Edit3 } from "lucide-react";
 import ChartExportTool from "./export/ChartExportTool";
 
 ChartJS.register(
@@ -21,10 +21,53 @@ ChartJS.register(
 // Helper functions
 const parseNum = v => (v == null || v === "" ? 0 : +String(v).replace(/,/g, "") || 0);
 const lerp = (a, b, t) => a + (b - a) * t;
-const hexToRgb = h => { if (!h) return null; const n = h.replace("#",""); const x = parseInt(n.length===3?n.split("").map(c=>c+c).join(""):n,16); return {r:(x>>16)&255,g:(x>>8)&255,b:x&255}; };
+const hexToRgb = h => { if (!h) return null; const n = h.replace("#",""); const x = parseInt(n.length===3?n.split("").map(c=>c+c).join("":n,16); return {r:(x>>16)&255,g:(x>>8)&255,b:x&255}; };
 const rgbToHex = ({r,g,b}) => "#" + [r,g,b].map(c=>c.toString(16).padStart(2,"0")).join("");
-const interpolate = (stops,t) => { if(stops.length<2)return stops[0]||"#999"; const seg=(stops.length-1)*t,i=Math.min(Math.floor(seg),stops.length-2);const c1=hexToRgb(stops[i]),c2=hexToRgb(stops[i+1]);return rgbToHex({r:Math.round(lerp(c1.r,c2.r,seg-i)),g:Math.round(lerp(c1.g,c2.g,seg-i)),b:Math.round(lerp(c1.b,c2.b,seg-i))}); };
-const trendline = vals => {const n=vals.length;if(n<2)return vals.map(()=>null);const xs=vals.map((_,i)=>i),ys=vals;const xm=xs.reduce((a,b)=>a+b,0)/n,ym=ys.reduce((a,b)=>a+b,0)/n;let num=0,den=0;for(let i=0;i<n;i++){num+=(xs[i]-xm)*(ys[i]-ym);den+=(xs[i]-xm)**2;}const m=den?num/den:0,b=ym-m*xm;return xs.map(x=>m*x+b);};
+
+const interpolateColor = (color1, color2, factor) => {
+  const rgb1 = hexToRgb(color1);
+  const rgb2 = hexToRgb(color2);
+  if (!rgb1 || !rgb2) return color1;
+  
+  return rgbToHex({
+    r: Math.round(lerp(rgb1.r, rgb2.r, factor)),
+    g: Math.round(lerp(rgb1.g, rgb2.g, factor)),
+    b: Math.round(lerp(rgb1.b, rgb2.b, factor))
+  });
+};
+
+const generateGradientColors = (stops, count) => {
+  if (!stops || stops.length < 2) return Array(count).fill(stops?.[0] || "#2563eb");
+  
+  const colors = [];
+  for (let i = 0; i < count; i++) {
+    const position = count === 1 ? 0 : i / (count - 1);
+    const segmentSize = 1 / (stops.length - 1);
+    const segmentIndex = Math.min(Math.floor(position / segmentSize), stops.length - 2);
+    const segmentPosition = (position - segmentIndex * segmentSize) / segmentSize;
+    
+    colors.push(interpolateColor(stops[segmentIndex], stops[segmentIndex + 1], segmentPosition));
+  }
+  return colors;
+};
+
+const trendline = vals => {
+  const n = vals.length;
+  if (n < 2) return vals.map(() => null);
+  const xs = vals.map((_, i) => i);
+  const ys = vals;
+  const xm = xs.reduce((a, b) => a + b, 0) / n;
+  const ym = ys.reduce((a, b) => a + b, 0) / n;
+  let num = 0, den = 0;
+  for (let i = 0; i < n; i++) {
+    num += (xs[i] - xm) * (ys[i] - ym);
+    den += (xs[i] - xm) ** 2;
+  }
+  const m = den ? num / den : 0;
+  const b = ym - m * xm;
+  return xs.map(x => m * x + b);
+};
+
 const themeText = () => (document?.body?.classList.contains("dark") ? "#E6EEF8" : "#0f172a");
 
 export default function ChartView({ 
@@ -40,16 +83,17 @@ export default function ChartView({
   onBarClick = () => {},
   onLegendToggle = () => {},
   selectedBars = [],
+  selectionMode = false,
   dataPayload = null
 }) {
   const navigate = useNavigate();
   const ref = useRef(null);
   const [perColor, setPerColor] = useState([]);
   const [editing, setEditing] = useState(null);
-  const [showExportTool, setShowExportTool] = useState(false); // Explicitly set to false - no auto-show
+  const [showExportTool, setShowExportTool] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Store data for export and forecast - NO AUTO EXPORT PANEL
+  // Store data for export and forecast
   useEffect(() => {
     if (data && data.length > 0) {
       localStorage.setItem("uploadedData", JSON.stringify(data));
@@ -96,14 +140,42 @@ export default function ChartView({
   // Generate chart data
   const chartData = useMemo(() => {
     const base = options.color || "#2563eb";
-    const stops = options.gradientStops?.length ? options.gradientStops : [base, base];
     const N = lbls.length || 1;
     
-    const pickColor = (i) => {
+    let colors;
+    if (options.gradient && options.gradientStops?.length > 1) {
+      colors = generateGradientColors(options.gradientStops, N);
+    } else {
+      colors = Array(N).fill(base);
+    }
+
+    // Apply per-element colors and selection highlighting
+    const finalColors = colors.map((color, i) => {
       const originalIndex = map[i];
-      return perColor[originalIndex] || 
-        (options.gradient ? interpolate(stops, N === 1 ? 0 : i / (N - 1)) : base);
-    };
+      let finalColor = perColor[originalIndex] || color;
+      
+      // Highlight selected items
+      if (selectedBars.includes(lbls[i])) {
+        const rgb = hexToRgb(finalColor);
+        if (rgb) {
+          // Brighten selected items
+          finalColor = rgbToHex({
+            r: Math.min(255, rgb.r + 40),
+            g: Math.min(255, rgb.g + 40),
+            b: Math.min(255, rgb.b + 40)
+          });
+        }
+      }
+      
+      return finalColor;
+    });
+
+    const borderColors = finalColors.map(color => {
+      if (selectedBars.length > 0) {
+        return selectedBars.includes(lbls[finalColors.indexOf(color)]) ? "#ff6b6b" : color;
+      }
+      return color;
+    });
 
     if (options.type === "pie") {
       return {
@@ -111,7 +183,7 @@ export default function ChartView({
         datasets: [{
           label: yAxis || "Value",
           data: vals,
-          backgroundColor: vals.map((_, i) => pickColor(i)),
+          backgroundColor: finalColors,
           borderColor: "#fff",
           borderWidth: 2
         }]
@@ -124,10 +196,12 @@ export default function ChartView({
         datasets: [{
           label: yAxis || "Value",
           data: safeVals.map((v, i) => ({ x: i, y: v })),
-          backgroundColor: safeVals.map((_, i) => pickColor(i)),
+          backgroundColor: finalColors,
+          borderColor: borderColors,
           showLine: false,
           pointRadius: 6,
-          pointHoverRadius: 8
+          pointHoverRadius: 8,
+          borderWidth: selectedBars.length > 0 ? 3 : 1
         }]
       };
     }
@@ -137,9 +211,9 @@ export default function ChartView({
       type: options.type === "line" ? "line" : "bar",
       data: safeVals,
       originalData: vals,
-      backgroundColor: vals.map((_, i) => pickColor(i)),
-      borderColor: base,
-      borderWidth: options.type === "line" ? 3 : 1,
+      backgroundColor: finalColors,
+      borderColor: borderColors,
+      borderWidth: selectedBars.length > 0 ? 3 : (options.type === "line" ? 3 : 1),
       tension: options.type === "line" ? 0.4 : undefined,
       fill: options.type === "area" ? true : false
     };
@@ -152,7 +226,7 @@ export default function ChartView({
         type: core.type,
         data: safeCmp,
         originalData: cmp,
-        backgroundColor: cmp.map((_, i) => pickColor(i)),
+        backgroundColor: cmp.map((_, i) => finalColors[i]),
         borderColor: "#dc2626",
         yAxisID: "y1"
       });
@@ -174,7 +248,7 @@ export default function ChartView({
     }
 
     return { labels: lbls, datasets: ds };
-  }, [options, lbls, vals, safeVals, perColor, yAxis, map, safeCmp, cmp]);
+  }, [options, lbls, vals, safeVals, perColor, yAxis, map, safeCmp, cmp, selectedBars]);
 
   // Chart options
   const chartOptions = useMemo(() => {
@@ -186,7 +260,7 @@ export default function ChartView({
       responsive: true,
       interaction: {
         intersect: false,
-        mode: 'index'
+        mode: selectionMode ? 'point' : 'index'
       },
       onClick: (event, elements) => {
         if (elements.length > 0) {
@@ -196,9 +270,25 @@ export default function ChartView({
           onBarClick(seriesKey, lbls[dataIndex]);
         }
       },
+      onHover: (event, activeElements) => {
+        if (selectionMode) {
+          event.native.target.style.cursor = activeElements.length > 0 ? 'pointer' : 'crosshair';
+        }
+      },
       plugins: {
         legend: {
-          labels: { color: tc, usePointStyle: true },
+          labels: { 
+            color: tc, 
+            usePointStyle: true,
+            generateLabels: (chart) => {
+              const original = ChartJS.defaults.plugins.legend.labels.generateLabels(chart);
+              return original.map(label => ({
+                ...label,
+                fillStyle: label.fillStyle,
+                strokeStyle: selectedBars.length > 0 ? "#ff6b6b" : label.strokeStyle
+              }));
+            }
+          },
           onClick: (e, legendItem, legend) => {
             const index = legendItem.datasetIndex;
             const chart = legend.chart;
@@ -229,7 +319,8 @@ export default function ChartView({
           callbacks: {
             label: ctx => {
               const originalValue = ctx.dataset.originalData ? ctx.dataset.originalData[ctx.dataIndex] : ctx.formattedValue;
-              return `${ctx.dataset.label}: ${originalValue?.toLocaleString() || originalValue}`;
+              const selected = selectedBars.includes(lbls[ctx.dataIndex]) ? " (Selected)" : "";
+              return `${ctx.dataset.label}: ${originalValue?.toLocaleString() || originalValue}${selected}`;
             }
           }
         }
@@ -251,7 +342,8 @@ export default function ChartView({
               return value.toLocaleString();
             }
           },
-          grid: { color: "rgba(0,0,0,0.1)" }
+          grid: { color: "rgba(0,0,0,0.1)" },
+          min: options.logScale ? minPos * 0.1 : undefined
         }
       }
     };
@@ -266,7 +358,8 @@ export default function ChartView({
           callback: function(value) {
             return value.toLocaleString();
           }
-        }
+        },
+        min: options.logScale ? minPos * 0.1 : undefined
       };
     }
 
@@ -284,7 +377,7 @@ export default function ChartView({
     }
 
     return opts;
-  }, [options, lbls, yAxis, onBarClick, onLegendToggle]);
+  }, [options, lbls, yAxis, onBarClick, onLegendToggle, selectedBars, selectionMode, minPos]);
 
   const ChartComponent = options.type === "line" || options.type === "area" ? Line :
     options.type === "pie" ? Pie :
@@ -335,7 +428,6 @@ export default function ChartView({
 
   // Navigate to forecast page
   const goToForecast = () => {
-    // Store current data for forecast page
     localStorage.setItem("chartTitle", chartTitle);
     localStorage.setItem("currentXAxis", xAxis);
     localStorage.setItem("currentYAxis", yAxis);
@@ -346,7 +438,9 @@ export default function ChartView({
     const index = lbls.indexOf(label);
     if (index !== -1) {
       const originalIndex = map[index];
-      setEditing({ index: originalIndex, label });
+      if (!selectionMode) {
+        setEditing({ index: originalIndex, label });
+      }
     }
     onBarClick(seriesKey, label);
   };
@@ -379,29 +473,20 @@ export default function ChartView({
             {chartTitle || "Data Visualization"}
           </h3>
           
-          {/* Axis selectors */}
-          <div className="flex flex-wrap gap-3 text-sm">
-            <div className="flex items-center gap-2">
-              <label className="text-gray-600 dark:text-slate-400 font-medium">X-Axis:</label>
-              <select
-                value={xAxis}
-                onChange={e => setXAxis(e.target.value)}
-                className="border rounded-lg px-3 py-1 bg-white dark:bg-slate-800 dark:border-slate-600 min-w-[120px]"
-              >
-                {columns.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <label className="text-gray-600 dark:text-slate-400 font-medium">Y-Axis:</label>
-              <select
-                value={yAxis}
-                onChange={e => setYAxis(e.target.value)}
-                className="border rounded-lg px-3 py-1 bg-white dark:bg-slate-800 dark:border-slate-600 min-w-[120px]"
-              >
-                {columns.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
+          {/* Status indicators */}
+          <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-slate-400">
+            <span>{data.length.toLocaleString()} data points</span>
+            {options.logScale && <span>Log Scale</span>}
+            {selectedBars.length > 0 && (
+              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
+                {selectedBars.length} selected
+              </span>
+            )}
+            {selectionMode && (
+              <span className="px-2 py-1 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full">
+                Selection Mode
+              </span>
+            )}
           </div>
         </div>
 
@@ -458,7 +543,7 @@ export default function ChartView({
       </div>
 
       {/* Color editing panel */}
-      {editing && (
+      {editing && !selectionMode && (
         <div className="mt-4 p-4 border rounded-xl bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-700">
           <div className="flex items-center gap-4">
             <span className="text-sm font-medium">
@@ -479,7 +564,7 @@ export default function ChartView({
         </div>
       )}
 
-      {/* Export tool overlay - ONLY shows when user clicks Export button */}
+      {/* Export tool overlay */}
       {showExportTool && (
         <ChartExportTool
           onClose={() => setShowExportTool(false)}
@@ -491,15 +576,10 @@ export default function ChartView({
         />
       )}
 
-      {/* Data quality indicator */}
-      {data.length > 0 && (
-        <div className="mt-4 text-xs text-gray-500 dark:text-slate-400 flex items-center justify-between">
-          <span>{data.length.toLocaleString()} data points visualized</span>
-          {selectedBars.length > 0 && (
-            <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
-              {selectedBars.length} selected
-            </span>
-          )}
+      {/* Selection help text */}
+      {selectionMode && (
+        <div className="mt-4 text-sm text-gray-600 dark:text-slate-400 text-center">
+          Click on chart elements to select them for bulk operations
         </div>
       )}
     </div>
