@@ -216,3 +216,9 @@ select, input, textarea {
   max-height: calc(100vh - 72px);
   overflow-y: auto;
 }
+
+:root {
+  --z-navbar: 50;
+  --z-editing-bar: 40;
+  --z-dropdowns: 60;
+}
