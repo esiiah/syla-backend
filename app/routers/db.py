@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional, Dict, Any
 
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, or_
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
+from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
 from sqlalchemy.exc import IntegrityError
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db").strip()
@@ -40,6 +40,8 @@ class User(Base):
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    chart_settings = relationship("ChartSettings", back_populates="user")    
 
 
 Base.metadata.create_all(bind=engine)
