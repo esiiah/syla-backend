@@ -15,6 +15,8 @@ export default function Navbar({ user }) {
   const [searchQuery, setSearchQuery] = useState("");
   const userMenuRef = useRef(null);
   const notificationRef = useRef(null);
+  const response = await fetch(`/api/search?q=${searchQuery}`);
+  const results = await response.json();
 
   // Close menus when clicking outside
   useEffect(() => {
