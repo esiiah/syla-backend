@@ -1,8 +1,83 @@
 // frontend/src/components/EditingPanel.jsx
 import React, { useState, useRef, useEffect } from "react";
-import { Edit3, TrendingUp, Download } from "lucide-react";
+import { Edit3, TrendingUp, Download, Trash2, Square } from "lucide-react";
 import ChartView from "./ChartView";
 import { useChartData } from "../context/ChartDataContext";
+
+// Editable Text Component
+const EditableText = ({ 
+  value, 
+  onSave, 
+  className = "", 
+  placeholder = "Click to edit...",
+  multiline = false,
+  maxLength = 100
+}) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempValue, setTempValue] = useState(value || "");
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      if (!multiline) {
+        inputRef.current.select();
+      }
+    }
+  }, [isEditing, multiline]);
+
+  const handleSave = () => {
+    onSave(tempValue);
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setTempValue(value || "");
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !multiline) {
+      e.preventDefault();
+      handleSave();
+    } else if (e.key === 'Escape') {
+      handleCancel();
+    }
+  };
+
+  if (isEditing) {
+    const InputComponent = multiline ? 'textarea' : 'input';
+    return (
+      <InputComponent
+        ref={inputRef}
+        type={multiline ? undefined : "text"}
+        value={tempValue}
+        onChange={(e) => setTempValue(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={handleKeyDown}
+        className={`bg-transparent border-b-2 border-blue-500 focus:outline-none ${className}`}
+        placeholder={placeholder}
+        maxLength={maxLength}
+        rows={multiline ? 2 : undefined}
+        style={{ minWidth: '200px' }}
+      />
+    );
+  }
+
+  return (
+    <span
+      className={`cursor-pointer hover:text-blue-600 transition-colors flex items-center gap-2 ${className}`}
+      onClick={() => {
+        setTempValue(value || "");
+        setIsEditing(true);
+      }}
+      title="Double-click to edit"
+    >
+      {value || placeholder}
+      <Edit3 size={14} className="opacity-50" />
+    </span>
+  );
+};
 
 export default function EditingPanel({ 
   sidebarOpen, 
@@ -10,40 +85,31 @@ export default function EditingPanel({
   onExport,
   onForecast,
   selectedBars,
-  onBarClick 
+  onBarClick,
+  onSelectionDelete,
+  onSelectionClear
 }) {
   const { chartData, updateChartData } = useChartData();
-  const [editingTitle, setEditingTitle] = useState(false);
-  const [localTitle, setLocalTitle] = useState(chartData.chartTitle || "");
+  const [selectionMode, setSelectionMode] = useState(false);
   const panelRef = useRef(null);
-
-  useEffect(() => {
-    setLocalTitle(chartData.chartTitle || "");
-  }, [chartData.chartTitle]);
-
-  const handleTitleSave = () => {
-    updateChartData({ chartTitle: localTitle });
-    setEditingTitle(false);
-    onTitleEdit?.(localTitle);
-  };
-
-  const handleTitleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      handleTitleSave();
-    } else if (e.key === 'Escape') {
-      setLocalTitle(chartData.chartTitle || "");
-      setEditingTitle(false);
-    }
-  };
 
   const updateAxes = (xAxis, yAxis) => {
     updateChartData({ xAxis, yAxis });
   };
 
-  const handleOptionsChange = (newOptions) => {
-    updateChartData({ 
-      chartOptions: { ...chartData.chartOptions, ...newOptions }
-    });
+  const handleTitleSave = (newTitle) => {
+    updateChartData({ chartTitle: newTitle });
+    onTitleEdit?.(newTitle);
+  };
+
+  const handleAxisLabelSave = (axis, newLabel) => {
+    const updates = {};
+    if (axis === 'x') {
+      updates.xAxisLabel = newLabel;
+    } else if (axis === 'y') {
+      updates.yAxisLabel = newLabel;
+    }
+    updateChartData(updates);
   };
 
   if (!chartData.data.length) {
@@ -83,31 +149,21 @@ export default function EditingPanel({
       style={{ height: 'calc(100vh - 120px)' }}
     >
       <div className="mx-4 mt-4 mb-4 rounded-2xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 shadow-sm">
-        {/* Header */}
-        <div className="p-6 border-b border-gray-200 dark:border-slate-600">
-          <div className="flex items-center justify-between">
-            {/* Editable Title */}
-            <div className="flex items-center gap-3">
-              {editingTitle ? (
-                <input
-                  type="text"
-                  value={localTitle}
-                  onChange={(e) => setLocalTitle(e.target.value)}
-                  onBlur={handleTitleSave}
-                  onKeyDown={handleTitleKeyPress}
-                  className="text-xl font-semibold bg-transparent border-b-2 border-blue-500 focus:outline-none min-w-[200px] text-gray-800 dark:text-slate-200"
-                  autoFocus
-                  placeholder="Enter chart title..."
+        {/* Chart Area */}
+        <div className="p-6">
+          {/* Axis Selectors and Chart Info */}
+          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <div className="flex items-center gap-6">
+              {/* Editable Title */}
+              <div className="flex items-center">
+                <EditableText
+                  value={chartData.chartTitle}
+                  onSave={handleTitleSave}
+                  className="text-xl font-semibold text-gray-800 dark:text-slate-200"
+                  placeholder="Untitled Chart"
+                  maxLength={100}
                 />
-              ) : (
-                <h1 
-                  className="text-xl font-semibold cursor-pointer hover:text-blue-600 transition-colors flex items-center gap-2 text-gray-800 dark:text-slate-200"
-                  onClick={() => setEditingTitle(true)}
-                >
-                  {localTitle || "Untitled Chart"}
-                  <Edit3 size={16} className="opacity-50" />
-                </h1>
-              )}
+              </div>
               
               {/* Data info */}
               <div className="text-sm text-gray-500 dark:text-slate-400">
@@ -117,6 +173,18 @@ export default function EditingPanel({
 
             {/* Action Buttons */}
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSelectionMode(!selectionMode)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                  selectionMode 
+                    ? 'bg-orange-100 text-orange-700 border border-orange-300' 
+                    : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                } dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700`}
+              >
+                <Square size={16} />
+                {selectionMode ? 'Exit Selection' : 'Select Mode'}
+              </button>
+
               <button
                 onClick={onForecast}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg"
@@ -134,16 +202,20 @@ export default function EditingPanel({
               </button>
             </div>
           </div>
-        </div>
 
-        {/* Chart Area */}
-        <div className="p-6">
-          {/* Axis Selectors */}
-          <div className="flex flex-wrap gap-4 mb-6">
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-600 dark:text-slate-400">
-                X-Axis:
-              </label>
+          {/* Axis Controls */}
+          <div className="flex flex-wrap gap-6 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <EditableText
+                  value={chartData.xAxisLabel || "X-Axis"}
+                  onSave={(label) => handleAxisLabelSave('x', label)}
+                  className="text-sm font-medium text-gray-600 dark:text-slate-400"
+                  placeholder="X-Axis Label"
+                  maxLength={50}
+                />
+                <span className="text-gray-400">:</span>
+              </div>
               <select
                 value={chartData.xAxis || ""}
                 onChange={(e) => updateAxes(e.target.value, chartData.yAxis)}
@@ -155,10 +227,17 @@ export default function EditingPanel({
               </select>
             </div>
             
-            <div className="flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-600 dark:text-slate-400">
-                Y-Axis:
-              </label>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <EditableText
+                  value={chartData.yAxisLabel || "Y-Axis"}
+                  onSave={(label) => handleAxisLabelSave('y', label)}
+                  className="text-sm font-medium text-gray-600 dark:text-slate-400"
+                  placeholder="Y-Axis Label"
+                  maxLength={50}
+                />
+                <span className="text-gray-400">:</span>
+              </div>
               <select
                 value={chartData.yAxis || ""}
                 onChange={(e) => updateAxes(chartData.xAxis, e.target.value)}
@@ -179,13 +258,28 @@ export default function EditingPanel({
                   {selectedBars.length} item(s) selected
                 </span>
                 <div className="flex gap-2">
-                  <button className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors text-sm">
+                  <button 
+                    onClick={onSelectionDelete}
+                    className="flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors text-sm"
+                  >
+                    <Trash2 size={14} />
                     Delete Selected
                   </button>
-                  <button className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors text-sm">
+                  <button 
+                    onClick={onSelectionClear}
+                    className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors text-sm"
+                  >
                     Clear Selection
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {selectionMode && (
+            <div className="mb-4 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-700">
+              <div className="text-sm text-orange-700 dark:text-orange-300">
+                <strong>Selection Mode Active:</strong> Click on chart elements to select them for bulk operations.
               </div>
             </div>
           )}
@@ -197,13 +291,14 @@ export default function EditingPanel({
               columns={chartData.columns}
               types={chartData.types}
               options={chartData.chartOptions}
-              chartTitle={localTitle}
+              chartTitle={chartData.chartTitle}
               xAxis={chartData.xAxis}
               yAxis={chartData.yAxis}
               setXAxis={(xAxis) => updateAxes(xAxis, chartData.yAxis)}
               setYAxis={(yAxis) => updateAxes(chartData.xAxis, yAxis)}
               onBarClick={onBarClick}
               selectedBars={selectedBars}
+              selectionMode={selectionMode}
             />
           </div>
         </div>
