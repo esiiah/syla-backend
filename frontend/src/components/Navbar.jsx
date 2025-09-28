@@ -58,9 +58,11 @@ export default function Navbar({ user }) {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-white">
-                <Zap size={24} />
-              </div>
+              <img
+                src="/favicon.png"
+                alt="Syla Analytics Logo"
+                className="w-10 h-10 rounded-xl"
+              />
               <div>
                 <h1 className="text-xl font-bold text-gray-800 dark:text-slate-200">
                   Syla Analytics
@@ -107,9 +109,11 @@ export default function Navbar({ user }) {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-white">
-              <Zap size={24} />
-            </div>
+            <img
+              src="/favicon.png"
+              alt="Syla Analytics Logo"
+              className="w-10 h-10 rounded-xl"
+            />
             <div>
               <h1 className="text-xl font-bold text-gray-800 dark:text-slate-200">
                 Syla Analytics
