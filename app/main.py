@@ -374,6 +374,7 @@ async def get_forecast_status(job_id: str):
         "progress": 100
     }
 
+
 @app.get("/api/models/{model_id}")
 async def get_model_metadata(model_id: str):
     try:
@@ -407,3 +408,24 @@ async def serve_uploaded_file(saved_filename: str):
     mime_type, _ = mimetypes.guess_type(path)
     return FileResponse(path, media_type=mime_type or "application/octet-stream",
                         filename=os.path.basename(path))
+
+@app.get("/{path:path}")
+async def spa_fallback(request: Request, path: str):
+    if path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API endpoint not found")
+
+    file_path = os.path.join(FRONTEND_DIR, path)
+    if os.path.isfile(file_path):
+        mime_type, _ = mimetypes.guess_type(file_path)
+        return FileResponse(file_path, media_type=mime_type)
+
+    if os.path.isdir(file_path):
+        index_path = os.path.join(file_path, "index.html")
+        if os.path.isfile(index_path):
+            return FileResponse(index_path, media_type="text/html")
+
+    root_index = os.path.join(FRONTEND_DIR, "index.html")
+    if os.path.isfile(root_index):
+        return FileResponse(root_index, media_type="text/html")
+
+    raise HTTPException(status_code=404, detail="Page not found")
