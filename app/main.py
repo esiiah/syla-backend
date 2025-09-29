@@ -26,7 +26,7 @@ from .file_tools_full import router as file_tools_full_router, UPLOAD_DIR
 from .routers import auth as auth_router
 from .routers import password_recovery
 from .routers import profile
-from .ai.router import router as ai_router
+from .ai.router import router as forecast_router
 from .routers import chart_settings, notifications, search
 
 # Import new visual module
@@ -50,7 +50,7 @@ app.include_router(file_tools_full_router)
 app.include_router(auth_router.router)
 app.include_router(password_recovery.router)
 app.include_router(profile.router)
-app.include_router(ai_router)
+app.include_router(forecast_router)
 app.include_router(chart_settings.router)
 app.include_router(notifications.router)
 app.include_router(search.router)
