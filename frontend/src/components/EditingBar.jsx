@@ -10,19 +10,9 @@ import {
 } from "lucide-react";
 
 export default function EditingBar({ 
-  sidebarOpen, 
-  setSidebarOpen, 
-  chartOptions, 
-  onOptionsChange, 
-  onSave,
-  onExport,
-  onUndo,
-  onRedo,
-  canUndo,
-  canRedo,
-  onResetView,
-  onFitToScreen,
-  className = ""
+  sidebarOpen, setSidebarOpen, chartOptions, onOptionsChange, 
+  onSave, onExport, onUndo, onRedo, canUndo, canRedo,
+  onResetView, onFitToScreen, className = ""
 }) {
   const navigate = useNavigate();
   const [activeDropdown, setActiveDropdown] = useState(null);
@@ -119,7 +109,7 @@ export default function EditingBar({
   return (
     <div
       className={`bg-white dark:bg-slate-800 shadow-lg ${className}`}
-      style={{ zIndex: 'var(--z-editing-bar)' }}
+      style={{ zIndex: 30 }} // Lower than navbar but higher than content
       >
       {/* Main Toolbar */}
       <div className="px-4 py-2 flex items-center justify-between">
@@ -173,7 +163,7 @@ export default function EditingBar({
             {activeDropdown === 'chartType' && (
               <div 
                 className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg min-w-[120px]"
-                style={{ zIndex: 'var(--z-dropdowns)' }}
+                style={{ zIndex: 70 }} // Higher than navbar dropdowns
               >
                 {chartTypes.map(({ type, icon: Icon, label }) => (
                   <button
@@ -207,7 +197,7 @@ export default function EditingBar({
             {activeDropdown === 'colors' && (
               <div 
                 className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg p-3 min-w-[280px]"
-                style={{ zIndex: 'var(--z-dropdowns)' }}
+                style={{ zIndex: 70 }} // Higher than navbar dropdowns
               >
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   {colorPresets.map(({ name, color }) => (
@@ -313,7 +303,7 @@ export default function EditingBar({
             {activeDropdown === 'sort' && (
               <div 
                 className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg min-w-[120px]"
-                style={{ zIndex: 'var(--z-dropdowns)' }}
+                style={{ zIndex: 70 }} // Higher than navbar dropdowns
               >
                 <button
                   onClick={() => handleSortChange('none')}
