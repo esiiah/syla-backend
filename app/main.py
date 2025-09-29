@@ -1,4 +1,3 @@
-# app/main.py
 import io
 import logging
 import os
@@ -9,7 +8,7 @@ from typing import List, Dict, Any
 
 from dotenv import load_dotenv
 
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))  # syla-backend/
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 ENV_PATH = os.path.join(BASE_DIR, "frontend", ".env")
 load_dotenv(ENV_PATH)
 
@@ -20,7 +19,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-# Import existing routers
 from .utils import clean_dataframe, detect_column_types, summarize_numeric
 from .file_tools_full import router as file_tools_full_router, UPLOAD_DIR
 from .routers import auth as auth_router
@@ -29,7 +27,6 @@ from .routers import profile
 from .ai.router import router as forecast_router
 from .routers import chart_settings, notifications, search
 
-# Import new visual module
 from . import visual
 
 logging.basicConfig(level=logging.INFO)
@@ -45,7 +42,6 @@ app.add_middleware(
     allow_credentials=False,
 )
 
-# Include routers
 app.include_router(file_tools_full_router)
 app.include_router(auth_router.router)
 app.include_router(password_recovery.router)
@@ -55,14 +51,11 @@ app.include_router(chart_settings.router)
 app.include_router(notifications.router)
 app.include_router(search.router)
 
-# Mount uploaded files directory
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/api/files", StaticFiles(directory=UPLOAD_DIR), name="files")
 
-# Frontend directory
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "dist")
 
-# ---------- Pydantic models ----------
 class ChartPayloadRequest(BaseModel):
     file_id: str = None
     csv_data: List[Dict[str, Any]] = None
@@ -97,7 +90,6 @@ class ForecastRequest(BaseModel):
     regressors: List[str] = []
     config: Dict[str, Any] = {}
 
-# ---------- Utility ----------
 def sanitize_filename(name: str) -> str:
     base = os.path.basename(name or "uploaded_file")
     base = base.replace(" ", "_")
@@ -109,53 +101,31 @@ def unique_filename(name: str) -> str:
     ts = int(time.time() * 1000)
     return f"{ts}_{safe}"
 
-# ---------- Routes ----------
 @app.get("/api/health")
 def health_check():
     return {"message": "Backend is running 🚀", "ai_enabled": True}
 
-# Replace the upload_file function in main.py with this universal version
-
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
-    """Universal file upload - accepts ANY format and cleans it"""
     filename = file.filename or "uploaded_file"
-    
     try:
         raw = await file.read()
         if not raw:
             raise HTTPException(status_code=400, detail="File is empty")
-        
-        # Save raw file first
         saved_name = unique_filename(filename)
         raw_path = visual.RAW_DIR / saved_name
         with open(raw_path, "wb") as f:
             f.write(raw)
-        
-        # Universal processing - NO expectations, just clean whatever we get
         try:
-            # Use universal loader instead of expecting specific format
             df = visual.universal_load_any_file(str(raw_path))
-            
-            # Universal cleaning - handles ANY data structure
             df_clean, cleaning_metadata = visual.universal_clean_pipeline(df, aggressive=False)
-            
-            # At this point we ALWAYS have a valid DataFrame
             logger.info(f"Universal processing result: {len(df_clean)} rows, {len(df_clean.columns)} columns")
-            
-            # Generate basic metadata
             column_types = detect_column_types(df_clean)
             summary = summarize_numeric(df_clean)
-            
-            # Save cleaned version
             cleaned_name = f"cleaned_{saved_name}"
             cleaned_path = visual.CLEANED_DIR / cleaned_name
             df_clean.to_csv(cleaned_path, index=False)
-            
-            # Determine axis suggestions - work with whatever we have
             x_axis = df_clean.columns[0] if len(df_clean.columns) > 0 else "Column_1"
-            
-            # Find first numeric column for y-axis, fallback to second column
             numeric_cols = [c for c, t in column_types.items() if t == "numeric"]
             if numeric_cols:
                 y_axis = numeric_cols[0]
@@ -163,8 +133,6 @@ async def upload_file(file: UploadFile = File(...)):
                 y_axis = df_clean.columns[1]
             else:
                 y_axis = x_axis
-            
-            # Always return success - we've cleaned whatever we could
             return JSONResponse(content={
                 "file_id": saved_name,
                 "filename": filename,
@@ -175,7 +143,7 @@ async def upload_file(file: UploadFile = File(...)):
                 "types": column_types,
                 "summary": summary,
                 "data": df_clean.to_dict(orient="records"),
-                "chart_title": filename.split('.')[0],  # Remove extension
+                "chart_title": filename.split('.')[0],
                 "x_axis": x_axis,
                 "y_axis": y_axis,
                 "download_url": f"/api/files/{saved_name}",
@@ -183,24 +151,16 @@ async def upload_file(file: UploadFile = File(...)):
                 "processing_mode": "universal",
                 "message": f"Successfully processed {len(df_clean)} rows and {len(df_clean.columns)} columns"
             })
-            
         except Exception as e:
             logger.error(f"Universal processing failed: {e}")
-            
-            # Ultimate fallback - create a basic structure from raw file content
             try:
                 with open(raw_path, 'r', encoding='utf-8', errors='ignore') as f:
                     content = f.read()
-                
-                # Create minimal DataFrame from raw content
                 lines = [line.strip() for line in content.split('\n')[:1000] if line.strip()]
                 df_fallback = pd.DataFrame({'Raw_Content': lines})
-                
-                # Save fallback
                 cleaned_name = f"cleaned_{saved_name}"
                 cleaned_path = visual.CLEANED_DIR / cleaned_name
                 df_fallback.to_csv(cleaned_path, index=False)
-                
                 return JSONResponse(content={
                     "file_id": saved_name,
                     "filename": filename,
@@ -215,11 +175,9 @@ async def upload_file(file: UploadFile = File(...)):
                     "message": "File processed as raw text content",
                     "processing_mode": "fallback"
                 })
-                
             except Exception as fallback_error:
                 logger.error(f"Even fallback processing failed: {fallback_error}")
                 raise HTTPException(status_code=500, detail=f"Could not process file: {str(e)}")
-        
     except HTTPException:
         raise
     except Exception as e:
@@ -239,11 +197,9 @@ async def get_preview(file_id: str, n: int = 10):
             file_path = visual.CLEANED_DIR / f"cleaned_{file_id}"
             if not file_path.exists():
                 raise HTTPException(404, "File not found")
-
         df = visual.load_raw_csv(str(file_path))
         preview_data = visual.preview_rows(df, n)
         schema = visual.get_schema_expectations()
-
         return {
             "preview_rows": preview_data.to_dict('records'),
             "schema": schema,
@@ -266,18 +222,15 @@ async def generate_chart_payload(request: ChartPayloadRequest):
             df = pd.DataFrame(request.csv_data)
         else:
             raise HTTPException(400, "Either file_id or csv_data required")
-
         df_filtered = visual.filter_dataframe(df, request.filters) if request.filters else df
         if df_filtered.empty:
             return {"error": "No data after filtering"}
-
         agg_config = request.aggregation
         if agg_config.get('by') and agg_config.get('metric'):
             df_agg = visual.aggregate(df_filtered, agg_config['by'], agg_config['metric'],
                                       agg_config.get('agg', 'sum'))
         else:
             df_agg = df_filtered
-
         display_config = request.display
         if display_config.get('top_n') and display_config['top_n'] > 0:
             group_key = agg_config.get('by', df_agg.columns[0])
@@ -286,12 +239,10 @@ async def generate_chart_payload(request: ChartPayloadRequest):
                                                 display_config['top_n'], display_config.get('sort', 'desc'))
         else:
             df_final = df_agg
-
         chart_payload = visual.generate_chart_payload(df_final,
                                                       display_config.get('chart_type', 'bar'),
                                                       display_config)
         chart_id_temp = f"temp_{int(time.time())}"
-
         return {
             "chart_payload": chart_payload,
             "chart_id_temp": chart_id_temp,
@@ -337,7 +288,6 @@ async def export_chart(request: ChartExportRequest):
                     chart_payload = saved_chart.get('chart_payload', {})
         if not chart_payload:
             raise HTTPException(400, "No chart data provided")
-
         export_path = visual.export_chart_image(chart_payload,
                                                 format=request.format,
                                                 background=request.background,
@@ -352,6 +302,8 @@ async def export_chart(request: ChartExportRequest):
         logger.error(f"Chart export failed: {e}")
         raise HTTPException(500, f"Export error: {e}")
 
+from .ai.router import forecast_service
+
 @app.post("/api/forecast")
 async def create_forecast(request: ForecastRequest):
     try:
@@ -359,59 +311,60 @@ async def create_forecast(request: ForecastRequest):
             file_path = visual.CLEANED_DIR / f"cleaned_{request.file_id}"
             if not file_path.exists():
                 file_path = visual.RAW_DIR / request.file_id
+            if not file_path.exists():
+                raise HTTPException(status_code=404, detail="File not found")
             df = visual.load_raw_csv(str(file_path))
         elif request.csv_data:
             df = pd.DataFrame(request.csv_data)
         else:
             raise HTTPException(400, "Either file_id or csv_data required")
-
         df_filtered = visual.filter_dataframe(df, request.filters) if request.filters else df
-
-        forecast_config = {
-            'company': request.company,
-            'campaign': request.campaign,
-            'test_split': 0.2,
-            'regressors': request.regressors
-        }
-
-        forecast_input = visual.prepare_forecast_input(df_filtered, forecast_config)
-
-        model_config = {
-            'periods': request.horizon,
-            'confidence_level': request.ci,
-            'regressors': request.regressors,
-            **request.config
-        }
-
-        forecast_df, metadata = visual.run_forecast(request.method,
-                                                    forecast_input['train_data'],
-                                                    model_config)
-
-        forecast_path = visual.persist_forecast_results(forecast_df, metadata, str(visual.FORECASTS_DIR))
-
-        visual.log_action(
-            action="forecast",
-            user_id="system",
-            input_file_id=request.file_id,
-            output_path=forecast_path,
-            params={
-                "method": request.method,
-                "horizon": request.horizon,
-                "company": request.company
-            },
-            artifact_id=os.path.basename(forecast_path)
+        if df_filtered.empty:
+            raise HTTPException(status_code=400, detail="No data after filtering")
+        target_column = None
+        if request.config and isinstance(request.config, dict):
+            target_column = request.config.get('target_column')
+        if not target_column:
+            numeric_cols = df_filtered.select_dtypes(include=['number']).columns.tolist()
+            if numeric_cols:
+                target_column = numeric_cols[0]
+        if not target_column:
+            raise HTTPException(status_code=400, detail="Could not determine target column")
+        date_column = None
+        for candidate in ['date', 'ds', 'timestamp', 'created_at']:
+            if candidate in df_filtered.columns:
+                date_column = candidate
+                break
+        method = (request.method or 'hybrid').lower()
+        if method in ['prophet']:
+            model_preference = 'prophet'
+        elif method in ['gpt']:
+            model_preference = 'gpt'
+        else:
+            model_preference = 'hybrid'
+        scenario_text = ''
+        if request.config and isinstance(request.config, dict):
+            scenario_text = request.config.get('scenario_text', '')
+        data_records = df_filtered.to_dict(orient='records')
+        user_id = (request.config or {}).get('user_id', 'system')
+        result = await forecast_service.create_forecast(
+            data=data_records,
+            scenario=scenario_text or "",
+            target_column=target_column,
+            date_column=date_column,
+            model_preference=model_preference,
+            periods_ahead=int(request.horizon or 12),
+            confidence_level=float(request.ci or 0.95),
+            user_id=user_id
         )
-
-        return {
+        return JSONResponse(content={
             "job_id": f"forecast_{int(time.time())}",
             "status": "completed",
-            "forecast_csv_path": forecast_path,
-            "forecast_metadata": metadata,
-            "forecast_data": forecast_df.to_dict('records')
-        }
+            "forecast_result": result
+        })
     except Exception as e:
-        logger.error(f"Forecast failed: {e}")
-        raise HTTPException(500, f"Forecast error: {e}")
+        logger.exception(f"Forecast failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Forecast error: {e}")
 
 @app.get("/api/forecast/{job_id}")
 async def get_forecast_status(job_id: str):
@@ -452,26 +405,4 @@ async def serve_uploaded_file(saved_filename: str):
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="File not found")
     mime_type, _ = mimetypes.guess_type(path)
-    return FileResponse(path, media_type=mime_type or "application/octet-stream",
-                        filename=os.path.basename(path))
-
-@app.get("/{path:path}")
-async def spa_fallback(request: Request, path: str):
-    if path.startswith("api/"):
-        raise HTTPException(status_code=404, detail="API endpoint not found")
-
-    file_path = os.path.join(FRONTEND_DIR, path)
-    if os.path.isfile(file_path):
-        mime_type, _ = mimetypes.guess_type(file_path)
-        return FileResponse(file_path, media_type=mime_type)
-
-    if os.path.isdir(file_path):
-        index_path = os.path.join(file_path, "index.html")
-        if os.path.isfile(index_path):
-            return FileResponse(index_path, media_type="text/html")
-
-    root_index = os.path.join(FRONTEND_DIR, "index.html")
-    if os.path.isfile(root_index):
-        return FileResponse(root_index, media_type="text/html")
-
-    raise HTTPException(status_code=404, detail="Page not found")
+    return FileResponse(path, media_type=mime_type or
