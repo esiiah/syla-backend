@@ -1,249 +1,317 @@
 // frontend/src/components/FileUpload.jsx
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useContext } from "react";
+import { Upload, FileText, X, CheckCircle, AlertCircle } from "lucide-react";
 import { useChartData } from "../context/ChartDataContext";
-import VisualUploadPanel from "./upload/VisualUploadPanel";
+import { UserContext } from "../context/UserContext";
 
-export default function FileUpload({
-  action = null,
-  accept = ".csv,.xlsx,.xls",
-  multiple = false,
-  maxFiles = 10,
-  onResult = () => {},
-  initialFiles = null,
-}) {
+export default function FileUpload({ onData }) {
   const { updateChartData } = useChartData();
-  const [files, setFiles] = useState(initialFiles ? [].concat(initialFiles) : []);
-  const [progress, setProgress] = useState(0);
+  const { user } = useContext(UserContext);
+  const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [view, setView] = useState("grid");
-  const inputRef = useRef(null);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(false);
+  const fileInputRef = useRef(null);
 
-  useEffect(
-    () => () =>
-      files.forEach((f) => f.__previewUrl && URL.revokeObjectURL(f.__previewUrl)),
-    [files]
-  );
-
-  const validate = (sel) => {
-    if (!multiple && sel.length > 1) return alert("Only one file allowed"), false;
-    if (sel.length > maxFiles) return alert(`Max ${maxFiles}`), false;
-    const allowed = accept.split(",").map((s) => s.trim().toLowerCase());
-    for (const f of sel) {
-      const ext = "." + f.name.split(".").pop().toLowerCase();
-      if (allowed[0] !== "*/*" && !allowed.includes(ext))
-        return alert(`Not allowed: ${f.name}`), false;
+  const handleFileSelect = (event) => {
+    const selectedFile = event.target.files[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      setError(null);
+      setSuccess(false);
     }
-    return true;
   };
 
-  const withPreview = (sel) =>
-    sel.map((f) => {
-      try {
-        f.__previewUrl = URL.createObjectURL(f);
-      } catch {}
-      return f;
-    });
-
-  const normalizeResponseData = (r) => {
-    if (!r) return { data: [], columns: [] };
-
-    console.info("Raw response for normalization:", r);
-    
-    let finalData = [];
-    let finalColumns = [];
-    
-    const possibleDataSources = [
-      r.data, r.rows, r.records, r.content, r
-    ];
-    
-    for (const source of possibleDataSources) {
-      if (source && Array.isArray(source) && source.length > 0) {
-        finalData = source;
-        break;
-      }
+  const handleDrop = (event) => {
+    event.preventDefault();
+    const droppedFile = event.dataTransfer.files[0];
+    if (droppedFile) {
+      setFile(droppedFile);
+      setError(null);
+      setSuccess(false);
     }
-    
-    if (finalData.length === 0 && r) {
-      if (typeof r === 'object' && !Array.isArray(r)) {
-        const keys = Object.keys(r);
-        const firstKey = keys[0];
-        if (firstKey && Array.isArray(r[firstKey])) {
-          const maxLength = Math.max(...keys.map(k => Array.isArray(r[k]) ? r[k].length : 0));
-          finalData = [];
-          for (let i = 0; i < maxLength; i++) {
-            const row = {};
-            keys.forEach(key => {
-              row[key] = Array.isArray(r[key]) ? r[key][i] : r[key];
-            });
-            finalData.push(row);
-          }
-          finalColumns = keys;
-        }
-      }
-    }
-    
-    if (finalColumns.length === 0) {
-      const possibleColumnSources = [
-        r.columns, r.headers, r.fields,
-        finalData.length > 0 ? Object.keys(finalData[0]) : []
-      ];
-      
-      for (const source of possibleColumnSources) {
-        if (Array.isArray(source) && source.length > 0) {
-          finalColumns = source;
-          break;
-        }
-      }
-    }
-    
-    if (finalData.length > 0 && Array.isArray(finalData[0])) {
-      finalData = finalData.map((row) => {
-        const obj = {};
-        row.forEach((value, colIndex) => {
-          const columnName = finalColumns[colIndex] || `Column_${colIndex + 1}`;
-          obj[columnName] = value;
-        });
-        return obj;
-      });
-    }
-    
-    if (finalColumns.length === 0 && finalData.length > 0) {
-      finalColumns = Object.keys(finalData[0]);
-    }
-    
-    if (finalData.length === 0) {
-      console.warn("No data could be extracted from response, returning empty structure");
-      return { data: [], columns: [] };
-    }
-    
-    console.info("Universal normalization result:", { 
-      dataLength: finalData.length, 
-      columns: finalColumns,
-      sampleRow: finalData[0]
-    });
-    
-    return { data: finalData, columns: finalColumns };
   };
 
-  const handleUpload = () => {
-    if (!files.length) return alert("Select a file first");
+  const handleDragOver = (event) => {
+    event.preventDefault();
+  };
+
+  const handleUpload = async () => {
+    if (!file) {
+      setError("Please select a file first");
+      return;
+    }
+
+    if (!user) {
+      setError("You must be signed in to upload files");
+      return;
+    }
+
     setUploading(true);
     setProgress(0);
+    setError(null);
+    setSuccess(false);
 
-    const fd = new FormData();
-    multiple ? files.forEach((f) => fd.append("files", f)) : fd.append("file", files[0]);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
 
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", action || "/api/upload", true);
+      // Simulate progress for better UX
+      const progressInterval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
 
-    xhr.upload.onprogress = (e) =>
-      e.lengthComputable && setProgress(Math.round((e.loaded / e.total) * 100));
-
-    xhr.onload = () => {
-      setUploading(false);
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const r = JSON.parse(xhr.responseText);
-          console.info("Backend response:", r);
-          
-          const { data: finalData, columns: finalColumns } = normalizeResponseData(r);
-
-          // Update chart data context with all the processed information
-          const chartDataUpdate = {
-            data: finalData,
-            columns: finalColumns,
-            types: r.types || {},
-            summary: r.summary || {},
-            chartTitle: r.chart_title || r.filename || "Processed Data",
-            xAxis: r.x_axis || (finalColumns[0] || ""),
-            yAxis: r.y_axis || (finalColumns[1] || finalColumns[0] || ""),
-            chartOptions: {
-              type: "bar",
-              color: "#2563eb",
-              gradient: false,
-              showLabels: false,
-              sort: "none",
-              orientation: "vertical"
-            }
-          };
-
-          updateChartData(chartDataUpdate);
-
-          // Fire callback for backward compatibility
-          onResult(r);
-
-          // Success message
-          const message = r.message || `Processed: ${r.filename || "file"}`;
-          alert(message);
-          
-        } catch (err) {
-          console.error("Response parsing error:", err);
-          alert("Upload successful but response parsing failed. Please try again.");
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
-      } else {
-        console.warn("Upload failed:", xhr.status, xhr.responseText);
-        alert("Upload failed. Please check your file and try again.");
+      });
+
+      clearInterval(progressInterval);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: "Upload failed" }));
+        throw new Error(errorData.detail || "Upload failed");
       }
-    };
 
-    xhr.onerror = () => {
+      const data = await response.json();
+      
+      setProgress(100);
+      setSuccess(true);
+
+      // Update chart data context with uploaded data
+      updateChartData({
+        data: data.data || [],
+        columns: data.columns || [],
+        types: data.types || {},
+        summary: data.summary || {},
+        chartTitle: data.chart_title || data.filename || "Uploaded Data",
+        xAxis: data.x_axis || (data.columns && data.columns[0]) || "",
+        yAxis: data.y_axis || (data.columns && data.columns[1]) || ""
+      });
+
+      // Call the parent callback if provided
+      if (onData) {
+        onData(data);
+      }
+
+      // Create backend notification for successful upload
+      try {
+        await fetch('/api/notifications/', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            title: "File Upload Successful",
+            message: `'${file.name}' has been uploaded and is ready for visualization.`,
+            type: "success",
+            category: "upload",
+            priority: "medium",
+            action_url: `/editing?file=${data.file_id}`,
+            metadata: {
+              filename: file.name,
+              file_id: data.file_id,
+              rows: data.rows,
+              columns: data.columns?.length
+            }
+          })
+        });
+      } catch (notifError) {
+        console.error('Failed to create notification:', notifError);
+        // Don't fail the upload if notification fails
+      }
+
+      // Reset after a delay
+      setTimeout(() => {
+        setFile(null);
+        setSuccess(false);
+        setProgress(0);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      }, 3000);
+
+    } catch (err) {
+      console.error("Upload error:", err);
+      setError(err.message || "Failed to upload file. Please try again.");
+      setProgress(0);
+
+      // Create backend notification for failed upload
+      try {
+        await fetch('/api/notifications/', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            title: "File Upload Failed",
+            message: `Failed to upload '${file.name}': ${err.message}`,
+            type: "error",
+            category: "upload",
+            priority: "high",
+            action_url: "/",
+            metadata: {
+              filename: file.name,
+              error: err.message
+            }
+          })
+        });
+      } catch (notifError) {
+        console.error('Failed to create error notification:', notifError);
+      }
+    } finally {
       setUploading(false);
-      alert("Network error occurred during upload.");
-    };
-
-    xhr.send(fd);
+    }
   };
-  
-  return (
-    <div className="relative">
-      <VisualUploadPanel
-        accept={accept}
-        multiple={multiple}
-        files={files}
-        setFiles={(f) => setFiles(withPreview(f))}
-        onDrop={(e, sel) => validate(sel) && setFiles(withPreview(sel))}
-        viewMode={view}
-        setViewMode={setView}
-        onUploadClick={handleUpload}
-        primaryLabel={uploading ? `Uploading ${progress}%` : "Upload & Process"}
-      />
 
-      <div className="mt-4">
-        {files.length === 0 ? (
-          <div className="text-sm text-gray-500">No files selected</div>
-        ) : view === "list" ? (
-          <ul>{files.map((f, i) => <li key={i}>{f.name}</li>)}</ul>
-        ) : view === "details" ? (
-          <table>
-            <tbody>
-              {files.map((f, i) => (
-                <tr key={i}>
-                  <td>{f.name}</td>
-                  <td>{f.size ? `${Math.round(f.size / 1024)} KB` : ""}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <div className="grid grid-cols-2 gap-4">
-            {files.map((f, i) => (
-              <div key={i} className="p-2 border rounded text-center">
-                <div className="h-24 flex items-center justify-center">
-                  {f.__previewUrl ? <img src={f.__previewUrl} alt="" className="max-h-24" /> : f.name.split(".").pop()}
-                </div>
-                <div className="truncate text-sm">{f.name}</div>
-              </div>
-            ))}
-          </div>
-        )}
+  const clearFile = () => {
+    setFile(null);
+    setError(null);
+    setSuccess(false);
+    setProgress(0);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Drop Zone */}
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        className="border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-xl p-8 text-center hover:border-blue-500 dark:hover:border-blue-400 transition-colors duration-200 cursor-pointer bg-gray-50 dark:bg-slate-900/50"
+        onClick={() => fileInputRef.current?.click()}
+      >
+        <Upload className="w-12 h-12 mx-auto text-gray-400 dark:text-slate-500 mb-4" />
+        <p className="text-gray-700 dark:text-slate-300 mb-2 font-medium">
+          Drop your file here or click to browse
+        </p>
+        <p className="text-sm text-gray-500 dark:text-slate-400">
+          Supports CSV, Excel (XLSX, XLS)
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,.xlsx,.xls"
+          onChange={handleFileSelect}
+          className="hidden"
+        />
       </div>
 
-      {uploading && (
-        <div className="mt-2">
-          <div className="w-full h-2 bg-gray-200">
-            <div className="h-2 bg-blue-500" style={{ width: `${progress}%` }} />
+      {/* Selected File Info */}
+      {file && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <div>
+                <p className="font-medium text-gray-800 dark:text-slate-200">
+                  {file.name}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-slate-400">
+                  {(file.size / 1024).toFixed(2)} KB
+                </p>
+              </div>
+            </div>
+            {!uploading && (
+              <button
+                onClick={clearFile}
+                className="p-1 hover:bg-blue-100 dark:hover:bg-blue-800 rounded transition-colors"
+              >
+                <X className="w-4 h-4 text-gray-600 dark:text-slate-400" />
+              </button>
+            )}
           </div>
         </div>
+      )}
+
+      {/* Progress Bar */}
+      {uploading && (
+        <div className="space-y-2">
+          <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+            <div
+              className="bg-blue-600 h-full transition-all duration-300 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <p className="text-sm text-center text-gray-600 dark:text-slate-400">
+            Uploading... {progress}%
+          </p>
+        </div>
+      )}
+
+      {/* Success Message */}
+      {success && (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-center gap-3">
+          <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
+          <div>
+            <p className="font-medium text-green-800 dark:text-green-200">
+              Upload Successful!
+            </p>
+            <p className="text-sm text-green-700 dark:text-green-300">
+              Your data is ready for visualization
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+          <div className="flex-1">
+            <p className="font-medium text-red-800 dark:text-red-200">
+              Upload Failed
+            </p>
+            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Button */}
+      <button
+        onClick={handleUpload}
+        disabled={!file || uploading || success}
+        className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 font-medium flex items-center justify-center gap-2"
+      >
+        {uploading ? (
+          <>
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            Uploading...
+          </>
+        ) : success ? (
+          <>
+            <CheckCircle className="w-4 h-4" />
+            Uploaded Successfully
+          </>
+        ) : (
+          <>
+            <Upload className="w-4 h-4" />
+            Upload & Visualize
+          </>
+        )}
+      </button>
+
+      {!user && (
+        <p className="text-sm text-center text-gray-600 dark:text-slate-400">
+          Sign in to upload and visualize your data
+        </p>
       )}
     </div>
   );
