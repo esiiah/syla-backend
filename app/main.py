@@ -405,4 +405,5 @@ async def serve_uploaded_file(saved_filename: str):
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="File not found")
     mime_type, _ = mimetypes.guess_type(path)
-    return FileResponse(path, media_type=mime_type or
+    return FileResponse(path, media_type=mime_type or "application/octet-stream",
+                        filename=os.path.basename(path))
