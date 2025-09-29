@@ -19,9 +19,9 @@ class ForecastService:
         try:
             from .openai_client import OpenAIClient
             self.openai_client = OpenAIClient()
-            logger.info("OpenAI client initialized successfully")
+            logger.info("✓ OpenAI client initialized successfully")
         except Exception as e:
-            logger.warning(f"OpenAI client initialization failed: {e}")
+            logger.error(f"✗ OpenAI client initialization failed: {e}")
     
     def check_rate_limit(self, user_id: str, limit_per_hour: int = 50) -> bool:
         """Simple rate limiting"""
@@ -33,6 +33,7 @@ class ForecastService:
             return True
         
         if user_limits["count"] >= limit_per_hour:
+            logger.warning(f"Rate limit exceeded for user {user_id}")
             return False
             
         self.rate_limits[user_id]["count"] += 1
@@ -51,32 +52,37 @@ class ForecastService:
     ) -> Dict[str, Any]:
         """Main forecast generation method"""
         
+        logger.info(f"Starting forecast - User: {user_id}, Model: {model_preference}, Target: {target_column}")
+        
         try:
             # Step 1: Validate and prepare data
             df = self._prepare_dataframe(data, target_column, date_column)
-            logger.info(f"Prepared dataframe: {len(df)} rows, {len(df.columns)} columns")
+            logger.info(f"✓ Prepared dataframe: {len(df)} rows, {len(df.columns)} columns")
             
             # Step 2: Parse scenario
             scenario_params = await self._parse_scenario(scenario, df.columns.tolist())
-            logger.info(f"Parsed scenario: {scenario_params}")
+            logger.info(f"✓ Parsed scenario: {scenario_params}")
             
             # Step 3: Prepare time series
             ts_df = self._prepare_time_series(df, target_column, date_column)
-            logger.info(f"Time series prepared: {len(ts_df)} periods")
+            logger.info(f"✓ Time series prepared: {len(ts_df)} periods")
             
             # Step 4: Generate forecast based on model preference
+            logger.info(f"Generating forecast with model: {model_preference}")
             forecast_result = await self._generate_forecast(
                 ts_df, scenario_params, target_column,
                 model_preference, periods_ahead, confidence_level
             )
+            logger.info(f"✓ Forecast generated: {len(forecast_result.get('forecast', []))} periods")
             
             # Step 5: Generate explanation
             explanation = await self._generate_explanation(
                 ts_df, scenario_params, forecast_result, target_column
             )
+            logger.info(f"✓ Explanation generated")
             
             # Step 6: Assemble final result
-            return {
+            result = {
                 "forecast": forecast_result,
                 "explanation": explanation,
                 "scenario_parsed": scenario_params,
@@ -91,8 +97,11 @@ class ForecastService:
                 }
             }
             
+            logger.info(f"✓ Forecast completed successfully for user {user_id}")
+            return result
+            
         except Exception as e:
-            logger.exception(f"Forecast generation failed for user {user_id}")
+            logger.exception(f"✗ Forecast generation failed for user {user_id}")
             raise Exception(f"Forecast generation failed: {str(e)}")
 
     def _prepare_dataframe(self, data: List[Dict], target_column: str, date_column: Optional[str]) -> pd.DataFrame:
@@ -101,6 +110,7 @@ class ForecastService:
             raise ValueError("No data provided")
         
         df = pd.DataFrame(data)
+        logger.info(f"Initial dataframe shape: {df.shape}")
         
         if target_column not in df.columns:
             raise ValueError(f"Target column '{target_column}' not found. Available: {list(df.columns)}")
@@ -109,6 +119,7 @@ class ForecastService:
         try:
             df[target_column] = pd.to_numeric(df[target_column], errors='coerce')
             df[target_column] = df[target_column].fillna(0)
+            logger.info(f"Target column '{target_column}' converted to numeric")
         except Exception as e:
             raise ValueError(f"Cannot convert target column to numeric: {e}")
         
@@ -118,6 +129,7 @@ class ForecastService:
                 df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
                 df = df.dropna(subset=[date_column])
                 df = df.sort_values(date_column).reset_index(drop=True)
+                logger.info(f"Date column '{date_column}' processed successfully")
             except Exception as e:
                 logger.warning(f"Date column processing failed: {e}")
                 date_column = None
@@ -134,11 +146,13 @@ class ForecastService:
         # Handle dates
         if date_column and date_column in df.columns:
             ts_df['ds'] = df[date_column]
+            logger.info(f"Using provided date column: {date_column}")
         else:
             # Create synthetic monthly dates
             end_date = datetime.now()
             start_date = end_date - timedelta(days=30 * len(df))
             ts_df['ds'] = pd.date_range(start=start_date, periods=len(df), freq='M')
+            logger.info(f"Generated synthetic monthly dates")
         
         # Target values
         ts_df['y'] = df[target_column].astype(float)
@@ -152,10 +166,12 @@ class ForecastService:
         """Parse natural language scenario"""
         if self.openai_client:
             try:
+                logger.info("Using LLM for scenario parsing")
                 return await self._llm_parse_scenario(scenario, available_columns)
             except Exception as e:
-                logger.warning(f"LLM scenario parsing failed: {e}")
+                logger.warning(f"LLM scenario parsing failed: {e}, falling back to pattern matching")
         
+        logger.info("Using fallback pattern matching for scenario parsing")
         return self._fallback_scenario_parsing(scenario)
 
     async def _llm_parse_scenario(self, scenario: str, available_columns: List[str]) -> Dict[str, Any]:
@@ -206,7 +222,7 @@ Respond with valid JSON only:
             elif "5%" in scenario_lower or "five percent" in scenario_lower:
                 adjustments["multiplier"] = 1.05
             else:
-                adjustments["multiplier"] = 1.1  # Default 10% increase
+                adjustments["multiplier"] = 1.1
                 
         elif "decrease" in scenario_lower or "decline" in scenario_lower or "down" in scenario_lower:
             if "20%" in scenario_lower:
@@ -218,7 +234,7 @@ Respond with valid JSON only:
             elif "5%" in scenario_lower:
                 adjustments["multiplier"] = 0.95
             else:
-                adjustments["multiplier"] = 0.9  # Default 10% decrease
+                adjustments["multiplier"] = 0.9
         
         return {
             "adjustments": adjustments,
@@ -247,19 +263,24 @@ Respond with valid JSON only:
     ) -> Dict[str, Any]:
         """Generate forecast using specified method"""
         
+        logger.info(f"Generating forecast with model: {model_preference}")
+        
         if model_preference == "gpt" and self.openai_client:
+            logger.info("Using GPT model")
             return await self._gpt_forecast(ts_df, scenario_params, periods_ahead)
         elif model_preference == "prophet":
+            logger.info("Using Prophet model")
             return self._prophet_forecast(ts_df, periods_ahead, confidence_level)
         else:  # hybrid or fallback
+            logger.info("Using hybrid approach")
             return await self._hybrid_forecast(ts_df, scenario_params, periods_ahead, confidence_level)
 
     async def _gpt_forecast(self, ts_df: pd.DataFrame, scenario_params: Dict[str, Any], periods_ahead: int) -> Dict[str, Any]:
         """Pure GPT-based forecasting"""
         if not self.openai_client:
-            raise ValueError("OpenAI client not available")
+            logger.error("OpenAI client not available, falling back to simple forecast")
+            return self._simple_forecast(ts_df, periods_ahead)
         
-        # Prepare recent data for GPT
         recent_data = ts_df['y'].tail(min(20, len(ts_df))).tolist()
         
         prompt = f"""You are a data analyst. Based on this historical data trend and business scenario, generate a {periods_ahead}-period forecast.
@@ -278,19 +299,17 @@ Generate a realistic forecast as a JSON object with exactly this format:
 Make sure all arrays have exactly {periods_ahead} values. Base the forecast on trends in the historical data and apply the scenario adjustments logically."""
 
         try:
+            logger.info("Calling GPT API for forecast")
             response = await self.openai_client.chat_completion(prompt, max_tokens=800, temperature=0.3)
             
-            # Parse the JSON response
             result = json.loads(response.strip())
             
-            # Validate the response
             if not all(key in result for key in ['forecast', 'lower', 'upper']):
                 raise ValueError("GPT response missing required keys")
             
             if not all(len(result[key]) == periods_ahead for key in ['forecast', 'lower', 'upper']):
                 raise ValueError("GPT response arrays have wrong length")
             
-            # Generate timestamps
             last_date = ts_df['ds'].iloc[-1]
             timestamps = pd.date_range(
                 start=last_date + pd.DateOffset(months=1),
@@ -298,6 +317,7 @@ Make sure all arrays have exactly {periods_ahead} values. Base the forecast on t
                 freq='M'
             ).strftime('%Y-%m-%d').tolist()
             
+            logger.info("GPT forecast generated successfully")
             return {
                 "forecast": [round(float(v), 2) for v in result["forecast"]],
                 "lower": [round(float(v), 2) for v in result["lower"]],
@@ -309,7 +329,6 @@ Make sure all arrays have exactly {periods_ahead} values. Base the forecast on t
             
         except json.JSONDecodeError as e:
             logger.error(f"GPT returned invalid JSON: {response[:200]}")
-            # Fallback to simple forecast
             return self._simple_forecast(ts_df, periods_ahead)
         except Exception as e:
             logger.error(f"GPT forecast failed: {e}")
@@ -319,8 +338,8 @@ Make sure all arrays have exactly {periods_ahead} values. Base the forecast on t
         """Prophet-based forecasting"""
         try:
             from prophet import Prophet
+            logger.info("✓ Prophet imported successfully")
             
-            # Initialize Prophet
             model = Prophet(
                 yearly_seasonality=len(ts_df) >= 24,
                 weekly_seasonality=False,
@@ -328,18 +347,15 @@ Make sure all arrays have exactly {periods_ahead} values. Base the forecast on t
                 interval_width=confidence_level
             )
             
-            # Fit the model
+            logger.info("Fitting Prophet model")
             model.fit(ts_df)
             
-            # Create future dataframe
             future = model.make_future_dataframe(periods=periods_ahead, freq='M')
-            
-            # Generate forecast
             forecast = model.predict(future)
             
-            # Extract future periods only
             future_forecast = forecast.tail(periods_ahead)
             
+            logger.info("✓ Prophet forecast completed")
             return {
                 "forecast": future_forecast['yhat'].round(2).tolist(),
                 "lower": future_forecast['yhat_lower'].round(2).tolist(),
@@ -350,24 +366,23 @@ Make sure all arrays have exactly {periods_ahead} values. Base the forecast on t
             }
             
         except ImportError:
-            logger.warning("Prophet not available, falling back to simple forecast")
+            logger.error("✗ Prophet not available, falling back to simple forecast")
             return self._simple_forecast(ts_df, periods_ahead)
         except Exception as e:
-            logger.error(f"Prophet forecast failed: {e}")
+            logger.error(f"✗ Prophet forecast failed: {e}")
             return self._simple_forecast(ts_df, periods_ahead)
 
     async def _hybrid_forecast(self, ts_df: pd.DataFrame, scenario_params: Dict[str, Any], 
                              periods_ahead: int, confidence_level: float) -> Dict[str, Any]:
         """Hybrid approach: statistical + scenario adjustments"""
         
-        # Start with simple statistical forecast
+        logger.info("Starting hybrid forecast")
         base_forecast = self._simple_forecast(ts_df, periods_ahead)
         
-        # Apply scenario adjustments
         multiplier = scenario_params.get("adjustments", {}).get("multiplier", 1.0)
         
         if multiplier != 1.0:
-            # Apply multiplier to forecast
+            logger.info(f"Applying scenario multiplier: {multiplier}")
             adjusted_forecast = [v * multiplier for v in base_forecast["forecast"]]
             adjusted_lower = [v * multiplier for v in base_forecast["lower"]]
             adjusted_upper = [v * multiplier for v in base_forecast["upper"]]
@@ -385,30 +400,28 @@ Make sure all arrays have exactly {periods_ahead} values. Base the forecast on t
     def _simple_forecast(self, ts_df: pd.DataFrame, periods_ahead: int) -> Dict[str, Any]:
         """Simple trend-based forecast as fallback"""
         
+        logger.info("Generating simple trend-based forecast")
         values = ts_df['y'].values
         
         if len(values) < 2:
-            # Insufficient data - use last value
             last_value = float(values[-1]) if len(values) > 0 else 0
             forecast_values = [last_value] * periods_ahead
+            logger.info(f"Insufficient data, using last value: {last_value}")
         else:
-            # Linear trend extrapolation
             x = np.arange(len(values))
             try:
-                # Fit linear trend
                 coeffs = np.polyfit(x, values, 1)
                 future_x = np.arange(len(values), len(values) + periods_ahead)
                 forecast_values = np.polyval(coeffs, future_x).tolist()
+                logger.info(f"Linear trend fitted successfully")
             except Exception:
-                # If polyfit fails, use mean
                 mean_value = float(np.mean(values))
                 forecast_values = [mean_value] * periods_ahead
+                logger.warning(f"Polyfit failed, using mean: {mean_value}")
         
-        # Generate confidence intervals (±20% of forecast value)
         lower_bound = [max(0, v * 0.8) for v in forecast_values]
         upper_bound = [v * 1.2 for v in forecast_values]
         
-        # Generate timestamps
         last_date = ts_df['ds'].iloc[-1]
         timestamps = pd.date_range(
             start=last_date + pd.DateOffset(months=1),
@@ -431,11 +444,11 @@ Make sure all arrays have exactly {periods_ahead} values. Base the forecast on t
         
         if self.openai_client:
             try:
+                logger.info("Generating LLM explanation")
                 return await self._llm_explanation(ts_df, scenario_params, forecast_result, target_column)
             except Exception as e:
                 logger.warning(f"LLM explanation failed: {e}")
         
-        # Fallback explanation
         model_used = forecast_result.get("model_used", "unknown")
         avg_forecast = np.mean(forecast_result.get("forecast", [0]))
         
@@ -449,6 +462,7 @@ Make sure all arrays have exactly {periods_ahead} values. Base the forecast on t
         
         explanation += "Forecast reflects historical trends and scenario assumptions."
         
+        logger.info("Fallback explanation generated")
         return explanation
 
     async def _llm_explanation(self, ts_df: pd.DataFrame, scenario_params: Dict[str, Any], 
@@ -473,6 +487,7 @@ Keep it concise and avoid technical jargon."""
 
         try:
             explanation = await self.openai_client.chat_completion(prompt, max_tokens=200, temperature=0.7)
+            logger.info("LLM explanation generated successfully")
             return explanation.strip()
         except Exception as e:
             logger.error(f"LLM explanation failed: {e}")
