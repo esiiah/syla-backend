@@ -37,6 +37,7 @@ class NotificationCategory(str, enum.Enum):
     FORECAST = "forecast"
     CHART = "chart"
 
+# In app/routers/notifications.py, line ~37
 class Notification(Base):
     __tablename__ = "notifications"
     
@@ -50,7 +51,8 @@ class Notification(Base):
     read = Column(Boolean, default=False)
     archived = Column(Boolean, default=False)
     action_url = Column(String(512), nullable=True)
-    meta_info = Column("metadata", Text, nullable=True)
+    # FIX: Change this line
+    metadata = Column(Text, nullable=True)  # Changed from meta_info with name="metadata"
     created_at = Column(DateTime, default=datetime.utcnow)
     read_at = Column(DateTime, nullable=True)
     archived_at = Column(DateTime, nullable=True)
@@ -107,7 +109,7 @@ class NotificationFilters(BaseModel):
     date_from: Optional[datetime] = None
     date_to: Optional[datetime] = None
 
-# Utility Functions
+# In app/routers/notifications.py, around line ~95
 def create_notification_for_user(
     db: Session, 
     user_id: int, 
@@ -130,9 +132,8 @@ def create_notification_for_user(
         category=category,
         priority=priority,
         action_url=action_url,
-        meta_info=json.dumps(metadata) if metadata else None
+        metadata=json.dumps(metadata) if metadata else None  # Changed from meta_info
     )
-
     
     db.add(notification)
     db.commit()
