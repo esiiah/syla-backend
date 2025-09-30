@@ -11,21 +11,21 @@ import hashlib
 logger = logging.getLogger(__name__)
 
 # In app/ai/forecast_service.py, update __init__
-def __init__(self):
-    self.openai_client = None
-    self.rate_limits = {}
-    
-    try:
-        openai_key = os.getenv("OPENAI_API_KEY")
-        if openai_key and openai_key.startswith("sk-"):
-            from .openai_client import OpenAIClient
-            self.openai_client = OpenAIClient()
-            logger.info("OpenAI client initialized successfully")
-        else:
-            logger.warning("OPENAI_API_KEY not configured or invalid")
-    except Exception as e:
-        logger.warning(f"OpenAI client initialization failed: {e}")
+class ForecastService:
+    def __init__(self):
+        self.openai_client = None
+        self.rate_limits = {}
 
+        try:
+            openai_key = os.getenv("OPENAI_API_KEY")
+            if openai_key and openai_key.startswith("sk-"):
+                from .openai_client import OpenAIClient
+                self.openai_client = OpenAIClient()
+                logger.info("OpenAI client initialized successfully")
+            else:
+                logger.warning("OPENAI_API_KEY not configured or invalid")
+        except Exception as e:
+            logger.warning(f"OpenAI client initialization failed: {e}")
     
     def check_rate_limit(self, user_id: str, limit_per_hour: int = 50) -> bool:
         """Simple rate limiting"""
