@@ -1,6 +1,6 @@
 # fly.toml - Fly.io Configuration for Syla Analytics
 
-app = "syla-analytics"
+app = "syla-backend"
 primary_region = "iad"
 
 [build]
