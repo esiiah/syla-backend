@@ -1,0 +1,27 @@
+# .dockerignore
+node_modules
+frontend/node_modules
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+venv
+.venv
+.git
+.gitignore
+.env
+.env.*
+*.db
+*.sqlite
+*.sqlite3
+.DS_Store
+.vscode
+.idea
+tmp
+temp
+logs
+*.log
+uploads/*
+!uploads/.gitkeep
