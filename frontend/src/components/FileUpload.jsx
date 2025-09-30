@@ -105,35 +105,6 @@ export default function FileUpload({ onData }) {
         onData(data);
       }
 
-      // Create backend notification for successful upload
-      try {
-        await fetch('/api/notifications/', {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            title: "File Upload Successful",
-            message: `'${file.name}' has been uploaded and is ready for visualization.`,
-            type: "success",
-            category: "upload",
-            priority: "medium",
-            action_url: `/editing?file=${data.file_id}`,
-            metadata: {
-              filename: file.name,
-              file_id: data.file_id,
-              rows: data.rows,
-              columns: data.columns?.length
-            }
-          })
-        });
-      } catch (notifError) {
-        console.error('Failed to create notification:', notifError);
-        // Don't fail the upload if notification fails
-      }
-
       // Reset after a delay
       setTimeout(() => {
         setFile(null);
@@ -148,32 +119,6 @@ export default function FileUpload({ onData }) {
       console.error("Upload error:", err);
       setError(err.message || "Failed to upload file. Please try again.");
       setProgress(0);
-
-      // Create backend notification for failed upload
-      try {
-        await fetch('/api/notifications/', {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            title: "File Upload Failed",
-            message: `Failed to upload '${file.name}': ${err.message}`,
-            type: "error",
-            category: "upload",
-            priority: "high",
-            action_url: "/",
-            metadata: {
-              filename: file.name,
-              error: err.message
-            }
-          })
-        });
-      } catch (notifError) {
-        console.error('Failed to create error notification:', notifError);
-      }
     } finally {
       setUploading(false);
     }
