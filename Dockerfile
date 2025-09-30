@@ -3,9 +3,10 @@
 # -------------------------------
 FROM node:18-slim AS frontend-builder
 
+# Set working directory inside frontend
 WORKDIR /app/frontend
 
-# Copy package files first for dependency install
+# Copy only package files first to leverage Docker cache
 COPY frontend/package*.json ./
 
 # Install dependencies
@@ -17,8 +18,8 @@ COPY frontend/ ./
 # Build production frontend
 RUN npm run build
 
-# Confirm dist folder exists (for debug)
-RUN ls -la /app/frontend/dist
+# Optional: confirm build output
+RUN ls -la /app/app/dist
 
 # -------------------------------
 # Stage 2: Python Runtime
@@ -44,17 +45,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set working directory
 WORKDIR /app
 
-# Copy Python requirements
+# Copy Python requirements and install
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend code
 COPY app/ ./app/
 
 # Copy frontend build from builder stage
-COPY --from=frontend-builder /app/frontend/dist ./app/dist
+COPY --from=frontend-builder /app/app/dist ./dist
 
 # Create necessary directories
 RUN mkdir -p /app/uploads /app/app/raw /app/app/cleaned /app/app/charts /app/app/models
