@@ -28,6 +28,7 @@ class ScenarioRequest(BaseModel):
     scenario_text: str = Field(..., max_length=500, description="Natural language scenario description")
     available_columns: List[str] = Field(..., description="Available columns in the dataset")
 
+# In app/ai/router.py, update the whatif endpoint
 @router.post("/whatif")
 async def create_whatif_forecast(
     request: WhatIfRequest,
@@ -36,52 +37,52 @@ async def create_whatif_forecast(
     """Generate AI-powered what-if forecasts from natural language scenarios"""
     
     try:
-        # Get user ID for rate limiting
         user_id = current_user.get("id", "anonymous")
         
-        # Rate limiting check
-        if not forecast_service.check_rate_limit(user_id):
-            raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again later.")
-        
-        # Validate input data
+        # Validate BEFORE rate limiting
         if not request.csv_data:
             raise HTTPException(status_code=400, detail="csv_data is required")
         
         if not request.target_column:
             raise HTTPException(status_code=400, detail="target_column is required")
         
-        if not request.scenario_text.strip():
-            raise HTTPException(status_code=400, detail="scenario_text cannot be empty")
+        # Rate limiting check
+        if not forecast_service.check_rate_limit(user_id):
+            raise HTTPException(status_code=429, detail="Rate limit exceeded. Please try again later.")
         
         logger.info(f"Starting forecast for user {user_id}: target={request.target_column}, model={request.model_preference}")
         
-        # Generate forecast
-        result = await forecast_service.create_forecast(
-            data=request.csv_data,
-            scenario=request.scenario_text,
-            target_column=request.target_column,
-            date_column=request.date_column,
-            model_preference=request.model_preference,
-            periods_ahead=request.periods_ahead,
-            confidence_level=request.confidence_level,
-            user_id=user_id
-        )
+        # Generate forecast - wrap in try-catch
+        try:
+            result = await forecast_service.create_forecast(
+                data=request.csv_data,
+                scenario=request.scenario_text,
+                target_column=request.target_column,
+                date_column=request.date_column,
+                model_preference=request.model_preference,
+                periods_ahead=request.periods_ahead,
+                confidence_level=request.confidence_level,
+                user_id=user_id
+            )
+        except Exception as forecast_error:
+            logger.error(f"Forecast generation failed: {str(forecast_error)}")
+            # Return user-friendly error
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Forecast failed: {str(forecast_error)[:200]}"
+            )
         
         logger.info(f"Forecast completed successfully for user {user_id}")
-        
         return JSONResponse(content=result)
         
     except HTTPException:
-        # Re-raise HTTP exceptions as-is
         raise
     except ValueError as e:
-        # Handle validation errors
         logger.warning(f"Forecast validation error: {e}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        # Handle unexpected errors
-        logger.exception(f"Forecast error for user {user_id if 'user_id' in locals() else 'unknown'}")
-        raise HTTPException(status_code=500, detail=f"Forecast generation failed: {str(e)}")
+        logger.exception(f"Unexpected forecast error")
+        raise HTTPException(status_code=500, detail=f"Server error: {str(e)[:200]}")
 
 @router.post("/scenario/parse")
 async def parse_scenario_text(
