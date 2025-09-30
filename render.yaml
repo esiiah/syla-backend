@@ -1,0 +1,105 @@
+# render.yaml - Render Configuration for Syla Analytics
+
+services:
+  # Main Web Service
+  - type: web
+    name: syla-analytics
+    env: docker
+    region: oregon
+    plan: starter
+    dockerfilePath: ./Dockerfile
+    
+    # Persistent disk for uploads
+    disk:
+      name: syla-uploads
+      mountPath: /app/uploads
+      sizeGB: 1
+    
+    # Health check
+    healthCheckPath: /api/health
+    
+    # Auto-deploy from main branch
+    autoDeploy: true
+    
+    # Environment variables
+    envVars:
+      - key: PORT
+        value: 8000
+      
+      - key: ENVIRONMENT
+        value: production
+      
+      - key: PYTHONUNBUFFERED
+        value: 1
+      
+      # Database connection
+      - key: DATABASE_URL
+        fromDatabase:
+          name: syla-postgres
+          property: connectionString
+      
+      # Redis connection
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: syla-redis
+          property: connectionString
+      
+      # Security - Generate new secret on first deploy
+      - key: JWT_SECRET
+        generateValue: true
+        sync: false
+      
+      # API Keys - Set these manually in Render Dashboard
+      - key: OPENAI_API_KEY
+        sync: false
+      
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      
+      # URLs - Update these after deployment
+      - key: FRONTEND_URL
+        value: https://syla-analytics.onrender.com
+      
+      - key: VITE_API_BASE_URL
+        value: https://syla-analytics.onrender.com/api
+      
+      - key: CORS_ORIGINS
+        value: https://syla-analytics.onrender.com
+      
+      # AI Configuration
+      - key: AI_ENABLED
+        value: true
+      
+      - key: AI_DEFAULT_MODEL
+        value: gpt-4o-mini
+      
+      - key: AI_TIMEOUT_SECONDS
+        value: 30
+      
+      - key: AI_RATE_LIMIT_PER_HOUR
+        value: 50
+      
+      # Email (optional)
+      - key: SMTP_ENABLED
+        value: false
+      
+      - key: EMAIL_FROM_ADDRESS
+        value: noreply@syla-analytics.com
+
+# PostgreSQL Database
+databases:
+  - name: syla-postgres
+    databaseName: syla
+    user: syla_user
+    plan: starter
+    ipAllowList: []
+
+# Redis Cache
+  - name: syla-redis
+    plan: starter
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
