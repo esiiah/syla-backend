@@ -1,35 +1,36 @@
-# Multi-stage Dockerfile for Syla Analytics (FastAPI + React)
-# Supports amd64 and arm64 architectures
-
-# ============================================================================
+# -------------------------------
 # Stage 1: Build Frontend (React + Vite)
-# ============================================================================
+# -------------------------------
 FROM node:18-slim AS frontend-builder
 
 WORKDIR /app/frontend
 
-# Copy frontend package files
+# Copy package files first for dependency install
 COPY frontend/package*.json ./
 
-# Install dependencies with clean install
+# Install dependencies
 RUN npm ci --legacy-peer-deps
 
-# Copy frontend source
+# Copy full frontend source
 COPY frontend/ ./
 
-# Build production frontend (outputs to ../app/dist)
+# Build production frontend
 RUN npm run build
 
-# ============================================================================
+# Confirm dist folder exists (for debug)
+RUN ls -la /app/frontend/dist
+
+# -------------------------------
 # Stage 2: Python Runtime
-# ============================================================================
+# -------------------------------
 FROM python:3.12-slim
 
-# Set environment variables
+# Environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PORT=8000
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -43,31 +44,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set working directory
 WORKDIR /app
 
-# Copy requirements
+# Copy Python requirements
 COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy backend code
 COPY app/ ./app/
 
-# Copy built frontend from builder stage
+# Copy frontend build from builder stage
 COPY --from=frontend-builder /app/frontend/dist ./app/dist
 
 # Create necessary directories
 RUN mkdir -p /app/uploads /app/app/raw /app/app/cleaned /app/app/charts /app/app/models
 
-# Set proper permissions
+# Set permissions
 RUN chmod -R 755 /app
 
-# Expose port dynamically
-EXPOSE ${PORT}
+# Expose port
+EXPOSE 8000
 
-# Health check uses injected PORT
+# Healthcheck endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:${PORT}/api/health || exit 1
+    CMD curl -f http://localhost:8000/api/health || exit 1
 
-# Run the application
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
-
+# Run FastAPI app
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
