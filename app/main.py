@@ -34,6 +34,10 @@ logger = logging.getLogger("syla-backend")
 
 app = FastAPI(title="Syla Analytics")
 
+@app.get("/api/health")
+async def health():
+    return {"status": "ok"}
+    
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
