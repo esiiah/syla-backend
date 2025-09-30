@@ -61,13 +61,12 @@ RUN mkdir -p /app/uploads /app/app/raw /app/app/cleaned /app/app/charts /app/app
 # Set proper permissions
 RUN chmod -R 755 /app
 
-# Expose port
-EXPOSE 8000
+# Expose port dynamically
+EXPOSE ${PORT}
 
-# Health check
+# Health check uses injected PORT
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/api/health || exit 1
+  CMD curl -f http://localhost:${PORT}/api/health || exit 1
 
 # Run the application
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
-
