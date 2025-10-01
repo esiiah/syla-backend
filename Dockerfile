@@ -27,8 +27,6 @@ ENV PYTHONUNBUFFERED=1 \
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
     build-essential \
     libpq-dev \
     curl \
@@ -43,14 +41,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend code
 COPY app/ ./app/
 
-# Copy frontend build from builder stage (fix the path)
+# Copy frontend build from builder stage (correct path)
 COPY --from=frontend-builder /app/app/dist ./dist
 
 # Create necessary directories
 RUN mkdir -p /app/uploads /app/app/raw /app/app/cleaned /app/app/charts /app/app/models
 
-# Set permissions
-RUN chmod -R 755 /app
+# Optional: non-root user for security
+RUN useradd -m appuser && chown -R appuser /app
+USER appuser
 
 EXPOSE 8000
 
@@ -58,5 +57,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/api/health || exit 1
 
-# Run FastAPI app
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run FastAPI app with multiple workers
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
