@@ -2,6 +2,7 @@
 import asyncio
 import json
 import logging
+import os       # <--- add this
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
