@@ -12,7 +12,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # Verify build output
-RUN ls -la /app/frontend/dist
+RUN ls -la /app/app/dist
 
 # -------------------------------
 # Stage 2: Python Runtime
