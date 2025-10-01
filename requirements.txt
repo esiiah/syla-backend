@@ -38,7 +38,6 @@ redis>=4.6.0
 # === Forecasting Libraries ===
 prophet>=1.1.3
 pystan==3.5.0            # Updated to work with httpstan>=4.13
-httpstan>=4.13,<4.14
 cmdstanpy>=1.1.0
 holidays>=0.34
 tqdm>=4.64.0
