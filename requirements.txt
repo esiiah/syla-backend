@@ -36,8 +36,8 @@ tenacity>=8.2.3
 redis>=4.6.0
 
 # === Forecasting Libraries ===
-prophet>=1.1.4
-pystan==3.10.0        # Compatible with httpstan 4.13
+prophet>=1.1.3
+pystan==3.4.0        # Compatible with httpstan 4.13
 httpstan>=4.13,<4.14  # Prophet dependency
 cmdstanpy>=1.1.0
 holidays>=0.34
