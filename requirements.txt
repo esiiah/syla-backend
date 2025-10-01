@@ -26,6 +26,8 @@ docx2pdf==0.1.8
 
 # === Database ===
 SQLAlchemy==2.0.20
+psycopg2-binary==2.9.7
+
 
 # === AI/ML Dependencies ===
 httpx>=0.24.1
