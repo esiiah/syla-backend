@@ -44,7 +44,10 @@ class User(Base):
     chart_settings = relationship("ChartSettings", back_populates="user")    
 
 
-Base.metadata.create_all(bind=engine)
+# ⚠️ Do not auto-create tables in production.
+# Use Alembic migrations instead.
+# Base.metadata.create_all(bind=engine)
+
 
 
 # ---- Helper Functions ----

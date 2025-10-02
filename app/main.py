@@ -1,16 +1,13 @@
 import io
 import logging
-import os
 import time
 import mimetypes
 import re
+import os
 from typing import List, Dict, Any
 
 from dotenv import load_dotenv
-
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-ENV_PATH = os.path.join(BASE_DIR, "frontend", ".env")
-load_dotenv(ENV_PATH)
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))  # backend .env
 
 import pandas as pd
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
@@ -26,26 +23,48 @@ from .routers import password_recovery
 from .routers import profile
 from .ai.router import router as forecast_router
 from .routers import chart_settings, notifications, search
-
 from . import visual
 
-logging.basicConfig(level=logging.INFO)
+# ------------------------------
+# Environment validation
+# ------------------------------
+required_vars = ["DATABASE_PUBLIC_URL", "JWT_SECRET", "FRONTEND_URL"]
+for var in required_vars:
+    if not os.getenv(var):
+        raise EnvironmentError(f"❌ {var} is not set in .env")
+
+# ------------------------------
+# Logging configuration
+# ------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 logger = logging.getLogger("syla-backend")
 
+# ------------------------------
+# FastAPI initialization
+# ------------------------------
 app = FastAPI(title="Syla Analytics")
 
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
-    
+
+# ------------------------------
+# CORS middleware
+# ------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[os.getenv("FRONTEND_URL")],
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=False,
 )
 
+# ------------------------------
+# Include routers
+# ------------------------------
 app.include_router(file_tools_full_router)
 app.include_router(auth_router.router)
 app.include_router(password_recovery.router)
@@ -55,10 +74,21 @@ app.include_router(chart_settings.router)
 app.include_router(notifications.router)
 app.include_router(search.router)
 
+# ------------------------------
+# Upload directory & static files
+# ------------------------------
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/api/files", StaticFiles(directory=UPLOAD_DIR), name="files")
 
+# ------------------------------
+# Frontend static files
+# ------------------------------
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "dist")
+if os.path.exists(FRONTEND_DIR):
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+
+logger.info("✅ FastAPI app initialized successfully")
+
 
 class ChartPayloadRequest(BaseModel):
     file_id: str = None

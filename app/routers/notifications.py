@@ -1,3 +1,4 @@
+
 # app/routers/notifications.py
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
@@ -52,7 +53,7 @@ class Notification(Base):
     archived = Column(Boolean, default=False)
     action_url = Column(String(512), nullable=True)
     # FIX: Change this line
-    metadata = Column(Text, nullable=True)  # Changed from meta_info with name="metadata"
+    meta_info = Column(Text, nullable=True)  # Changed from meta_info with name="metadata"
     created_at = Column(DateTime, default=datetime.utcnow)
     read_at = Column(DateTime, nullable=True)
     archived_at = Column(DateTime, nullable=True)
@@ -132,7 +133,7 @@ def create_notification_for_user(
         category=category,
         priority=priority,
         action_url=action_url,
-        metadata=json.dumps(metadata) if metadata else None  # Changed from meta_info
+        meta_info=json.dumps(metadata) if metadata else None  # Changed from meta_info
     )
     
     db.add(notification)
