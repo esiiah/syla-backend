@@ -1,30 +1,33 @@
-from dotenv import load_dotenv
+# alembic/env.py
 import os
-
-# load variables from backend .env
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", "app", ".env"))
-
+import sys
 from logging.config import fileConfig
+
 from sqlalchemy import engine_from_config, pool
 from alembic import context
 
-import sys
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/..")
+# ensure repository root is importable (so `from app import settings` works)
+sys.path.append(os.path.dirname(os.path.abspath(__file__)) + "/.")
 
+# load app settings (this will use find_dotenv/load_dotenv from app.settings)
+from app import settings
+
+# import the application's Base (declarative Base) used by models
 from app.routers.db import Base
 
-# Alembic Config
+# Alembic config object
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Only use public DB for Alembic
-database_url = os.getenv("DATABASE_PUBLIC_URL")
+# Ensure Alembic uses the public DB URL
+database_url = getattr(settings, "DATABASE_PUBLIC_URL", None) or os.getenv("DATABASE_PUBLIC_URL")
 if not database_url:
-    raise ValueError("❌ DATABASE_PUBLIC_URL not found in backend .env")
+    raise RuntimeError("DATABASE_PUBLIC_URL is not set. Set it in your .env or platform environment variables.")
 
 config.set_main_option("sqlalchemy.url", database_url)
 
+# target metadata for 'autogenerate'
 target_metadata = Base.metadata
 
 
