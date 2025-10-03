@@ -113,17 +113,18 @@ async def signup(payload: SignupRequest):
     password = payload.password
     confirm_password = payload.confirm_password
     contact_type = payload.contact_type
+
     if password != confirm_password:
         raise HTTPException(status_code=400, detail="Passwords do not match")
-        
-    """Register a new user with email/phone and password"""
-    if not email and not phone:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Either email or phone number is required"
-        )
     
-    contact = email or phone
+    if contact_type == "email":
+        email = contact
+        phone = None
+    elif contact_type == "phone":
+        email = None
+        phone = contact
+    else:
+        raise HTTPException(status_code=400, detail="Invalid contact type")
     
     # Check if user already exists
     existing_user = get_user_by_contact(contact)
@@ -136,60 +137,45 @@ async def signup(payload: SignupRequest):
     # Hash password and create user
     password_hash = hash_password(password)
     
-    try:
-        user_id = create_local_user(
-            name=name,
-            email=email,
-            phone=phone,
-            password_hash=password_hash
-        )
-        
-        # Get the created user
-        user = get_user_by_id(user_id)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create user"
-            )
-        
-        # Create access token
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": str(user["id"])}, 
-            expires_delta=access_token_expires
-        )
-        
-        # Create response with cookie
-        response = JSONResponse(content={
-            "message": "User created successfully",
-            "user": user,
-            "access_token": access_token,
-            "token_type": "bearer"
-        })
-        
-        # Set cookie
-        response.set_cookie(
-            key="auth_token",
-            value=access_token,
-            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            httponly=True,
-            secure=False,  # Set to True in production with HTTPS
-            samesite="lax"
-        )
-        
-        return {"access_token": "FAKE_TOKEN", "user": {"name": name, "contact": contact}}
-        
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+    user_id = create_local_user(
+        name=name,
+        email=email,
+        phone=phone,
+        password_hash=password_hash
+    )
+    
+    user = get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=500, detail="Failed to create user")
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(user["id"])}, 
+        expires_delta=access_token_expires
+    )
+    
+    response = JSONResponse(content={
+        "user": user,
+        "access_token": access_token,
+        "token_type": "bearer"
+    })
+    response.set_cookie(
+        key="auth_token",
+        value=access_token,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        secure=False,  # True in production
+        samesite="lax"
+    )
+    
+    return response
 
 @router.post("/login")
 async def login(payload: LoginRequest):
     contact = payload.contact
     password = payload.password
-):
+
     """Login with email/phone and password"""
     user = get_user_with_hash_by_contact(contact)
     if not user or not user.get("_password_hash"):
