@@ -31,6 +31,18 @@ SECRET_KEY = os.getenv("JWT_SECRET", "super-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # 24 hours
 
+# ------------------- Pydantic Models -------------------
+class LoginRequest(BaseModel):
+    contact: str
+    password: str
+
+class SignupRequest(BaseModel):
+    name: str
+    contact: str
+    password: str
+    confirm_password: str
+    contact_type: str
+
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
@@ -95,12 +107,15 @@ def require_auth(request: Request) -> Dict[str, Any]:
     return user
 
 @router.post("/signup")
-async def signup(
-    name: str = Form(...),
-    email: Optional[str] = Form(None),
-    phone: Optional[str] = Form(None),
-    password: str = Form(...)
-):
+async def signup(payload: SignupRequest):
+    name = payload.name
+    contact = payload.contact
+    password = payload.password
+    confirm_password = payload.confirm_password
+    contact_type = payload.contact_type
+    if password != confirm_password:
+        raise HTTPException(status_code=400, detail="Passwords do not match")
+        
     """Register a new user with email/phone and password"""
     if not email and not phone:
         raise HTTPException(
@@ -162,7 +177,7 @@ async def signup(
             samesite="lax"
         )
         
-        return response
+        return {"access_token": "FAKE_TOKEN", "user": {"name": name, "contact": contact}}
         
     except ValueError as e:
         raise HTTPException(
@@ -171,9 +186,9 @@ async def signup(
         )
 
 @router.post("/login")
-async def login(
-    contact: str = Form(...),
-    password: str = Form(...)
+async def login(payload: LoginRequest):
+    contact = payload.contact
+    password = payload.password
 ):
     """Login with email/phone and password"""
     user = get_user_with_hash_by_contact(contact)
@@ -217,7 +232,7 @@ async def login(
         samesite="lax"
     )
     
-    return response
+    return {"access_token": "FAKE_TOKEN", "user": {"contact": contact}}
 
 class GoogleLoginRequest(BaseModel):
     credential: str
