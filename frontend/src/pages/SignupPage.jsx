@@ -18,7 +18,7 @@ const countryCodes = [
   { code: "+36", name: "Hungary" }, { code: "+971", name: "UAE" }, { code: "+972", name: "Israel" },
   { code: "+966", name: "Saudi Arabia" }, { code: "+20", name: "Egypt" }, { code: "+212", name: "Morocco" },
   { code: "+92", name: "Pakistan" }, { code: "+880", name: "Bangladesh" }, { code: "+974", name: "Qatar" },
-  { code: "+965", name: "Kuwait" }
+  { code: "+965", name: "Kuwait" }, { code: "+260", name: "Zambia" }, { code: "+263", name: "Zimbabwe" }
 ];
 
 export default function SignupPage() {
