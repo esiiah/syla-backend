@@ -1,9 +1,10 @@
 import os
-from dotenv import load_dotenv
+from pathlib import Path
 
-# Always load /app/.env (Docker copies it there)
-dotenv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
-if os.path.exists(dotenv_path):
+# Load local .env only if it exists (for dev)
+dotenv_path = Path(__file__).parent.parent / ".env"
+if dotenv_path.exists():
+    from dotenv import load_dotenv
     load_dotenv(dotenv_path)
 
 # === Core Application Settings ===
