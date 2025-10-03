@@ -6,9 +6,6 @@ import re
 import os
 from typing import List, Dict, Any
 
-from dotenv import load_dotenv
-load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))  # backend .env
-
 import pandas as pd
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
 from fastapi.responses import JSONResponse, FileResponse
@@ -26,12 +23,14 @@ from .routers import chart_settings, notifications, search
 from . import visual
 
 # ------------------------------
-# Environment validation
+# Environment loading & validation
 # ------------------------------
+from app import settings  # ensures .env is loaded
+
 required_vars = ["DATABASE_PUBLIC_URL", "JWT_SECRET", "FRONTEND_URL"]
 for var in required_vars:
-    if not os.getenv(var):
-        raise EnvironmentError(f"❌ {var} is not set in .env")
+    if not getattr(settings, var, None):
+        raise EnvironmentError(f"❌ {var} is not set in environment or .env")
 
 # ------------------------------
 # Logging configuration
@@ -56,7 +55,7 @@ async def health():
 # ------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_URL")],
+    allow_origins=[settings.FRONTEND_URL],
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=False,
@@ -88,7 +87,6 @@ if os.path.exists(FRONTEND_DIR):
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
 
 logger.info("✅ FastAPI app initialized successfully")
-
 
 class ChartPayloadRequest(BaseModel):
     file_id: str = None
