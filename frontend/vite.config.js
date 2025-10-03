@@ -5,14 +5,14 @@ import { resolve } from "path"
 export default defineConfig({
   plugins: [react()],
   build: {
-    outDir: resolve(__dirname, "../app/dist"), // 🚀 send build output into app/dist
-    emptyOutDir: true, // clear before building
-    chunkSizeWarningLimit: 1500, // ✅ raise limit to 1.5 MB to silence the 500 kB warning
+    outDir: resolve(__dirname, "dist"), // ✅ build into frontend/dist
+    emptyOutDir: true,
+    chunkSizeWarningLimit: 1500,
   },
   server: {
-    historyApiFallback: true, // ✅ fixes client-side routing in development
+    historyApiFallback: true,
   },
   preview: {
-    historyApiFallback: true, // ✅ fixes client-side routing in preview mode
+    historyApiFallback: true,
   },
 })
