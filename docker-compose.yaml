@@ -2,13 +2,15 @@ version: '3.8'
 
 services:
   sylabackend:
-    image: syla-backend
     build:
       context: .
-      dockerfile: ./Dockerfile
+      dockerfile: Dockerfile
+    image: syla-backend
     ports:
       - "8000:8000"
     env_file:
       - .env
     volumes:
-      - ./uploads:/app/uploads
+      - ./uploads:/app/uploads       # persisted uploads
+      - ./app:/app/app               # optional: hot reload dev
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
