@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv() 
+
 import io
 import logging
 import time
@@ -27,10 +30,9 @@ from . import visual
 # ------------------------------
 from app import settings  # ensures .env is loaded
 
-required_vars = ["DATABASE_PUBLIC_URL", "JWT_SECRET", "FRONTEND_URL"]
-for var in required_vars:
-    if not getattr(settings, var, None):
-        raise EnvironmentError(f"❌ {var} is not set in environment or .env")
+DATABASE_PUBLIC_URL = os.getenv("DATABASE_PUBLIC_URL")
+if not DATABASE_PUBLIC_URL:
+    raise EnvironmentError("❌ DATABASE_PUBLIC_URL is not set in environment or .env")
 
 # ------------------------------
 # Logging configuration
@@ -83,8 +85,13 @@ app.mount("/api/files", StaticFiles(directory=UPLOAD_DIR), name="files")
 # Frontend static files
 # ------------------------------
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "dist")
+FRONTEND_DIR = os.path.abspath(FRONTEND_DIR)
+
 if os.path.exists(FRONTEND_DIR):
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+    logger.info(f"✅ Frontend mounted at / from {FRONTEND_DIR}")
+else:
+    logger.warning(f"⚠️ Frontend directory not found at {FRONTEND_DIR}. SPA will 404.")
 
 logger.info("✅ FastAPI app initialized successfully")
 
