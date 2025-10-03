@@ -29,14 +29,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Install Python deps
-COPY requirements.txt .
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend source
 COPY app/ ./app/
 
-# ✅ Copy backend .env permanently into container
-COPY app/.env ./.env
+# ❌ DO NOT copy .env into the image
+# COPY app/.env ./.env  <-- removed
 
 # Copy frontend build into backend dist folder
 COPY --from=frontend-builder /app/frontend/dist ./app/dist
@@ -44,6 +44,7 @@ COPY --from=frontend-builder /app/frontend/dist ./app/dist
 # Runtime dirs
 RUN mkdir -p /app/uploads /app/app/raw /app/app/cleaned /app/app/charts /app/app/models
 
+# Create unprivileged user
 RUN useradd -m appuser && chown -R appuser /app
 USER appuser
 
