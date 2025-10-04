@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { 
   User, Settings, LogOut, Bell, Search, Menu, 
-  ChevronDown, Sun, Moon, HelpCircle, Zap
+  ChevronDown, Sun, Moon, HelpCircle, Zap, DollarSign
 } from "lucide-react";
 import { UserContext } from "../context/UserContext";
 
@@ -322,13 +322,16 @@ export default function Navbar() {
               {theme === "light" ? <Moon size={20} /> : <Sun size={20} />}
             </button>
 
-            {/* Help */}
-            <button
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
-              title="Help & Support"
-            >
-              <HelpCircle size={20} />
-            </button>
+            {/* Help and Pricing*/}
+            <div className="flex items-center gap-2">
+              <Link to="/help" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                <HelpCircle size={20} className="text-gray-600 dark:text-slate-300" />
+              </Link>
+
+              <Link to="/pricing" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                <DollarSign size={20} className="text-gray-600 dark:text-slate-300" />
+              </Link>
+            </div>        
 
             {/* Notifications */}
             <div className="relative" ref={notificationRef}>
