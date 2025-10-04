@@ -963,4 +963,6 @@ return (
     </div>
   </div>
 );
-} // closes DocsPage component
+} 
+
+export default DocsPage;
