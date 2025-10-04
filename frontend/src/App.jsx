@@ -161,11 +161,14 @@ function App() {
                     </Link>
 
                     {/* Price Listing Button */}
-                    <Link href="/pricing">
-                     <button className="px-6 py-3 rounded-full border-2 border-neonBlue text-neonBlue font-semibold hover:bg-neonBlue hover:text-white transition-all duration-300">
-                      Price Listing
-                    </button>
-                    </Link>
+                    <Link
+                      to="/pricing"
+                      className="relative flex items-center justify-center p-5 rounded-full
+                                border-2 border-neonBlue text-neonBlue font-semibold
+                                hover:bg-neonBlue hover:text-white transition-all duration-300"
+                    >
+                      <span className="ml-2 z-10">Price Listing</span>                    
+                     </Link>
                   </div>
                 </>
               ) : (
@@ -173,7 +176,7 @@ function App() {
                   <h1 className="font-body text-4xl md:text-5xl tracking-wide mb-6 text-gray-800 dark:text-slate-200">
                     From raw data to <span className="text-red-500 font-semibold">smart decisions</span>
                     <br />
-                    all powered by <span className="text-neonYellow font-semibold">Syla</span>.
+                    all powered by <span className="text-neonYellow font-semibold">Ai</span>.
                   </h1>
                   <p className="text-xl text-gray-700 dark:text-slate-300 mb-8 max-w-4xl mx-auto">
                     Clean, visualize, and convert your data with intelligent automation.
