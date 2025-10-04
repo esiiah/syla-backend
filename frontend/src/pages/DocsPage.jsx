@@ -2,19 +2,9 @@
 import React, { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Book,
-  Code,
-  Terminal,
-  Zap,
-  Database,
-  FileText,
-  Settings,
-  ChevronRight,
-  Copy,
-  Check,
-  ExternalLink
+  Book, Code, Terminal, Zap, Database, FileText, Settings,
+  ChevronRight, Copy, Check, ExternalLink
 } from "lucide-react";
-import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { UserContext } from "../context/UserContext";
@@ -40,6 +30,27 @@ const DocsPage = () => {
     { id: "file-tools", label: "File Tools", icon: FileText },
     { id: "advanced", label: "Advanced", icon: Settings }
   ];
+
+  // Local sidebar for docs
+  const DocsSidebar = ({ sections, activeSection, setActiveSection }) => (
+   <div className="w-64 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 p-4">
+     <h2 className="text-lg font-semibold mb-4 text-slate-800 dark:text-slate-200">Documentation</h2>
+      {sections.map((s) => (
+       <button
+         key={s.id}
+         onClick={() => setActiveSection(s.id)}
+          className={`flex items-center w-full text-left p-2 rounded-lg mb-2 transition-colors ${
+            activeSection === s.id
+              ? "bg-blue-600 text-white"
+              : "text-gray-700 dark:text-slate-300 hover:bg-blue-100 dark:hover:bg-slate-700"
+          }`}
+       >
+          <s.icon className="w-4 h-4 mr-2" />
+         {s.label}
+        </button>
+     ))}
+   </div>
+  );
 
   const CodeBlock = ({ code, language = "javascript", id }) => (
     <div className="relative group">
@@ -852,7 +863,7 @@ cron.schedule('0 6 * * *', async () => {
         id="env-config"
         code={`# .env file
 SYLA_API_KEY=your_api_key_here
-SYLA_API_URL=https://api.syla.ai
+SYLA_API_URL=https://api.sylaanalytics.com
 SYLA_TIMEOUT=30000
 SYLA_RETRY_ATTEMPTS=3
 SYLA_LOG_LEVEL=info
@@ -951,7 +962,7 @@ async function monitoredFetch(url, options) {
 
 return (
   <div className="flex min-h-screen bg-gray-50 dark:bg-slate-900">
-    <Sidebar
+    <DocsSidebar
       sections={sections}
       activeSection={activeSection}
       setActiveSection={setActiveSection}
