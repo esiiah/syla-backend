@@ -23,6 +23,7 @@ from .routers import password_recovery
 from .routers import profile
 from .ai.router import router as forecast_router
 from .routers import chart_settings, notifications, search
+from .routers import help, pricing
 from . import visual
 
 # ------------------------------
@@ -74,6 +75,8 @@ app.include_router(forecast_router)
 app.include_router(chart_settings.router)
 app.include_router(notifications.router)
 app.include_router(search.router)
+app.include_router(help.router)
+app.include_router(pricing.router)
 
 # ------------------------------
 # Upload directory & static files
