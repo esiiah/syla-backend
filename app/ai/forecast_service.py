@@ -2,7 +2,7 @@
 import asyncio
 import json
 import logging
-import os       # <--- add this
+import os
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
@@ -11,7 +11,6 @@ import hashlib
 
 logger = logging.getLogger(__name__)
 
-# In app/ai/forecast_service.py, update __init__
 class ForecastService:
     def __init__(self):
         self.openai_client = None
@@ -31,16 +30,25 @@ class ForecastService:
     def check_rate_limit(self, user_id: str, limit_per_hour: int = 50) -> bool:
         """Simple rate limiting"""
         now = datetime.now()
-        user_limits = self.rate_limits.get(user_id, {"count": 0, "reset_time": now})
         
+        # Initialize user if not in rate_limits
+        if user_id not in self.rate_limits:
+            self.rate_limits[user_id] = {"count": 1, "reset_time": now + timedelta(hours=1)}
+            return True
+        
+        user_limits = self.rate_limits[user_id]
+        
+        # Reset if time expired
         if now > user_limits["reset_time"]:
             self.rate_limits[user_id] = {"count": 1, "reset_time": now + timedelta(hours=1)}
             return True
         
+        # Check limit
         if user_limits["count"] >= limit_per_hour:
             logger.warning(f"Rate limit exceeded for user {user_id}")
             return False
-            
+        
+        # Increment count
         self.rate_limits[user_id]["count"] += 1
         return True
 
