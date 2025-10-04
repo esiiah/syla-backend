@@ -2,18 +2,10 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  LayoutDashboard,
-  FolderOpen,
-  BarChart,
-  Settings,
-  HelpCircle,
-  Sun,
-  Moon,
-  FilePlus,
-  FileText,
-  FileSpreadsheet,
-  FileArchive,
-  Cpu,            // ⬅️ added for AI Forecast
+  LayoutDashboard, FolderOpen, BarChart,
+  Settings, HelpCircle, Sun, Moon,
+  FilePlus, FileText, FileSpreadsheet,
+  FileArchive, Cpu, BookOpen, DollarSign
 } from "lucide-react";
 
 function Sidebar({ onReportChange, theme, setTheme }) {
