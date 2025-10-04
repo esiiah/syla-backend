@@ -2,23 +2,27 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-// Add this line right after your imports, before the countryCodes array
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || "618939207673-gbevo0aok0bqufjch9mmr4sc9ma86qtm.apps.googleusercontent.com";
 
 const countryCodes = [
-  { code: "+1", name: "USA" }, { code: "+44", name: "UK" }, { code: "+91", name: "India" },
-  { code: "+61", name: "Australia" }, { code: "+81", name: "Japan" }, { code: "+49", name: "Germany" },
-  { code: "+33", name: "France" }, { code: "+55", name: "Brazil" }, { code: "+7", name: "Russia" },
-  { code: "+86", name: "China" }, { code: "+27", name: "South Africa" }, { code: "+39", name: "Italy" },
-  { code: "+34", name: "Spain" }, { code: "+82", name: "South Korea" }, { code: "+64", name: "New Zealand" },
-  { code: "+65", name: "Singapore" }, { code: "+90", name: "Turkey" }, { code: "+31", name: "Netherlands" },
-  { code: "+46", name: "Sweden" }, { code: "+41", name: "Switzerland" }, { code: "+351", name: "Portugal" },
-  { code: "+352", name: "Luxembourg" }, { code: "+353", name: "Ireland" }, { code: "+358", name: "Finland" },
-  { code: "+420", name: "Czech Republic" }, { code: "+421", name: "Slovakia" }, { code: "+48", name: "Poland" },
-  { code: "+36", name: "Hungary" }, { code: "+971", name: "UAE" }, { code: "+972", name: "Israel" },
-  { code: "+966", name: "Saudi Arabia" }, { code: "+20", name: "Egypt" }, { code: "+212", name: "Morocco" },
-  { code: "+92", name: "Pakistan" }, { code: "+880", name: "Bangladesh" }, { code: "+974", name: "Qatar" },
-  { code: "+965", name: "Kuwait" }, { code: "+260", name: "Zambia" }, { code: "+263", name: "Zimbabwe" }
+  { code: "+1", name: "USA" }, { code: "+1", name: "Canada" }, { code: "+44", name: "UK" },  { code: "+91", name: "India" }, { code: "+61", name: "Australia" }, { code: "+81", name: "Japan" }, 
+  { code: "+49", name: "Germany" }, { code: "+33", name: "France" }, { code: "+55", name: "Brazil" }, { code: "+7", name: "Russia" }, { code: "+86", name: "China" }, { code: "+27", name: "South Africa" }, 
+  { code: "+39", name: "Italy" }, { code: "+34", name: "Spain" }, { code: "+82", name: "South Korea" }, { code: "+64", name: "New Zealand" }, { code: "+65", name: "Singapore" }, { code: "+90", name: "Turkey" }, 
+  { code: "+31", name: "Netherlands" }, { code: "+46", name: "Sweden" }, { code: "+41", name: "Switzerland" }, { code: "+351", name: "Portugal" }, { code: "+352", name: "Luxembourg" }, { code: "+353", name: "Ireland" }, 
+  { code: "+358", name: "Finland" }, { code: "+420", name: "Czech Republic" }, { code: "+421", name: "Slovakia" }, { code: "+48", name: "Poland" }, { code: "+36", name: "Hungary" }, { code: "+971", name: "UAE" }, 
+  { code: "+972", name: "Israel" }, { code: "+966", name: "Saudi Arabia" }, { code: "+20", name: "Egypt" }, { code: "+212", name: "Morocco" }, { code: "+92", name: "Pakistan" }, { code: "+880", name: "Bangladesh" }, 
+  { code: "+974", name: "Qatar" }, { code: "+965", name: "Kuwait" }, { code: "+260", name: "Zambia" }, { code: "+263", name: "Zimbabwe" }, { code: "+254", name: "Kenya" }, { code: "+234", name: "Nigeria" }, 
+  { code: "+233", name: "Ghana" }, { code: "+255", name: "Tanzania" }, { code: "+256", name: "Uganda" }, { code: "+251", name: "Ethiopia" }, { code: "+231", name: "Liberia" }, { code: "+232", name: "Sierra Leone" },
+  { code: "+237", name: "Cameroon" }, { code: "+225", name: "Ivory Coast" }, { code: "+221", name: "Senegal" }, { code: "+213", name: "Algeria" }, { code: "+216", name: "Tunisia" }, { code: "+218", name: "Libya" },
+  { code: "+249", name: "Sudan" }, { code: "+252", name: "Somalia" }, { code: "+257", name: "Burundi" }, { code: "+258", name: "Mozambique" }, { code: "+264", name: "Namibia" }, { code: "+265", name: "Malawi" },
+  { code: "+266", name: "Lesotho" }, { code: "+267", name: "Botswana" }, { code: "+268", name: "Eswatini" }, { code: "+350", name: "Gibraltar" }, { code: "+356", name: "Malta" }, { code: "+357", name: "Cyprus" },
+  { code: "+370", name: "Lithuania" }, { code: "+371", name: "Latvia" }, { code: "+372", name: "Estonia" }, { code: "+374", name: "Armenia" }, { code: "+375", name: "Belarus" }, { code: "+380", name: "Ukraine" },
+  { code: "+381", name: "Serbia" }, { code: "+382", name: "Montenegro" }, { code: "+383", name: "Kosovo" }, { code: "+385", name: "Croatia" }, { code: "+386", name: "Slovenia" }, { code: "+387", name: "Bosnia" },
+  { code: "+389", name: "North Macedonia" }, { code: "+40", name: "Romania" }, { code: "+43", name: "Austria" }, { code: "+45", name: "Denmark" }, { code: "+47", name: "Norway" }, { code: "+60", name: "Malaysia" },
+  { code: "+62", name: "Indonesia" }, { code: "+63", name: "Philippines" }, { code: "+66", name: "Thailand" }, { code: "+84", name: "Vietnam" }, { code: "+852", name: "Hong Kong" }, { code: "+853", name: "Macau" },
+  { code: "+886", name: "Taiwan" }, { code: "+94", name: "Sri Lanka" }, { code: "+95", name: "Myanmar" }, { code: "+98", name: "Iran" }, { code: "+963", name: "Syria" }, { code: "+964", name: "Iraq" },
+  { code: "+967", name: "Yemen" }, { code: "+968", name: "Oman" }, { code: "+973", name: "Bahrain" }, { code: "+975", name: "Bhutan" }, { code: "+976", name: "Mongolia" }, { code: "+977", name: "Nepal" },
+  { code: "+992", name: "Tajikistan" }, { code: "+993", name: "Turkmenistan" }, { code: "+994", name: "Azerbaijan" }, { code: "+995", name: "Georgia" }, { code: "+996", name: "Kyrgyzstan" }, { code: "+998", name: "Uzbekistan" }
 ];
 
 export default function SignupPage() {
@@ -36,13 +40,11 @@ export default function SignupPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const dropdownRef = useRef(null);
 
-  // Filter countries based on search term
   const filteredCountries = countryCodes.filter(country => 
     country.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     country.code.includes(searchTerm)
   );
 
-  // Handle Google Credential Response
   window.handleCredentialResponse = async (response) => {
     setLoading(true);
     setError("");
@@ -73,7 +75,6 @@ export default function SignupPage() {
         throw new Error("Google Sign-In not loaded. Please refresh the page.");
       }
       
-      // Clear any existing rendered buttons and render fresh
       const buttonContainer = document.getElementById("google-signin-button");
       if (buttonContainer) {
         buttonContainer.innerHTML = '';
@@ -93,12 +94,39 @@ export default function SignupPage() {
 
   const handlePhoneVerification = () => setShowDetails(true);
 
+  const validatePassword = (pwd) => {
+    const hasUpper = /[A-Z]/.test(pwd);
+    const hasLower = /[a-z]/.test(pwd);
+    const hasNumber = /[0-9]/.test(pwd);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(pwd);
+    
+    if (!hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+      return "Password must contain uppercase, lowercase, number and special character";
+    }
+    if (pwd.length < 8) {
+      return "Password must be at least 8 characters long";
+    }
+    return null;
+  };
+
   const handleSignup = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
-    if (password !== confirmPassword) return setError("Passwords do not match"), setLoading(false);
-    if (password.length < 6) return setError("Password must be at least 6 characters long"), setLoading(false);
+    
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
+    }
+
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      setError(passwordError);
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
@@ -112,8 +140,13 @@ export default function SignupPage() {
           contact_type: contactType,
         }),
       });
+      
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ detail: "Signup failed" }));
+        throw new Error(data.detail || "Signup failed");
+      }
+      
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || "Signup failed");
       localStorage.setItem("token", data.access_token);
       localStorage.setItem("user", JSON.stringify(data.user));
       navigate("/");
@@ -139,7 +172,11 @@ export default function SignupPage() {
     }
   };
 
-  // Close dropdown when clicking outside
+  const handlePhoneInput = (e) => {
+    const value = e.target.value.replace(/\D/g, '');
+    setContact(value);
+  };
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -176,7 +213,6 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-950 dark:to-slate-900 p-4 relative">
-      {/* Top-left Logo */}
       <div className="absolute top-6 left-6 flex items-center space-x-2 z-10">
         <img src="/favicon.png" alt="Syla logo" className="w-8 h-8 animate-float" />
         <span className="font-inter font-bold text-xl text-gray-800 dark:text-slate-200">
@@ -184,10 +220,8 @@ export default function SignupPage() {
         </span>
       </div>
 
-      {/* Main Panel - Fixed dimensions to prevent viewport overflow */}
       <div className="w-full max-w-md h-[85vh] bg-white dark:bg-ink/90 rounded-2xl shadow-2xl border-2 border-blue-500 dark:border-yellow-400 transform transition-all duration-300 hover:scale-[1.02] hover:shadow-3xl hover:border-blue-600 dark:hover:border-yellow-300 flex flex-col">
         
-        {/* Header - Fixed */}
         <div className="text-center p-6 pb-0 flex-shrink-0">
           <h1 className="text-3xl font-display font-bold text-gray-800 dark:text-slate-200 mb-1">
             Create Account
@@ -196,9 +230,7 @@ export default function SignupPage() {
           <div className="mt-3 w-16 h-1 bg-blue-500 dark:bg-yellow-400 rounded-full mx-auto"></div>
         </div>
 
-        {/* Scrollable Inner Panel */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
-          {/* Error */}
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 text-sm">
               {error}
@@ -207,7 +239,6 @@ export default function SignupPage() {
 
           {!showDetails ? (
             <div className="space-y-4">
-              {/* Google Sign In */}
               <div className="w-full">
                 <div id="g_id_onload" data-client_id={GOOGLE_CLIENT_ID} data-auto_prompt="false"></div>
                 <div id="google-signin-button" className="w-full flex justify-center"></div>
@@ -226,14 +257,12 @@ export default function SignupPage() {
                 </button>
               </div>
 
-              {/* Divider */}
               <div className="flex items-center my-4">
                 <div className="flex-1 border-t border-gray-300 dark:border-white/20"></div>
                 <span className="px-4 text-sm text-gray-500 dark:text-slate-400">or</span>
                 <div className="flex-1 border-t border-gray-300 dark:border-white/20"></div>
               </div>
 
-              {/* Email Button */}
               <button
                 onClick={() => { setContactType("email"); setShowDetails(true); }}
                 className="w-full px-4 py-3 rounded-lg font-medium bg-blue-500 text-white transition-all duration-200 hover:bg-blue-600 hover:shadow-lg hover:scale-[1.02] transform shadow-md"
@@ -241,7 +270,6 @@ export default function SignupPage() {
                 Continue with Email
               </button>
 
-              {/* Phone Button */}
               <button
                 onClick={() => { setContactType("phone"); handlePhoneVerification(); }}
                 className="w-full px-4 py-3 rounded-lg font-medium bg-blue-50 dark:bg-slate-800 border-2 border-blue-300 dark:border-blue-400 text-blue-600 dark:text-blue-300 transition-all duration-200 hover:border-blue-500 dark:hover:border-blue-300 hover:bg-blue-100 dark:hover:bg-slate-700 hover:shadow-lg hover:scale-[1.02] transform"
@@ -251,7 +279,6 @@ export default function SignupPage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Back Button */}
               <button
                 onClick={() => setShowDetails(false)}
                 className="mb-4 flex items-center text-sm text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 transition-colors duration-200"
@@ -259,9 +286,7 @@ export default function SignupPage() {
                 ← Back to options
               </button>
 
-              {/* Form */}
               <form onSubmit={handleSignup} className="space-y-4">
-                {/* Name Input */}
                 <input
                   type="text"
                   value={name}
@@ -271,10 +296,8 @@ export default function SignupPage() {
                   className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                 />
 
-                {/* Phone Input with Country Code */}
                 {contactType === "phone" && (
                   <div className="flex space-x-2 relative" ref={dropdownRef}>
-                    {/* Country Code Dropdown */}
                     <div className="relative">
                       <button
                         type="button"
@@ -287,10 +310,8 @@ export default function SignupPage() {
                         </svg>
                       </button>
 
-                      {/* Dropdown Menu */}
                       {isDropdownOpen && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg z-20 max-h-60 overflow-hidden">
-                          {/* Search Input */}
                           <div className="p-2 border-b border-gray-200 dark:border-slate-600">
                             <input
                               type="text"
@@ -303,11 +324,10 @@ export default function SignupPage() {
                             />
                           </div>
                           
-                          {/* Countries List */}
                           <div className="max-h-40 overflow-y-auto">
-                            {filteredCountries.map((country) => (
+                            {filteredCountries.map((country, idx) => (
                               <button
-                                key={country.code}
+                                key={`${country.code}-${idx}`}
                                 type="button"
                                 onClick={() => handleCountrySelect(country)}
                                 className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors duration-150 flex justify-between items-center"
@@ -326,11 +346,10 @@ export default function SignupPage() {
                       )}
                     </div>
 
-                    {/* Phone Number Input */}
                     <input
                       type="tel"
                       value={contact}
-                      onChange={(e) => setContact(e.target.value)}
+                      onChange={handlePhoneInput}
                       placeholder="Phone Number"
                       required
                       className="flex-1 border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
@@ -338,7 +357,6 @@ export default function SignupPage() {
                   </div>
                 )}
 
-                {/* Email Input */}
                 {contactType === "email" && (
                   <input
                     type="email"
@@ -350,7 +368,6 @@ export default function SignupPage() {
                   />
                 )}
 
-                {/* Password Inputs */}
                 <input
                   type="password"
                   value={password}
@@ -368,7 +385,6 @@ export default function SignupPage() {
                   className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                 />
 
-                {/* Submit Button */}
                 <button
                   type="submit"
                   disabled={loading}
@@ -385,7 +401,6 @@ export default function SignupPage() {
           )}
         </div>
 
-        {/* Footer - Fixed */}
         <div className="p-6 pt-0 flex-shrink-0 text-center text-sm text-gray-600 dark:text-slate-400 border-t border-gray-200 dark:border-slate-700">
           Already have an account?{" "}
           <Link 
