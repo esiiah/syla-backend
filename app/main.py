@@ -1,7 +1,7 @@
+# app/main.py
 from dotenv import load_dotenv
 load_dotenv() 
 
-import io
 import logging
 import time
 import mimetypes
@@ -21,16 +21,15 @@ from .file_tools_full import router as file_tools_full_router, UPLOAD_DIR
 from .routers import auth as auth_router
 from .routers import password_recovery
 from .routers import profile
-from .ai.router import router as forecast_router
+from .ai.router import router as forecast_router, forecast_service
 from .routers import chart_settings, notifications, search
 from .routers import help, pricing
 from . import visual
+from app import settings
 
 # ------------------------------
-# Environment loading & validation
+# Environment validation
 # ------------------------------
-from app import settings  # ensures .env is loaded
-
 DATABASE_PUBLIC_URL = os.getenv("DATABASE_PUBLIC_URL")
 if not DATABASE_PUBLIC_URL:
     raise EnvironmentError("❌ DATABASE_PUBLIC_URL is not set in environment or .env")
@@ -49,10 +48,6 @@ logger = logging.getLogger("syla-backend")
 # ------------------------------
 app = FastAPI(title="Syla Analytics")
 
-@app.get("/api/health")
-async def health():
-    return {"status": "ok"}
-
 # ------------------------------
 # CORS middleware
 # ------------------------------
@@ -61,43 +56,12 @@ app.add_middleware(
     allow_origins=[settings.FRONTEND_URL],
     allow_methods=["*"],
     allow_headers=["*"],
-    allow_credentials=False,
+    allow_credentials=True,
 )
 
 # ------------------------------
-# Include routers
+# Pydantic Models
 # ------------------------------
-app.include_router(file_tools_full_router)
-app.include_router(auth_router.router)
-app.include_router(password_recovery.router)
-app.include_router(profile.router)
-app.include_router(forecast_router)
-app.include_router(chart_settings.router)
-app.include_router(notifications.router)
-app.include_router(search.router)
-app.include_router(help.router)
-app.include_router(pricing.router)
-
-# ------------------------------
-# Upload directory & static files
-# ------------------------------
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-app.mount("/api/files", StaticFiles(directory=UPLOAD_DIR), name="files")
-
-# ------------------------------
-# Frontend static files
-# ------------------------------
-FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "dist")
-FRONTEND_DIR = os.path.abspath(FRONTEND_DIR)
-
-if os.path.exists(FRONTEND_DIR):
-    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
-    logger.info(f"✅ Frontend mounted at / from {FRONTEND_DIR}")
-else:
-    logger.warning(f"⚠️ Frontend directory not found at {FRONTEND_DIR}. SPA will 404.")
-
-logger.info("✅ FastAPI app initialized successfully")
-
 class ChartPayloadRequest(BaseModel):
     file_id: str = None
     csv_data: List[Dict[str, Any]] = None
@@ -132,6 +96,9 @@ class ForecastRequest(BaseModel):
     regressors: List[str] = []
     config: Dict[str, Any] = {}
 
+# ------------------------------
+# Helper Functions
+# ------------------------------
 def sanitize_filename(name: str) -> str:
     base = os.path.basename(name or "uploaded_file")
     base = base.replace(" ", "_")
@@ -143,30 +110,36 @@ def unique_filename(name: str) -> str:
     ts = int(time.time() * 1000)
     return f"{ts}_{safe}"
 
-@app.get("/api/health")
-def health_check():
-    return {"message": "Backend is running 🚀", "ai_enabled": True}
-
+# ------------------------------
+# PRIMARY UPLOAD ENDPOINT (MUST BE FIRST)
+# ------------------------------
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
+    """Primary upload endpoint for CSV/Excel chart data"""
     filename = file.filename or "uploaded_file"
     try:
         raw = await file.read()
         if not raw:
             raise HTTPException(status_code=400, detail="File is empty")
+        
         saved_name = unique_filename(filename)
         raw_path = visual.RAW_DIR / saved_name
+        
         with open(raw_path, "wb") as f:
             f.write(raw)
+        
         try:
             df = visual.universal_load_any_file(str(raw_path))
             df_clean, cleaning_metadata = visual.universal_clean_pipeline(df, aggressive=False)
-            logger.info(f"Universal processing result: {len(df_clean)} rows, {len(df_clean.columns)} columns")
+            logger.info(f"Universal processing: {len(df_clean)} rows, {len(df_clean.columns)} cols")
+            
             column_types = detect_column_types(df_clean)
             summary = summarize_numeric(df_clean)
+            
             cleaned_name = f"cleaned_{saved_name}"
             cleaned_path = visual.CLEANED_DIR / cleaned_name
             df_clean.to_csv(cleaned_path, index=False)
+            
             x_axis = df_clean.columns[0] if len(df_clean.columns) > 0 else "Column_1"
             numeric_cols = [c for c, t in column_types.items() if t == "numeric"]
             if numeric_cols:
@@ -175,6 +148,7 @@ async def upload_file(file: UploadFile = File(...)):
                 y_axis = df_clean.columns[1]
             else:
                 y_axis = x_axis
+            
             return JSONResponse(content={
                 "file_id": saved_name,
                 "filename": filename,
@@ -193,6 +167,7 @@ async def upload_file(file: UploadFile = File(...)):
                 "processing_mode": "universal",
                 "message": f"Successfully processed {len(df_clean)} rows and {len(df_clean.columns)} columns"
             })
+            
         except Exception as e:
             logger.error(f"Universal processing failed: {e}")
             try:
@@ -200,9 +175,11 @@ async def upload_file(file: UploadFile = File(...)):
                     content = f.read()
                 lines = [line.strip() for line in content.split('\n')[:1000] if line.strip()]
                 df_fallback = pd.DataFrame({'Raw_Content': lines})
+                
                 cleaned_name = f"cleaned_{saved_name}"
                 cleaned_path = visual.CLEANED_DIR / cleaned_name
                 df_fallback.to_csv(cleaned_path, index=False)
+                
                 return JSONResponse(content={
                     "file_id": saved_name,
                     "filename": filename,
@@ -220,6 +197,7 @@ async def upload_file(file: UploadFile = File(...)):
             except Exception as fallback_error:
                 logger.error(f"Even fallback processing failed: {fallback_error}")
                 raise HTTPException(status_code=500, detail=f"Could not process file: {str(e)}")
+                
     except HTTPException:
         raise
     except Exception as e:
@@ -231,6 +209,30 @@ async def upload_file(file: UploadFile = File(...)):
         except Exception:
             pass
 
+# ------------------------------
+# Health Check
+# ------------------------------
+@app.get("/api/health")
+def health_check():
+    return {"message": "Backend is running", "ai_enabled": True, "status": "ok"}
+
+# ------------------------------
+# Include routers AFTER primary endpoints
+# ------------------------------
+app.include_router(auth_router.router)
+app.include_router(password_recovery.router)
+app.include_router(profile.router)
+app.include_router(forecast_router)
+app.include_router(chart_settings.router)
+app.include_router(notifications.router)
+app.include_router(search.router)
+app.include_router(help.router)
+app.include_router(pricing.router)
+app.include_router(file_tools_full_router)
+
+# ------------------------------
+# Chart & Data Processing Endpoints
+# ------------------------------
 @app.get("/api/preview")
 async def get_preview(file_id: str, n: int = 10):
     try:
@@ -264,15 +266,18 @@ async def generate_chart_payload(request: ChartPayloadRequest):
             df = pd.DataFrame(request.csv_data)
         else:
             raise HTTPException(400, "Either file_id or csv_data required")
+        
         df_filtered = visual.filter_dataframe(df, request.filters) if request.filters else df
         if df_filtered.empty:
             return {"error": "No data after filtering"}
+        
         agg_config = request.aggregation
         if agg_config.get('by') and agg_config.get('metric'):
             df_agg = visual.aggregate(df_filtered, agg_config['by'], agg_config['metric'],
                                       agg_config.get('agg', 'sum'))
         else:
             df_agg = df_filtered
+        
         display_config = request.display
         if display_config.get('top_n') and display_config['top_n'] > 0:
             group_key = agg_config.get('by', df_agg.columns[0])
@@ -281,10 +286,12 @@ async def generate_chart_payload(request: ChartPayloadRequest):
                                                 display_config['top_n'], display_config.get('sort', 'desc'))
         else:
             df_final = df_agg
+        
         chart_payload = visual.generate_chart_payload(df_final,
                                                       display_config.get('chart_type', 'bar'),
                                                       display_config)
         chart_id_temp = f"temp_{int(time.time())}"
+        
         return {
             "chart_payload": chart_payload,
             "chart_id_temp": chart_id_temp,
@@ -330,6 +337,7 @@ async def export_chart(request: ChartExportRequest):
                     chart_payload = saved_chart.get('chart_payload', {})
         if not chart_payload:
             raise HTTPException(400, "No chart data provided")
+        
         export_path = visual.export_chart_image(chart_payload,
                                                 format=request.format,
                                                 background=request.background,
@@ -344,8 +352,9 @@ async def export_chart(request: ChartExportRequest):
         logger.error(f"Chart export failed: {e}")
         raise HTTPException(500, f"Export error: {e}")
 
-from .ai.router import forecast_service
-
+# ------------------------------
+# Forecast Endpoints
+# ------------------------------
 @app.post("/api/forecast")
 async def create_forecast(request: ForecastRequest):
     try:
@@ -360,9 +369,11 @@ async def create_forecast(request: ForecastRequest):
             df = pd.DataFrame(request.csv_data)
         else:
             raise HTTPException(400, "Either file_id or csv_data required")
+        
         df_filtered = visual.filter_dataframe(df, request.filters) if request.filters else df
         if df_filtered.empty:
             raise HTTPException(status_code=400, detail="No data after filtering")
+        
         target_column = None
         if request.config and isinstance(request.config, dict):
             target_column = request.config.get('target_column')
@@ -372,11 +383,13 @@ async def create_forecast(request: ForecastRequest):
                 target_column = numeric_cols[0]
         if not target_column:
             raise HTTPException(status_code=400, detail="Could not determine target column")
+        
         date_column = None
         for candidate in ['date', 'ds', 'timestamp', 'created_at']:
             if candidate in df_filtered.columns:
                 date_column = candidate
                 break
+        
         method = (request.method or 'hybrid').lower()
         if method in ['prophet']:
             model_preference = 'prophet'
@@ -384,11 +397,14 @@ async def create_forecast(request: ForecastRequest):
             model_preference = 'gpt'
         else:
             model_preference = 'hybrid'
+        
         scenario_text = ''
         if request.config and isinstance(request.config, dict):
             scenario_text = request.config.get('scenario_text', '')
+        
         data_records = df_filtered.to_dict(orient='records')
         user_id = (request.config or {}).get('user_id', 'system')
+        
         result = await forecast_service.create_forecast(
             data=data_records,
             scenario=scenario_text or "",
@@ -399,6 +415,7 @@ async def create_forecast(request: ForecastRequest):
             confidence_level=float(request.ci or 0.95),
             user_id=user_id
         )
+        
         return JSONResponse(content={
             "job_id": f"forecast_{int(time.time())}",
             "status": "completed",
@@ -416,7 +433,9 @@ async def get_forecast_status(job_id: str):
         "progress": 100
     }
 
-
+# ------------------------------
+# Model & Dataset Endpoints
+# ------------------------------
 @app.get("/api/models/{model_id}")
 async def get_model_metadata(model_id: str):
     try:
@@ -440,6 +459,9 @@ async def list_datasets():
         logger.error(f"Dataset listing failed: {e}")
         raise HTTPException(500, f"Dataset error: {e}")
 
+# ------------------------------
+# Static file serving
+# ------------------------------
 @app.get("/api/files/{saved_filename}")
 async def serve_uploaded_file(saved_filename: str):
     if "/" in saved_filename or "\\" in saved_filename:
@@ -451,6 +473,27 @@ async def serve_uploaded_file(saved_filename: str):
     return FileResponse(path, media_type=mime_type or "application/octet-stream",
                         filename=os.path.basename(path))
 
+# ------------------------------
+# Upload directory & static files
+# ------------------------------
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/api/files", StaticFiles(directory=UPLOAD_DIR), name="files")
+
+# ------------------------------
+# Frontend static files
+# ------------------------------
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "dist")
+FRONTEND_DIR = os.path.abspath(FRONTEND_DIR)
+
+if os.path.exists(FRONTEND_DIR):
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+    logger.info(f"✅ Frontend mounted at / from {FRONTEND_DIR}")
+else:
+    logger.warning(f"⚠️ Frontend directory not found at {FRONTEND_DIR}. SPA will 404.")
+
+# ------------------------------
+# SPA Fallback (must be last)
+# ------------------------------
 @app.get("/{path:path}")
 async def spa_fallback(request: Request, path: str):
     if path.startswith("api/"):
@@ -471,3 +514,5 @@ async def spa_fallback(request: Request, path: str):
         return FileResponse(root_index, media_type="text/html")
 
     raise HTTPException(status_code=404, detail="Page not found")
+
+logger.info("✅ FastAPI app initialized successfully")
