@@ -131,9 +131,11 @@ function Sidebar({ onReportChange, theme, setTheme }) {
             <Settings className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300" />
             {!collapsed && <span>Settings</span>}
           </Link>
-          <div className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 group cursor-pointer">
+          <div className="mt-4 px-3">
+            <Link to="/help" className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 group cursor-pointer">
             <HelpCircle className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300" />
             {!collapsed && <span>Help</span>}
+            </Link>
           </div>
         </div>
       </div>
