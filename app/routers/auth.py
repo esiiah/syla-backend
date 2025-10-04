@@ -218,7 +218,7 @@ async def login(payload: LoginRequest):
         samesite="lax"
     )
     
-    return {"access_token": "FAKE_TOKEN", "user": {"contact": contact}}
+    return response
 
 class GoogleLoginRequest(BaseModel):
     credential: str
