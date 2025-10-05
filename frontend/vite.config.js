@@ -7,7 +7,7 @@ export default defineConfig({
   build: {
     outDir: resolve(__dirname, "dist"), // ✅ build into frontend/dist
     emptyOutDir: true,
-    chunkSizeWarningLimit: 1500,
+    chunkSizeWarningLimit: 5000,
   },
   server: {
     historyApiFallback: true,
