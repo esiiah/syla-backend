@@ -1,0 +1,5 @@
+ id | user_id |  type   |  title   |                   message                   | category | priority | read | archived | action_url | meta_info |         created_at         | read_at | archived_at 
+----+---------+---------+----------+---------------------------------------------+----------+----------+------+----------+------------+-----------+----------------------------+---------+-------------
+  1 |       1 | success | Welcome! | Your account has been created successfully. | system   | medium   | f    | f        |            |           | 2025-10-05 09:46:57.560914 |         | 
+(1 row)
+
