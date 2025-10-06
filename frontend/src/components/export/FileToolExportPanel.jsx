@@ -99,6 +99,8 @@ export default function FileToolExportPanel({
       case "pdf-to-excel":
       case "excel-to-pdf":
       case "pdf-to-word":
+      case "word-to-pdf":
+      case "image-to-pdf":
         return "File Conversion";
       case "pdf":
         return "PDF Export";
@@ -135,6 +137,8 @@ export default function FileToolExportPanel({
         "pdf-to-excel": { url: "/api/filetools/convert/pdf-to-excel", method: "POST", form: (fd, f) => fd.append("file", f) },
         "excel-to-pdf": { url: "/api/filetools/convert/excel-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
         "pdf-to-word": { url: "/api/filetools/convert/pdf-to-word", method: "POST", form: (fd, f) => fd.append("file", f) },
+        "word-to-pdf": { url: "/api/filetools/word-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
+        "image-to-pdf": { url: "/api/filetools/image-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
       };
 
       // Choose endpoint
@@ -250,6 +254,10 @@ export default function FileToolExportPanel({
         return "Convert Excel → PDF";
       case "pdf-to-word":
         return "Convert PDF → Word";
+      case "word-to-pdf":
+        return "Convert Word → PDF";
+      case "image-to-pdf":
+        return "Convert Image → PDF";
       default:
         return uploadLabel || "Process";
     }
