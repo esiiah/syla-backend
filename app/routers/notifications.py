@@ -1,22 +1,19 @@
-
 # app/routers/notifications.py
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request
 from sqlalchemy.orm import Session
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, Enum, desc, asc, and_, or_
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, desc, asc, and_, or_
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 import enum
-from pydantic import BaseModel
-from app.routers.db import get_db
+import json
+from pydantic import BaseModel, validator
+from app.routers.db import get_db, Base  # Import Base from your db module
 from app.models.user import User
 from app.routers.auth import get_current_user
 
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 
-# SQLAlchemy Models
-Base = declarative_base()
-
+# Use string type for enums in database to match PostgreSQL enum values
 class NotificationType(str, enum.Enum):
     INFO = "info"
     SUCCESS = "success"
@@ -38,22 +35,21 @@ class NotificationCategory(str, enum.Enum):
     FORECAST = "forecast"
     CHART = "chart"
 
-# In app/routers/notifications.py, line ~37
+# SQLAlchemy Model - use your main Base
 class Notification(Base):
     __tablename__ = "notifications"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, index=True, nullable=False)
-    type = Column(Enum(NotificationType), default=NotificationType.INFO)
+    type = Column(String, default="info")  # Store as string
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
-    category = Column(Enum(NotificationCategory), default=NotificationCategory.SYSTEM)
-    priority = Column(Enum(NotificationPriority), default=NotificationPriority.MEDIUM)
+    category = Column(String, default="system")  # Store as string
+    priority = Column(String, default="medium")  # Store as string
     read = Column(Boolean, default=False)
     archived = Column(Boolean, default=False)
     action_url = Column(String(512), nullable=True)
-    # FIX: Change this line
-    meta_info = Column(Text, nullable=True)  # Changed from meta_info with name="metadata"
+    meta_info = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     read_at = Column(DateTime, nullable=True)
     archived_at = Column(DateTime, nullable=True)
@@ -75,17 +71,34 @@ class NotificationUpdate(BaseModel):
     read: Optional[bool] = None
     archived: Optional[bool] = None
 
-class NotificationResponse(NotificationBase):
+class NotificationResponse(BaseModel):
     id: int
     user_id: int
+    type: str
+    title: str
+    message: str
+    category: str
+    priority: str
     read: bool
     archived: bool
+    action_url: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
     created_at: datetime
     read_at: Optional[datetime] = None
     archived_at: Optional[datetime] = None
     
+    @validator('metadata', pre=True)
+    def parse_metadata(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v) if v else None
+            except:
+                return None
+        return v
+    
     class Config:
         from_attributes = True
+        orm_mode = True
 
 class NotificationStats(BaseModel):
     total: int
@@ -98,19 +111,18 @@ class NotificationStats(BaseModel):
 
 class BulkActionRequest(BaseModel):
     notification_ids: List[int]
-    action: str  # "read", "unread", "archive", "unarchive", "delete"
+    action: str
 
 class NotificationFilters(BaseModel):
-    type: Optional[NotificationType] = None
-    category: Optional[NotificationCategory] = None
-    priority: Optional[NotificationPriority] = None
+    type: Optional[str] = None
+    category: Optional[str] = None
+    priority: Optional[str] = None
     read: Optional[bool] = None
     archived: Optional[bool] = None
     search: Optional[str] = None
     date_from: Optional[datetime] = None
     date_to: Optional[datetime] = None
 
-# In app/routers/notifications.py, around line ~95
 def create_notification_for_user(
     db: Session, 
     user_id: int, 
@@ -123,17 +135,15 @@ def create_notification_for_user(
     metadata: Optional[Dict[str, Any]] = None
 ) -> Notification:
     """Create a new notification for a specific user"""
-    import json
-    
     notification = Notification(
         user_id=user_id,
         title=title,
         message=message,
-        type=type,
-        category=category,
-        priority=priority,
+        type=type.value,  # Use .value to get string
+        category=category.value,
+        priority=priority.value,
         action_url=action_url,
-        meta_info=json.dumps(metadata) if metadata else None  # Changed from meta_info
+        meta_info=json.dumps(metadata) if metadata else None
     )
     
     db.add(notification)
@@ -171,23 +181,26 @@ def build_notification_query(db: Session, user_id: int, filters: NotificationFil
     return query
 
 # API Endpoints
-
 @router.get("/", response_model=List[NotificationResponse])
 async def get_notifications(
+    request: Request,
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
-    type: Optional[NotificationType] = None,
-    category: Optional[NotificationCategory] = None,
-    priority: Optional[NotificationPriority] = None,
+    type: Optional[str] = None,
+    category: Optional[str] = None,
+    priority: Optional[str] = None,
     read: Optional[bool] = None,
     archived: Optional[bool] = None,
     search: Optional[str] = None,
-    sort_by: str = Query("created_at", regex="^(created_at|title|priority|read)$"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    sort_by: str = Query("created_at"),
+    sort_order: str = Query("desc"),
+    db: Session = Depends(get_db)
 ):
     """Get paginated notifications for the current user"""
+    current_user = get_current_user(request)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
     filters = NotificationFilters(
         type=type,
         category=category,
@@ -197,39 +210,52 @@ async def get_notifications(
         search=search
     )
     
-    query = build_notification_query(db, current_user.id, filters)
+    query = build_notification_query(db, current_user["id"], filters)
     
     # Apply sorting
     if sort_by == "created_at":
         order_by = desc(Notification.created_at) if sort_order == "desc" else asc(Notification.created_at)
     elif sort_by == "title":
         order_by = asc(Notification.title) if sort_order == "asc" else desc(Notification.title)
-    elif sort_by == "priority":
-        # Custom priority ordering: high -> medium -> low
-        priority_case = db.query(Notification.priority).case(
-            [(Notification.priority == NotificationPriority.HIGH, 3),
-             (Notification.priority == NotificationPriority.MEDIUM, 2),
-             (Notification.priority == NotificationPriority.LOW, 1)],
-            else_=1
-        )
-        order_by = desc(priority_case) if sort_order == "desc" else asc(priority_case)
-    elif sort_by == "read":
-        order_by = asc(Notification.read) if sort_order == "asc" else desc(Notification.read)
     else:
         order_by = desc(Notification.created_at)
     
     query = query.order_by(order_by)
-    
     notifications = query.offset(skip).limit(limit).all()
-    return notifications
+    
+    # Convert to response format
+    result = []
+    for n in notifications:
+        result.append(NotificationResponse(
+            id=n.id,
+            user_id=n.user_id,
+            type=n.type,
+            title=n.title,
+            message=n.message,
+            category=n.category,
+            priority=n.priority,
+            read=n.read,
+            archived=n.archived,
+            action_url=n.action_url,
+            metadata=json.loads(n.meta_info) if n.meta_info else None,
+            created_at=n.created_at,
+            read_at=n.read_at,
+            archived_at=n.archived_at
+        ))
+    
+    return result
 
 @router.get("/stats", response_model=NotificationStats)
 async def get_notification_stats(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    request: Request,
+    db: Session = Depends(get_db)
 ):
     """Get notification statistics for the current user"""
-    base_query = db.query(Notification).filter(Notification.user_id == current_user.id)
+    current_user = get_current_user(request)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    base_query = db.query(Notification).filter(Notification.user_id == current_user["id"])
     
     total = base_query.count()
     unread = base_query.filter(Notification.read == False).count()
@@ -239,19 +265,19 @@ async def get_notification_stats(
     # Get counts by type
     by_type = {}
     for type_enum in NotificationType:
-        count = base_query.filter(Notification.type == type_enum).count()
+        count = base_query.filter(Notification.type == type_enum.value).count()
         by_type[type_enum.value] = count
     
     # Get counts by category
     by_category = {}
     for category_enum in NotificationCategory:
-        count = base_query.filter(Notification.category == category_enum).count()
+        count = base_query.filter(Notification.category == category_enum.value).count()
         by_category[category_enum.value] = count
     
     # Get counts by priority
     by_priority = {}
     for priority_enum in NotificationPriority:
-        count = base_query.filter(Notification.priority == priority_enum).count()
+        count = base_query.filter(Notification.priority == priority_enum.value).count()
         by_priority[priority_enum.value] = count
     
     return NotificationStats(
@@ -264,57 +290,22 @@ async def get_notification_stats(
         by_priority=by_priority
     )
 
-@router.get("/{notification_id}", response_model=NotificationResponse)
-async def get_notification(
-    notification_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Get a specific notification"""
-    notification = db.query(Notification).filter(
-        and_(
-            Notification.id == notification_id,
-            Notification.user_id == current_user.id
-        )
-    ).first()
-    
-    if not notification:
-        raise HTTPException(status_code=404, detail="Notification not found")
-    
-    return notification
-
-@router.post("/", response_model=NotificationResponse)
-async def create_notification(
-    notification_data: NotificationCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Create a new notification (admin/system use)"""
-    notification = create_notification_for_user(
-        db=db,
-        user_id=current_user.id,
-        title=notification_data.title,
-        message=notification_data.message,
-        type=notification_data.type,
-        category=notification_data.category,
-        priority=notification_data.priority,
-        action_url=notification_data.action_url,
-        metadata=notification_data.metadata
-    )
-    return notification
-
 @router.patch("/{notification_id}", response_model=NotificationResponse)
 async def update_notification(
     notification_id: int,
     update_data: NotificationUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    request: Request,
+    db: Session = Depends(get_db)
 ):
     """Update a notification (mark as read/unread, archive/unarchive)"""
+    current_user = get_current_user(request)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
     notification = db.query(Notification).filter(
         and_(
             Notification.id == notification_id,
-            Notification.user_id == current_user.id
+            Notification.user_id == current_user["id"]
         )
     ).first()
     
@@ -326,7 +317,6 @@ async def update_notification(
     for field, value in update_dict.items():
         setattr(notification, field, value)
         
-        # Set timestamps
         if field == "read" and value:
             notification.read_at = datetime.utcnow()
         elif field == "read" and not value:
@@ -338,23 +328,42 @@ async def update_notification(
     
     db.commit()
     db.refresh(notification)
-    return notification
+    
+    return NotificationResponse(
+        id=notification.id,
+        user_id=notification.user_id,
+        type=notification.type,
+        title=notification.title,
+        message=notification.message,
+        category=notification.category,
+        priority=notification.priority,
+        read=notification.read,
+        archived=notification.archived,
+        action_url=notification.action_url,
+        metadata=json.loads(notification.meta_info) if notification.meta_info else None,
+        created_at=notification.created_at,
+        read_at=notification.read_at,
+        archived_at=notification.archived_at
+    )
 
 @router.post("/bulk-action")
 async def bulk_action(
     action_request: BulkActionRequest,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    request: Request,
+    db: Session = Depends(get_db)
 ):
     """Perform bulk actions on multiple notifications"""
+    current_user = get_current_user(request)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
     if not action_request.notification_ids:
         raise HTTPException(status_code=400, detail="No notification IDs provided")
     
-    # Verify all notifications belong to the current user
     notifications = db.query(Notification).filter(
         and_(
             Notification.id.in_(action_request.notification_ids),
-            Notification.user_id == current_user.id
+            Notification.user_id == current_user["id"]
         )
     ).all()
     
@@ -402,39 +411,21 @@ async def bulk_action(
         "affected_count": affected_count
     }
 
-@router.delete("/{notification_id}")
-async def delete_notification(
-    notification_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Delete a specific notification"""
-    notification = db.query(Notification).filter(
-        and_(
-            Notification.id == notification_id,
-            Notification.user_id == current_user.id
-        )
-    ).first()
-    
-    if not notification:
-        raise HTTPException(status_code=404, detail="Notification not found")
-    
-    db.delete(notification)
-    db.commit()
-    
-    return {"message": "Notification deleted successfully"}
-
 @router.post("/mark-all-read")
 async def mark_all_notifications_read(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    request: Request,
+    db: Session = Depends(get_db)
 ):
     """Mark all unread notifications as read"""
+    current_user = get_current_user(request)
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
     current_time = datetime.utcnow()
     
     updated_count = db.query(Notification).filter(
         and_(
-            Notification.user_id == current_user.id,
+            Notification.user_id == current_user["id"],
             Notification.read == False
         )
     ).update({
@@ -448,102 +439,3 @@ async def mark_all_notifications_read(
         "message": f"Marked {updated_count} notifications as read",
         "updated_count": updated_count
     }
-
-@router.delete("/clear-all")
-async def clear_all_notifications(
-    archived_only: bool = Query(False),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    """Clear all notifications (or only archived ones)"""
-    query = db.query(Notification).filter(Notification.user_id == current_user.id)
-    
-    if archived_only:
-        query = query.filter(Notification.archived == True)
-    
-    deleted_count = query.count()
-    query.delete()
-    db.commit()
-    
-    return {
-        "message": f"Cleared {deleted_count} {'archived ' if archived_only else ''}notifications",
-        "deleted_count": deleted_count
-    }
-
-# System notification helpers (for use by other parts of the application)
-
-async def notify_file_processing_complete(
-    db: Session,
-    user_id: int,
-    filename: str,
-    file_type: str = "file",
-    action_url: Optional[str] = None
-):
-    """Create notification when file processing is complete"""
-    return create_notification_for_user(
-        db=db,
-        user_id=user_id,
-        title=f"{file_type.title()} Processing Complete",
-        message=f"Your {file_type} '{filename}' has been processed successfully and is ready for use.",
-        type=NotificationType.SUCCESS,
-        category=NotificationCategory.PROCESSING,
-        priority=NotificationPriority.MEDIUM,
-        action_url=action_url
-    )
-
-async def notify_file_processing_failed(
-    db: Session,
-    user_id: int,
-    filename: str,
-    error_message: str,
-    file_type: str = "file"
-):
-    """Create notification when file processing fails"""
-    return create_notification_for_user(
-        db=db,
-        user_id=user_id,
-        title=f"{file_type.title()} Processing Failed",
-        message=f"Failed to process '{filename}': {error_message}",
-        type=NotificationType.ERROR,
-        category=NotificationCategory.PROCESSING,
-        priority=NotificationPriority.HIGH
-    )
-
-async def notify_export_ready(
-    db: Session,
-    user_id: int,
-    export_type: str,
-    record_count: int,
-    download_url: str
-):
-    """Create notification when export is ready"""
-    return create_notification_for_user(
-        db=db,
-        user_id=user_id,
-        title="Export Ready",
-        message=f"Your {export_type} export containing {record_count:,} records is ready for download.",
-        type=NotificationType.SUCCESS,
-        category=NotificationCategory.EXPORT,
-        priority=NotificationPriority.MEDIUM,
-        action_url=download_url
-    )
-
-async def notify_forecast_complete(
-    db: Session,
-    user_id: int,
-    forecast_name: str,
-    accuracy: float,
-    view_url: str
-):
-    """Create notification when AI forecast is complete"""
-    return create_notification_for_user(
-        db=db,
-        user_id=user_id,
-        title="AI Forecast Complete",
-        message=f"Your forecast '{forecast_name}' has been generated with {accuracy:.1%} accuracy. View your predictions now.",
-        type=NotificationType.SUCCESS,
-        category=NotificationCategory.FORECAST,
-        priority=NotificationPriority.HIGH,
-        action_url=view_url,
-        metadata={"accuracy": accuracy, "forecast_name": forecast_name}
-    )
