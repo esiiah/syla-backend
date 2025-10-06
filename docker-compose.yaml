@@ -14,8 +14,8 @@ services:
       DATABASE_LOCAL_URL: ${DATABASE_LOCAL_URL}
       DATABASE_PROD_URL: ${DATABASE_PROD_URL}
     volumes:
-      - ./uploads:/app/uploads
-      - ./app:/app/app
+      - ./uploads:/app/uploads:delegated
+      - ./app:/app/app:cached
     depends_on:
       - syla-db
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
