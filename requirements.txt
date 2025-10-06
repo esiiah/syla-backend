@@ -20,10 +20,11 @@ PyPDF2==3.0.1
 pdfplumber==0.11.4
 reportlab==4.2.5
 openpyxl==3.1.5
-python-docx==1.1.2
 pdf2docx==0.5.8
-docx2pdf==0.1.8
 xlrd>=2.0.1
+
+# NOTE: LibreOffice installed via apt-get in Dockerfile, not pip
+# NOTE: Removed docx2pdf - using LibreOffice instead
 
 # === Database ===
 SQLAlchemy==2.0.20
@@ -36,7 +37,7 @@ tenacity>=8.2.3
 redis>=5.0.0
 
 # === Forecasting Libraries ===
-prophet>=1.1.5        # Works with Python 3.11/3.12 (uses cmdstanpy)
+prophet>=1.1.5
 cmdstanpy>=1.2.2
 holidays>=0.36
 tqdm>=4.66.2
