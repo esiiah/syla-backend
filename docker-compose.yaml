@@ -12,10 +12,28 @@ services:
     env_file:
       - .env
     environment:
-      # Force backend to use the Railway DB connection string
-      DATABASE_URL=${DATABASE_PUBLIC_URL}
-      ENVIRONMENT=production
+      ENVIRONMENT: ${ENVIRONMENT}
+      DATABASE_LOCAL_URL: ${DATABASE_LOCAL_URL}
+      DATABASE_PROD_URL: ${DATABASE_PROD_URL}
     volumes:
-      - ./uploads:/app/uploads        # persisted uploads
-      - ./app:/app/app                # hot reload in dev (optional)
+      - ./uploads:/app/uploads
+      - ./app:/app/app
+    depends_on:
+      - syla-db
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  syla-db:
+    image: postgres:16
+    container_name: syla-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

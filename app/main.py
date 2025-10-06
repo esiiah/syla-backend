@@ -30,10 +30,17 @@ from app import settings
 # ------------------------------
 # Environment validation
 # ------------------------------
-DATABASE_PUBLIC_URL = os.getenv("DATABASE_PUBLIC_URL")
-if not DATABASE_PUBLIC_URL:
-    raise EnvironmentError("❌ DATABASE_PUBLIC_URL is not set in environment or .env")
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
+if ENVIRONMENT == "production":
+    DATABASE_URL = os.getenv("DATABASE_PROD_URL")
+else:
+    DATABASE_URL = os.getenv("DATABASE_LOCAL_URL")
+
+if not DATABASE_URL:
+    raise EnvironmentError(f"❌ DATABASE URL not set for environment: {ENVIRONMENT}")
+
+print(f"🔌 Using database URL for {ENVIRONMENT}: {DATABASE_URL}")
 # ------------------------------
 # Logging configuration
 # ------------------------------
