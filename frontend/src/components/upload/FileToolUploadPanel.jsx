@@ -81,6 +81,10 @@ export default function FileToolUploadPanel({
         return "Upload Excel to convert to PDF";
       case "pdf-to-word":
         return "Upload PDF to convert to Word";
+      case "word-to-pdf":
+        return "Upload Word document to convert to PDF";
+      case "image-to-pdf":
+        return "Upload image to convert to PDF";
       default:
         return title;
     }
@@ -103,6 +107,10 @@ export default function FileToolUploadPanel({
       case "pdf-to-excel":
       case "pdf-to-word":
         return ".pdf,application/pdf";
+      case "word-to-pdf":
+        return ".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+      case "image-to-pdf":
+        return ".jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif,image/*";
       default:
         return "*/*";
     }
@@ -129,6 +137,8 @@ export default function FileToolUploadPanel({
         "pdf-to-excel": { url: "/api/filetools/convert/pdf-to-excel", multi: false, formFileKey: "file" },
         "excel-to-pdf": { url: "/api/filetools/convert/excel-to-pdf", multi: false, formFileKey: "file" },
         "pdf-to-word": { url: "/api/filetools/convert/pdf-to-word", multi: false, formFileKey: "file" },
+        "word-to-pdf": { url: "/api/filetools/word-to-pdf", multi: false, formFileKey: "file" },
+        "image-to-pdf": { url: "/api/filetools/image-to-pdf", multi: false, formFileKey: "file" },
       };
 
       let chosen = map[toolType] || map.compress;
