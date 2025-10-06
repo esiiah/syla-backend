@@ -22,8 +22,16 @@ ENV PYTHONUNBUFFERED=1 \
     PORT=8000 \
     ENVIRONMENT=production
 
+# Install LibreOffice and system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential libpq-dev curl \
+    build-essential \
+    libpq-dev \
+    curl \
+    libreoffice \
+    libreoffice-writer \
+    libreoffice-calc \
+    libreoffice-core \
+    ghostscript \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -35,14 +43,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend source
 COPY app/ ./app/
 
-# ❌ DO NOT copy .env into the image
-# COPY app/.env ./.env  <-- removed
-
 # Copy frontend build into backend dist folder
 COPY --from=frontend-builder /app/frontend/dist ./app/dist
 
 # Runtime dirs
-RUN mkdir -p /app/uploads /app/app/raw /app/app/cleaned /app/app/charts /app/app/models
+RUN mkdir -p /app/uploads /app/app/raw /app/app/cleaned /app/app/charts /app/app/models /app/app/tmp /app/app/stash
 
 # Create unprivileged user
 RUN useradd -m appuser && chown -R appuser /app
