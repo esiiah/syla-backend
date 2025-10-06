@@ -119,26 +119,29 @@ export default function Navbar() {
     setTheme(theme === "light" ? "dark" : "light");
   };
 
-  const markNotificationAsRead = async (notificationId) => {
-    try {
-      await fetch(`/api/notifications/${notificationId}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ read: true })
-      });
+const markNotificationAsRead = async (notificationId) => {
+  try {
+    await fetch(`/api/notifications/${notificationId}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ read: true })
+    });
 
-      // Update local state
-      setNotifications(prev => 
-        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
-      );
-    } catch (error) {
-      console.error('Failed to mark notification as read:', error);
-    }
-  };
+    // Update local state AND refresh
+    setNotifications(prev => 
+      prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+    );
+    
+    // Refresh to get updated list
+    await fetchNotifications();
+  } catch (error) {
+    console.error('Failed to mark notification as read:', error);
+  }
+};
 
   const handleNotificationClick = (notification) => {
     // Mark as read
