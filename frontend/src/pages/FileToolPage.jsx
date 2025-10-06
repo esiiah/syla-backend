@@ -69,6 +69,18 @@ export default function FileToolPage({ theme, setTheme }) {
       accept: ".pdf",
       endpoint: "/api/filetools/pdf-to-word",
     },
+    "word-to-pdf": {
+      type: "convert",
+      label: "Word → PDF",
+      accept: ".doc,.docx",
+      endpoint: "/api/filetools/word-to-pdf",
+    },
+    "image-to-pdf": {
+      type: "convert",
+      label: "Image → PDF",
+      accept: ".jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif",
+      endpoint: "/api/filetools/image-to-pdf",
+    },
     "pdf-to-excel": {
       type: "convert",
       label: "PDF → Excel",
