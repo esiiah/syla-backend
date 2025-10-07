@@ -2,7 +2,7 @@
 
 /* Import Google fonts for titles (display) and interface */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Orbitron:wght@400;700&display=swap');
-
+import './styles/forecast-animations.css';
 /* Z-index management */
 :root {
   --z-base: 1;
