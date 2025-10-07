@@ -11,6 +11,7 @@ import Navbar from "./components/Navbar";
 import ChartOptions from "./components/ChartOptions.jsx";
 import { useChartData } from "./context/ChartDataContext";  // ADD THIS
 import "./App.css";
+import './styles/forecast-animations.css';
 import { Link } from "react-router-dom";
 import { Settings, Brain } from "lucide-react";
 
