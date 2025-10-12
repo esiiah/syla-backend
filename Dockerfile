@@ -46,11 +46,11 @@ COPY app/ ./app/
 # Copy frontend build artifacts
 COPY --from=frontend-builder /app/frontend/dist ./app/dist
 
-# Create unprivileged user
-RUN useradd -m appuser
+# Create unprivileged user FIRST
+RUN useradd -m -u 1000 appuser
 
 # Create all required directories with proper permissions
-# Do this BEFORE switching to appuser
+# IMPORTANT: These will be overwritten by volume mounts, but we create them as a fallback
 RUN mkdir -p \
     /app/uploads/avatars \
     /app/app/raw \
