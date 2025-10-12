@@ -4,17 +4,16 @@ import { resolve } from "path"
 
 export default defineConfig({
   plugins: [react()],
+  base: './',  // 🎯 Use relative paths instead of absolute
   build: {
     outDir: resolve(__dirname, "dist"),
     emptyOutDir: true,
     chunkSizeWarningLimit: 5000,
   },
   server: {
-    port: 8000,  // Add this
     historyApiFallback: true,
   },
   preview: {
-    port: 8000,  // Add this
     historyApiFallback: true,
   },
 })
