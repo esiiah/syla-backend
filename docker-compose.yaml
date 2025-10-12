@@ -14,17 +14,26 @@ services:
       DATABASE_URL: ${DATABASE_LOCAL_URL}
       DATABASE_LOCAL_URL: ${DATABASE_LOCAL_URL}
       DATABASE_PROD_URL: ${DATABASE_PROD_URL}
+      FRONTEND_URL: http://localhost:8000
+      BACKEND_URL: http://localhost:8000
     volumes:
       # Use named volume for uploads to preserve permissions
       - uploads_data:/app/uploads:delegated
-      # ❌ REMOVED: - ./app:/app/app:cached
-      # This was overwriting the built frontend dist folder!
-      # Only use this mount during active backend development
+      # ❌ REMOVED: Backend source mount (was overwriting frontend dist!)
+      # ✅ Only mount if you need live backend reloading during development
+      # - ./app:/app/app:cached
     depends_on:
       - syla-db
     # Use the same user ID (1000) as created in Dockerfile
     user: "1000:1000"
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    # For production, remove --reload flag
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   syla-db:
     image: postgres:16
