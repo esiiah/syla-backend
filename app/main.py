@@ -493,8 +493,22 @@ if uploads_path.exists():
 else:
     logger.warning(f"⚠️ Uploads directory not found at {uploads_path}")
 
+# Add this section BEFORE the SPA fallback route
+
 # ------------------------------
-# Frontend static files - IMPORTANT: This must be set up correctly
+# Service Worker - MUST be served with correct MIME type
+# ------------------------------
+@app.get("/service-worker.js")
+async def serve_service_worker():
+    """Serve service worker with correct MIME type"""
+    sw_path = os.path.join(FRONTEND_DIR, "service-worker.js")
+    if not os.path.exists(sw_path):
+        logger.error(f"❌ service-worker.js not found at {sw_path}")
+        raise HTTPException(status_code=404, detail="Service worker not found")
+    return FileResponse(sw_path, media_type="application/javascript")
+
+# ------------------------------
+# Frontend static files - UPDATED
 # ------------------------------
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "dist")
 FRONTEND_DIR = os.path.abspath(FRONTEND_DIR)
@@ -505,6 +519,13 @@ if os.path.exists(FRONTEND_DIR):
     if os.path.exists(assets_dir):
         app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
         logger.info(f"✅ Assets mounted at /assets from {assets_dir}")
+    
+    # Check for service worker
+    sw_path = os.path.join(FRONTEND_DIR, "service-worker.js")
+    if os.path.exists(sw_path):
+        logger.info(f"✅ service-worker.js found at {sw_path}")
+    else:
+        logger.error(f"❌ service-worker.js NOT FOUND at {sw_path}")
     
     # Check if index.html exists
     index_path = os.path.join(FRONTEND_DIR, "index.html")
@@ -526,7 +547,7 @@ else:
     logger.warning(f"⚠️ Frontend directory not found at {FRONTEND_DIR}. SPA will 404.")
 
 # ------------------------------
-# SPA Fallback (must be last) - Serve index.html for all non-API routes
+# SPA Fallback (must be last) - UPDATED
 # ------------------------------
 @app.get("/{full_path:path}")
 async def spa_fallback(request: Request, full_path: str):
@@ -541,6 +562,12 @@ async def spa_fallback(request: Request, full_path: str):
     # Don't handle upload routes
     if full_path.startswith("uploads/"):
         raise HTTPException(status_code=404, detail="Upload not found")
+    
+    # Handle service worker explicitly (backup route)
+    if full_path == "service-worker.js":
+        sw_path = os.path.join(FRONTEND_DIR, "service-worker.js")
+        if os.path.isfile(sw_path):
+            return FileResponse(sw_path, media_type="application/javascript")
 
     # For all other routes, serve index.html (SPA)
     index_path = os.path.join(FRONTEND_DIR, "index.html")
