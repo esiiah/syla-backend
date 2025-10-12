@@ -17,7 +17,9 @@ services:
     volumes:
       # Use named volume for uploads to preserve permissions
       - uploads_data:/app/uploads:delegated
-      - ./app:/app/app:cached
+      # ❌ REMOVED: - ./app:/app/app:cached
+      # This was overwriting the built frontend dist folder!
+      # Only use this mount during active backend development
     depends_on:
       - syla-db
     # Use the same user ID (1000) as created in Dockerfile
