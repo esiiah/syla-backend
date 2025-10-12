@@ -467,7 +467,7 @@ async def list_datasets():
         raise HTTPException(500, f"Dataset error: {e}")
 
 # ------------------------------
-# Static file serving
+# Static file serving for uploads
 # ------------------------------
 @app.get("/api/files/{saved_filename}")
 async def serve_uploaded_file(saved_filename: str):
@@ -481,45 +481,66 @@ async def serve_uploaded_file(saved_filename: str):
                         filename=os.path.basename(path))
 
 # ------------------------------
-# Upload directory & static files
+# Upload directory mount
 # ------------------------------
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-app.mount("/api/files", StaticFiles(directory=UPLOAD_DIR), name="files")
+app.mount("/uploads", StaticFiles(directory=str(visual.RAW_DIR.parent / "uploads")), name="uploads")
 
 # ------------------------------
-# Frontend static files
+# Frontend static files - IMPORTANT: This must be set up correctly
 # ------------------------------
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "dist")
 FRONTEND_DIR = os.path.abspath(FRONTEND_DIR)
 
 if os.path.exists(FRONTEND_DIR):
-    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
-    logger.info(f"✅ Frontend mounted at / from {FRONTEND_DIR}")
+    # Mount static assets (JS, CSS, images) first
+    assets_dir = os.path.join(FRONTEND_DIR, "assets")
+    if os.path.exists(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+        logger.info(f"✅ Assets mounted at /assets from {assets_dir}")
+    
+    # Check if index.html exists
+    index_path = os.path.join(FRONTEND_DIR, "index.html")
+    if os.path.exists(index_path):
+        logger.info(f"✅ Frontend index.html found at {index_path}")
+        # Log the first few lines to verify content
+        with open(index_path, 'r') as f:
+            content = f.read(500)
+            logger.info(f"📄 index.html preview: {content[:200]}...")
+    else:
+        logger.error(f"❌ index.html NOT FOUND at {index_path}")
+    
+    logger.info(f"✅ Frontend directory: {FRONTEND_DIR}")
+    # List contents
+    if os.path.exists(FRONTEND_DIR):
+        contents = os.listdir(FRONTEND_DIR)
+        logger.info(f"📁 Frontend directory contents: {contents}")
 else:
     logger.warning(f"⚠️ Frontend directory not found at {FRONTEND_DIR}. SPA will 404.")
 
 # ------------------------------
-# SPA Fallback (must be last)
+# SPA Fallback (must be last) - Serve index.html for all non-API routes
 # ------------------------------
-@app.get("/{path:path}")
-async def spa_fallback(request: Request, path: str):
-    if path.startswith("api/"):
+@app.get("/{full_path:path}")
+async def spa_fallback(request: Request, full_path: str):
+    # Don't handle API routes
+    if full_path.startswith("api/"):
         raise HTTPException(status_code=404, detail="API endpoint not found")
+    
+    # Don't handle asset routes (already mounted)
+    if full_path.startswith("assets/"):
+        raise HTTPException(status_code=404, detail="Asset not found")
+    
+    # Don't handle upload routes
+    if full_path.startswith("uploads/"):
+        raise HTTPException(status_code=404, detail="Upload not found")
 
-    file_path = os.path.join(FRONTEND_DIR, path)
-    if os.path.isfile(file_path):
-        mime_type, _ = mimetypes.guess_type(file_path)
-        return FileResponse(file_path, media_type=mime_type)
-
-    if os.path.isdir(file_path):
-        index_path = os.path.join(file_path, "index.html")
-        if os.path.isfile(index_path):
-            return FileResponse(index_path, media_type="text/html")
-
-    root_index = os.path.join(FRONTEND_DIR, "index.html")
-    if os.path.isfile(root_index):
-        return FileResponse(root_index, media_type="text/html")
-
-    raise HTTPException(status_code=404, detail="Page not found")
+    # For all other routes, serve index.html (SPA)
+    index_path = os.path.join(FRONTEND_DIR, "index.html")
+    if os.path.isfile(index_path):
+        return FileResponse(index_path, media_type="text/html")
+    
+    logger.error(f"❌ Cannot serve index.html - file not found at {index_path}")
+    raise HTTPException(status_code=404, detail="Frontend not found")
 
 logger.info("✅ FastAPI app initialized successfully")
