@@ -22,9 +22,18 @@ router = APIRouter(prefix="/api/profile", tags=["profile"])
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Upload configuration
-UPLOAD_DIR = Path("uploads/avatars")
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+# Upload configuration - works for both Docker and local development
+BASE_DIR = Path(__file__).resolve().parent.parent.parent  # /app directory
+UPLOAD_DIR = BASE_DIR / "uploads" / "avatars"
+
+# Ensure upload directory exists
+try:
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+except PermissionError:
+    # In Docker, directory is pre-created by Dockerfile
+    if not UPLOAD_DIR.exists():
+        raise RuntimeError(f"Upload directory not accessible: {UPLOAD_DIR}")
+
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
