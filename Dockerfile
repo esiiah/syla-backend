@@ -8,7 +8,9 @@ COPY frontend/package*.json ./
 RUN npm ci --legacy-peer-deps
 
 COPY frontend/ ./
-RUN npm run build
+
+# Clean any existing dist before building
+RUN rm -rf dist && npm run build
 
 # ================================
 # Stage 2: Backend Runtime
@@ -43,14 +45,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend source code
 COPY app/ ./app/
 
-# Copy frontend build artifacts
+# Copy frontend build artifacts (clean copy)
 COPY --from=frontend-builder /app/frontend/dist ./app/dist
 
 # Create unprivileged user FIRST
 RUN useradd -m -u 1000 appuser
 
 # Create all required directories with proper permissions
-# IMPORTANT: These will be overwritten by volume mounts, but we create them as a fallback
 RUN mkdir -p \
     /app/uploads/avatars \
     /app/app/raw \
