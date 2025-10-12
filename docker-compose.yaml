@@ -11,6 +11,7 @@ services:
       - .env
     environment:
       ENVIRONMENT: ${ENVIRONMENT}
+      DATABASE_URL: ${DATABASE_LOCAL_URL}
       DATABASE_LOCAL_URL: ${DATABASE_LOCAL_URL}
       DATABASE_PROD_URL: ${DATABASE_PROD_URL}
     volumes:
