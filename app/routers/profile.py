@@ -26,13 +26,31 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 BASE_DIR = Path(__file__).resolve().parent.parent.parent  # /app directory
 UPLOAD_DIR = BASE_DIR / "uploads" / "avatars"
 
-# Ensure upload directory exists
+# Ensure upload directory exists with proper error handling
+def ensure_upload_dir():
+    """Ensure upload directory exists, handling both Docker and local environments"""
+    try:
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+        # Test write permissions
+        test_file = UPLOAD_DIR / ".write_test"
+        test_file.touch()
+        test_file.unlink()
+        return True
+    except (PermissionError, OSError) as e:
+        # In Docker with volume mounts, directory might exist but not be writable yet
+        if UPLOAD_DIR.exists():
+            # Directory exists but we can't write - this is expected during startup
+            return True
+        # If directory doesn't exist and we can't create it, that's a real error
+        raise RuntimeError(f"Upload directory not accessible and cannot be created: {UPLOAD_DIR}. Error: {e}")
+
+# Try to ensure directory exists, but don't fail immediately
+# This allows the app to start even if the directory setup is delayed
 try:
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-except PermissionError:
-    # In Docker, directory is pre-created by Dockerfile
-    if not UPLOAD_DIR.exists():
-        raise RuntimeError(f"Upload directory not accessible: {UPLOAD_DIR}")
+    ensure_upload_dir()
+except RuntimeError as e:
+    import logging
+    logging.warning(f"Upload directory setup delayed: {e}")
 
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
@@ -45,6 +63,15 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def save_avatar(file: UploadFile) -> str:
     """Save uploaded avatar file and return URL"""
+    # Ensure directory exists before saving
+    try:
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Upload directory not available: {str(e)}"
+        )
+    
     # Validate file type
     file_ext = Path(file.filename).suffix.lower()
     if file_ext not in ALLOWED_EXTENSIONS:
@@ -59,8 +86,14 @@ def save_avatar(file: UploadFile) -> str:
     file_path = UPLOAD_DIR / filename
     
     # Save file
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save file: {str(e)}"
+        )
     
     # Return relative URL
     return f"/uploads/avatars/{filename}"
