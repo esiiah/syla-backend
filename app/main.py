@@ -8,6 +8,7 @@ import mimetypes
 import re
 import os
 from typing import List, Dict, Any
+from pathlib import Path
 
 import pandas as pd
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
@@ -41,6 +42,7 @@ if not DATABASE_URL:
     raise EnvironmentError(f"❌ DATABASE URL not set for environment: {ENVIRONMENT}")
 
 print(f"🔌 Using database URL for {ENVIRONMENT}: {DATABASE_URL}")
+
 # ------------------------------
 # Logging configuration
 # ------------------------------
@@ -484,7 +486,12 @@ async def serve_uploaded_file(saved_filename: str):
 # Upload directory mount
 # ------------------------------
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=str(visual.RAW_DIR.parent / "uploads")), name="uploads")
+uploads_path = Path(UPLOAD_DIR).parent
+if uploads_path.exists():
+    app.mount("/uploads", StaticFiles(directory=str(uploads_path)), name="uploads")
+    logger.info(f"✅ Uploads mounted at /uploads from {uploads_path}")
+else:
+    logger.warning(f"⚠️ Uploads directory not found at {uploads_path}")
 
 # ------------------------------
 # Frontend static files - IMPORTANT: This must be set up correctly
