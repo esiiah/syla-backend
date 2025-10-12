@@ -15,10 +15,13 @@ services:
       DATABASE_LOCAL_URL: ${DATABASE_LOCAL_URL}
       DATABASE_PROD_URL: ${DATABASE_PROD_URL}
     volumes:
-      - ./uploads:/app/uploads:delegated
+      # Use named volume for uploads to preserve permissions
+      - uploads_data:/app/uploads:delegated
       - ./app:/app/app:cached
     depends_on:
       - syla-db
+    # Use the same user ID (1000) as created in Dockerfile
+    user: "1000:1000"
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   syla-db:
@@ -36,3 +39,4 @@ services:
 
 volumes:
   postgres_data:
+  uploads_data:  # Named volume for uploads - preserves permissions
