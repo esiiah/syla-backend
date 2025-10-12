@@ -22,7 +22,7 @@ ENV PYTHONUNBUFFERED=1 \
     PORT=8000 \
     ENVIRONMENT=production
 
-# Install system deps
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
@@ -36,23 +36,32 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install Python deps
+# Install Python dependencies
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend source
+# Copy backend source code
 COPY app/ ./app/
 
-# Copy frontend build
+# Copy frontend build artifacts
 COPY --from=frontend-builder /app/frontend/dist ./app/dist
 
-# Create unprivileged user first
+# Create unprivileged user
 RUN useradd -m appuser
 
-# Create runtime dirs with correct permissions
-RUN mkdir -p /app/uploads/avatars /app/app/raw /app/app/cleaned /app/app/charts /app/app/models /app/app/tmp /app/app/stash \
-    && chown -R appuser:appuser /app/uploads /app/app
+# Create all required directories with proper permissions
+# Do this BEFORE switching to appuser
+RUN mkdir -p \
+    /app/uploads/avatars \
+    /app/app/raw \
+    /app/app/cleaned \
+    /app/app/charts \
+    /app/app/models \
+    /app/app/tmp \
+    /app/app/stash \
+    && chown -R appuser:appuser /app
 
+# Switch to unprivileged user
 USER appuser
 
 EXPOSE 8000
