@@ -1,17 +1,36 @@
 import os
 from datetime import datetime
 from typing import Optional, Dict, Any
-
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, or_
 from sqlalchemy.orm import declarative_base, sessionmaker, Session, relationship
 from sqlalchemy.exc import IntegrityError
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db").strip()
+# Get environment-aware database URL
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
+if ENVIRONMENT == "production":
+    DATABASE_URL = os.getenv("DATABASE_PROD_URL")
+else:
+    DATABASE_URL = os.getenv("DATABASE_LOCAL_URL")
+
+# Validate that DATABASE_URL is set
+if not DATABASE_URL:
+    raise EnvironmentError(
+        f"Database URL not configured for environment: {ENVIRONMENT}. "
+        f"Please set DATABASE_LOCAL_URL or DATABASE_PROD_URL in your .env file."
+    )
+
+print(f"🔌 [db.py] Connecting to database for {ENVIRONMENT}: {DATABASE_URL[:30]}...")
+
+# Create engine with PostgreSQL-appropriate settings
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
+    pool_pre_ping=True,  # Verify connections before using them
+    pool_size=5,         # Connection pool size
+    max_overflow=10,     # Max connections beyond pool_size
+    echo=False           # Set to True for SQL query logging during debugging
 )
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
