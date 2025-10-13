@@ -28,6 +28,8 @@ from .routers import help, pricing
 from . import visual
 from app import settings
 
+
+PORT = int(os.getenv("PORT", "8080"))
 # ------------------------------
 # Environment validation
 # ------------------------------
@@ -578,4 +580,4 @@ async def spa_fallback(request: Request, full_path: str):
     logger.info(f"✅ Serving index.html from {index_path}")
     return FileResponse(index_path, media_type="text/html")
 
-logger.info("✅ FastAPI app initialized successfully")
+logger.info(f"✅ FastAPI app initialized successfully on port {PORT}")
