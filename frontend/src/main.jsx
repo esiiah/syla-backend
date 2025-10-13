@@ -73,4 +73,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   </React.StrictMode>
 );
 
-serviceWorkerRegistration.register();
+// Disable SW inside code-server proxy (to avoid /api/ rewrite issue)
+if (!window.location.pathname.includes("/proxy/")) {
+  serviceWorkerRegistration.register();
+} else {
+  console.warn("[SW] Disabled in code-server proxy to avoid API path conflict");
+}
+
