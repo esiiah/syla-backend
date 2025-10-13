@@ -73,10 +73,12 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   </React.StrictMode>
 );
 
-// Disable SW inside code-server proxy (to avoid /api/ rewrite issue)
+// 🚫 Disable Service Worker inside VS Code proxy
 if (!window.location.pathname.includes("/proxy/")) {
   serviceWorkerRegistration.register();
 } else {
-  console.warn("[SW] Disabled in code-server proxy to avoid API path conflict");
+  console.warn("[SW] Disabled inside code-server proxy (avoids /api rewrite + precache errors)");
+  navigator.serviceWorker?.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
 }
+
 
