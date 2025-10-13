@@ -10,7 +10,7 @@ import Footer from "./components/Footer.jsx";
 import Navbar from "./components/Navbar";
 import ChartOptions from "./components/ChartOptions.jsx";
 import { useChartData } from "./context/ChartDataContext";
-import api from "./services/api"; // Import API utility
+import api from "./services/api"; // ✅ Import API utility
 import "./App.css";
 import './styles/forecast-animations.css';
 import { Link } from "react-router-dom";
@@ -73,29 +73,25 @@ function App() {
   }, [user]);
 
   useEffect(() => {
-    // Check authentication on mount
+    // ✅ FIXED: Check authentication on mount using api service
     const checkAuth = async () => {
       try {
-        const response = await fetch(`${config.apiBaseUrl}/auth/me`, {
-          method: 'GET',
-          credentials: 'include', // Important for cookies
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
+        const response = await api.get('/auth/me');
 
         if (response.ok) {
           const userData = await response.json();
           setUser(userData);
           localStorage.setItem("user", JSON.stringify(userData));
+          console.log("[App] User authenticated:", userData.name);
         } else {
           // Not authenticated
+          console.log("[App] Not authenticated");
           localStorage.removeItem("user");
           localStorage.removeItem("token");
           setUser(null);
         }
       } catch (error) {
-        console.error("Auth check failed:", error);
+        console.error("[App] Auth check failed:", error);
         localStorage.removeItem("user");
         localStorage.removeItem("token");
         setUser(null);
