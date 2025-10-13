@@ -120,6 +120,16 @@ def unique_filename(name: str) -> str:
     return f"{ts}_{safe}"
 
 # ------------------------------
+# FRONTEND DIRECTORY - MUST BE DEFINED EARLY
+# ------------------------------
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "dist")
+FRONTEND_DIR = os.path.abspath(FRONTEND_DIR)
+
+logger.info(f"🔍 Looking for frontend at: {FRONTEND_DIR}")
+logger.info(f"🔍 __file__ is: {__file__}")
+logger.info(f"🔍 dirname is: {os.path.dirname(__file__)}")
+
+# ------------------------------
 # PRIMARY UPLOAD ENDPOINT (MUST BE FIRST)
 # ------------------------------
 @app.post("/api/upload")
@@ -493,88 +503,79 @@ if uploads_path.exists():
 else:
     logger.warning(f"⚠️ Uploads directory not found at {uploads_path}")
 
-# Add this section BEFORE the SPA fallback route
-
 # ------------------------------
-# Service Worker - MUST be served with correct MIME type
+# Frontend static files setup
 # ------------------------------
-@app.get("/service-worker.js")
-async def serve_service_worker():
-    """Serve service worker with correct MIME type"""
-    sw_path = os.path.join(FRONTEND_DIR, "service-worker.js")
-    if not os.path.exists(sw_path):
-        logger.error(f"❌ service-worker.js not found at {sw_path}")
-        raise HTTPException(status_code=404, detail="Service worker not found")
-    return FileResponse(sw_path, media_type="application/javascript")
-
-# ------------------------------
-# Frontend static files - UPDATED
-# ------------------------------
-FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "dist")
-FRONTEND_DIR = os.path.abspath(FRONTEND_DIR)
-
 if os.path.exists(FRONTEND_DIR):
-    # Mount static assets (JS, CSS, images) first
+    logger.info(f"✅ Frontend directory exists: {FRONTEND_DIR}")
+    contents = os.listdir(FRONTEND_DIR)
+    logger.info(f"📁 Contents: {contents}")
+    
+    # Mount assets
     assets_dir = os.path.join(FRONTEND_DIR, "assets")
     if os.path.exists(assets_dir):
         app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
-        logger.info(f"✅ Assets mounted at /assets from {assets_dir}")
+        logger.info(f"✅ Assets mounted from {assets_dir}")
     
-    # Check for service worker
+    # Check service worker
     sw_path = os.path.join(FRONTEND_DIR, "service-worker.js")
+    logger.info(f"🔍 Checking service worker at: {sw_path}")
     if os.path.exists(sw_path):
-        logger.info(f"✅ service-worker.js found at {sw_path}")
+        logger.info(f"✅ service-worker.js EXISTS at {sw_path}")
     else:
         logger.error(f"❌ service-worker.js NOT FOUND at {sw_path}")
     
-    # Check if index.html exists
+    # Check index.html
     index_path = os.path.join(FRONTEND_DIR, "index.html")
     if os.path.exists(index_path):
-        logger.info(f"✅ Frontend index.html found at {index_path}")
-        # Log the first few lines to verify content
-        with open(index_path, 'r') as f:
-            content = f.read(500)
-            logger.info(f"📄 index.html preview: {content[:200]}...")
+        logger.info(f"✅ index.html found at {index_path}")
     else:
         logger.error(f"❌ index.html NOT FOUND at {index_path}")
-    
-    logger.info(f"✅ Frontend directory: {FRONTEND_DIR}")
-    # List contents
-    if os.path.exists(FRONTEND_DIR):
-        contents = os.listdir(FRONTEND_DIR)
-        logger.info(f"📁 Frontend directory contents: {contents}")
 else:
-    logger.warning(f"⚠️ Frontend directory not found at {FRONTEND_DIR}. SPA will 404.")
+    logger.error(f"❌ Frontend directory DOES NOT EXIST: {FRONTEND_DIR}")
 
 # ------------------------------
-# SPA Fallback (must be last) - UPDATED
+# Service Worker Route (BEFORE SPA FALLBACK)
+# ------------------------------
+@app.get("/service-worker.js")
+async def serve_service_worker():
+    sw_path = os.path.join(FRONTEND_DIR, "service-worker.js")
+    logger.info(f"🔍 Service worker requested. Looking at: {sw_path}")
+    
+    if not os.path.exists(sw_path):
+        logger.error(f"❌ service-worker.js NOT FOUND at {sw_path}")
+        raise HTTPException(status_code=404, detail="Service worker not found")
+    
+    logger.info(f"✅ Serving service-worker.js from {sw_path}")
+    return FileResponse(sw_path, media_type="application/javascript", headers={
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Service-Worker-Allowed": "/"
+    })
+
+# ------------------------------
+# SPA Fallback (MUST BE LAST)
 # ------------------------------
 @app.get("/{full_path:path}")
 async def spa_fallback(request: Request, full_path: str):
-    # Don't handle API routes
+    logger.info(f"📍 SPA fallback triggered for: {full_path}")
+    
     if full_path.startswith("api/"):
+        logger.warning(f"❌ API route not found: {full_path}")
         raise HTTPException(status_code=404, detail="API endpoint not found")
     
-    # Don't handle asset routes (already mounted)
     if full_path.startswith("assets/"):
         raise HTTPException(status_code=404, detail="Asset not found")
     
-    # Don't handle upload routes
     if full_path.startswith("uploads/"):
         raise HTTPException(status_code=404, detail="Upload not found")
-    
-    # Handle service worker explicitly (backup route)
-    if full_path == "service-worker.js":
-        sw_path = os.path.join(FRONTEND_DIR, "service-worker.js")
-        if os.path.isfile(sw_path):
-            return FileResponse(sw_path, media_type="application/javascript")
 
-    # For all other routes, serve index.html (SPA)
     index_path = os.path.join(FRONTEND_DIR, "index.html")
-    if os.path.isfile(index_path):
-        return FileResponse(index_path, media_type="text/html")
     
-    logger.error(f"❌ Cannot serve index.html - file not found at {index_path}")
-    raise HTTPException(status_code=404, detail="Frontend not found")
+    if not os.path.isfile(index_path):
+        logger.error(f"❌ index.html NOT FOUND at {index_path}")
+        raise HTTPException(status_code=404, detail="Frontend not found - index.html missing")
+    
+    logger.info(f"✅ Serving index.html from {index_path}")
+    return FileResponse(index_path, media_type="text/html")
 
 logger.info("✅ FastAPI app initialized successfully")
