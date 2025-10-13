@@ -1,26 +1,10 @@
 // frontend/src/services/api.js
 class ApiService {
   constructor() {
-    this.baseUrl = this.getBaseUrl();
-    console.log("[API] Base URL detected:", this.baseUrl);
-  }
-
-  getBaseUrl() {
-    const pathname = window.location.pathname;
-
-    // ✅ Detect if running inside VS Code code-server proxy
-    if (pathname.includes("/proxy/")) {
-      // Extract the proxy base path (e.g., "/proxy/8000/")
-      const proxyMatch = pathname.match(/^(\/proxy\/\d+\/)/);
-      if (proxyMatch) {
-        const proxyBase = proxyMatch[1]; // e.g., "/proxy/8000/"
-        // Construct full URL with proxy path
-        return `${window.location.origin}${proxyBase}api`;
-      }
-    }
-
-    // ✅ Normal local/production mode (Docker)
-    return import.meta.env.VITE_API_BASE_URL || "/api";
+    // ✅ SUPER SIMPLE - Just use /api (relative path)
+    // Since everything runs on the same port (8080), no proxy detection needed!
+    this.baseUrl = '/api';
+    console.log("[API] Base URL:", this.baseUrl);
   }
 
   async request(endpoint, options = {}) {
@@ -33,6 +17,7 @@ class ApiService {
       },
       ...options,
     };
+    
     console.log(`[API] ${options.method || "GET"} ${url}`);
     
     try {
