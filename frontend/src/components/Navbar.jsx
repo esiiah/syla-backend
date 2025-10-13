@@ -6,6 +6,7 @@ import {
   ChevronDown, Sun, Moon, HelpCircle, Zap, DollarSign
 } from "lucide-react";
 import { UserContext } from "../context/UserContext";
+import api from "../services/api";
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ export default function Navbar() {
     if (!user) return;
     
     try {
-      const response = await fetch('/api/notifications/', {
+      const response = await api.get('/notifications/', {
         method: 'GET',
         credentials: 'include',
         headers: {
