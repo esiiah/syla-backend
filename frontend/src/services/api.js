@@ -8,23 +8,23 @@ class ApiService {
 
   getBaseUrl() {
     const pathname = window.location.pathname;
-    
-    // Detect if running behind proxy
-    if (pathname.includes('/proxy/')) {
-      const match = pathname.match(/^(\/proxy\/\d+\/)/);
-      if (match) {
-        const proxyBase = match[1];
-        return `${window.location.origin}${proxyBase}api`;
-      }
+
+    // ✅ Detect VS Code code-server proxy, keep it RELATIVE
+    const proxyMatch = pathname.match(/\/proxy\/\d+\//);
+    if (proxyMatch) {
+      return `${proxyMatch[0]}api`; // e.g. /proxy/8000/api
     }
-    
-    // Default: direct connection
-    return `${window.location.origin}/api`;
+
+    // ✅ Fallback for local dev or direct port access
+    const envBase =
+      import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api';
+    return envBase;
   }
 
   async request(endpoint, options = {}) {
-    const url = `${this.baseUrl}${endpoint}`;
-    
+    // Ensure endpoint always begins with a slash
+    const url = `${this.baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+
     const config = {
       credentials: 'include',
       headers: {
