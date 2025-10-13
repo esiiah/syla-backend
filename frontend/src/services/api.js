@@ -7,14 +7,17 @@ class ApiService {
 
   getBaseUrl() {
     const pathname = window.location.pathname;
-    const proxyMatch = pathname.match(/\/proxy\/\d+\//);
 
-    // 👉 If running inside code-server proxy (dev)
-    if (proxyMatch) return `${proxyMatch[0]}api`;
+    // ✅ Detect if running inside VS Code code-server proxy
+    if (pathname.includes("/proxy/")) {
+      // Call backend directly, bypass proxy that drops /proxy/ paths
+      return "http://127.0.0.1:8000/api";
+    }
 
-    // 👉 Production or direct port
+    // ✅ Normal local/production mode (Docker)
     return import.meta.env.VITE_API_BASE_URL || "/api";
   }
+
 
   async request(endpoint, options = {}) {
     const url = `${this.baseUrl}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
