@@ -74,11 +74,5 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 );
 
 // 🚫 Disable Service Worker inside VS Code proxy
-if (!window.location.pathname.includes("/proxy/")) {
-  serviceWorkerRegistration.register();
-} else {
-  console.warn("[SW] Disabled inside code-server proxy (avoids /api rewrite + precache errors)");
-  navigator.serviceWorker?.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
-}
-
+serviceWorkerRegistration.unregister();
 
