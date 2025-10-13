@@ -9,7 +9,8 @@ import Features from "./components/Features.jsx";
 import Footer from "./components/Footer.jsx";
 import Navbar from "./components/Navbar";
 import ChartOptions from "./components/ChartOptions.jsx";
-import { useChartData } from "./context/ChartDataContext";  // ADD THIS
+import { useChartData } from "./context/ChartDataContext";
+import { config } from "./config.js"; // Import config
 import "./App.css";
 import './styles/forecast-animations.css';
 import { Link } from "react-router-dom";
@@ -53,24 +54,9 @@ function App() {
   const [user, setUser] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [heroGreeting, setHeroGreeting] = useState("");
-
-  // REPLACE LOCAL STATE WITH CONTEXT
   const { chartData, updateChartOptions, updateChartData, hasData } = useChartData();
-  
   const [theme, setTheme] = useState("light");
   const [showOptions, setShowOptions] = useState(false);
-
-  // helper to format how we show greeting + username (avoid duplicate punctuation)
-  const formatGreetingNode = (greeting, userName) => {
-    if (!greeting) return null;
-    const endsWithPunct = /[!?.]$/.test(greeting);
-    return (
-      <>
-        <span>{greeting}{endsWithPunct ? "" : ","} </span>
-        <span className="text-neonYellow font-bold">{userName}</span>
-      </>
-    );
-  };
 
   useEffect(() => {
     const updateGreeting = () => {
@@ -78,25 +64,46 @@ function App() {
         setHeroGreeting("");
         return;
       }
-      // createHeroGreeting now returns text WITHOUT username
       setHeroGreeting(createHeroGreeting());
     };
 
-    updateGreeting(); // initial
-    const interval = setInterval(updateGreeting, 60_000); // refresh every minute (keeps time-of-day transitions accurate)
+    updateGreeting();
+    const interval = setInterval(updateGreeting, 60_000);
     return () => clearInterval(interval);
   }, [user]);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("user");
-    if (savedUser) {
+    // Check authentication on mount
+    const checkAuth = async () => {
       try {
-        setUser(JSON.parse(savedUser));
-      } catch {
+        const response = await fetch(`${config.apiBaseUrl}/auth/me`, {
+          method: 'GET',
+          credentials: 'include', // Important for cookies
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          setUser(userData);
+          localStorage.setItem("user", JSON.stringify(userData));
+        } else {
+          // Not authenticated
+          localStorage.removeItem("user");
+          localStorage.removeItem("token");
+          setUser(null);
+        }
+      } catch (error) {
+        console.error("Auth check failed:", error);
         localStorage.removeItem("user");
         localStorage.removeItem("token");
+        setUser(null);
       }
-    }
+    };
+
+    checkAuth();
+
     const savedTheme = localStorage.getItem("theme") || "light";
     setTheme(savedTheme);
   }, []);
@@ -123,7 +130,6 @@ function App() {
       <div className="flex-1 transition-all duration-300">
         <Navbar user={user} />
 
-        {/* Main Content */}
         <main className="mx-auto max-w-7xl px-4 pb-16 pt-8">
           {/* Hero Section */}
           <div className="hero-section w-screen -mx-4 relative">
@@ -142,26 +148,21 @@ function App() {
                   </p>
 
                   <div className="flex flex-wrap gap-4 justify-center mt-8">
-                    {/* AI Forecasting Button */}
                     <Link
                       to="/forecast"
                       className="relative flex items-center justify-center p-5 rounded-full
                                          bg-gradient-to-br from-red-400/40 to-red-600/40
                                          border border-red-200/30 shadow-lg shadow-blue-300/40
                                          hover:scale-105 active:scale-95 transition-all duration-200"
-                        >
-                      
-                      {/* Moving blue dots */}
+                    >
                       <span className="absolute top-2 left-2 w-2 h-2 bg-blue-300 rounded-full animate-dot1"></span>            
                       <span className="absolute bottom-3 right-3 w-2 h-2 bg-blue-400 rounded-full animate-dot2"></span>
                       <span className="absolute bottom-2 left-2 w-2 h-2 bg-yellow-300 rounded-full animate-dot5"></span>
                       <span className="absolute top-1 right-4 w-1.5 h-1.5 bg-blue-500 rounded-full animate-dot3"></span>
-
                       <Brain size={28} className="text-white drop-shadow-lg z-10" />
                       <span className="ml-2 text-white font-semibold z-10">AI Forecasting</span>
                     </Link>
 
-                    {/* Price Listing Button */}
                     <Link
                       to="/pricing"
                       className="relative flex items-center justify-center p-5 rounded-full
@@ -169,7 +170,7 @@ function App() {
                                 hover:bg-neonBlue hover:text-white transition-all duration-300"
                     >
                       <span className="ml-2 z-10">Price Listing</span>                    
-                     </Link>
+                    </Link>
                   </div>
                 </>
               ) : (
@@ -203,7 +204,6 @@ function App() {
 
           {/* Dashboard Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-            {/* Upload Panel */}
             <section className="lg:col-span-1 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
               <div className="p-5">
                 <h2 className="font-display text-lg mb-1">Upload Data</h2>
@@ -216,13 +216,11 @@ function App() {
                       setShowLoginModal(true);
                       return;
                     }
-                    // FileUpload now handles context updating automatically
                   }}
                 />
               </div>
             </section>
 
-            {/* Chart Panel */}
             <section className="lg:col-span-2 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
               <div className="p-5">
                 <div className="flex items-center justify-between mb-3">
@@ -323,17 +321,14 @@ function App() {
             </section>
           )}
 
-          {/* Features Section */}
           <div className="mt-12">
             <Features />
           </div>
         </main>
           
-        {/* Footer */}
         <Footer />
       </div>
 
-      {/* Login Modal */}
       {showLoginModal && (
         <LoginRequiredModal
           onClose={() => setShowLoginModal(false)}
