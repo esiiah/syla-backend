@@ -74,5 +74,5 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 );
 
 // 🚫 Disable Service Worker inside VS Code proxy
-serviceWorkerRegistration.register();
+serviceWorkerRegistration.unregister();
 
