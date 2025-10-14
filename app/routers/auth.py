@@ -223,11 +223,13 @@ async def login(payload: LoginRequest):
 class GoogleLoginRequest(BaseModel):
     credential: str
 
+# Replace your @router.post("/google") endpoint with this:
 @router.post("/google")
 async def google_signin(body: GoogleLoginRequest):
+    """Sign in or sign up with Google - FIXED VERSION"""
     token = body.credential
-    """Sign in or sign up with Google"""
     client_id = os.getenv("GOOGLE_CLIENT_ID")
+    
     if not client_id:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -247,8 +249,15 @@ async def google_signin(body: GoogleLoginRequest):
         user = get_user_by_google_id(google_id)
         
         if user:
-            # User exists, log them in
-            user_data = user
+            # User exists - check if avatar needs updating
+            if avatar_url and user.get("avatar_url") != avatar_url:
+                # Update avatar URL if it changed
+                user_data = update_user_profile(
+                    user_id=user["id"],
+                    avatar_url=avatar_url
+                )
+            else:
+                user_data = user
         else:
             # Check if user exists with this email
             if email:
@@ -282,7 +291,7 @@ async def google_signin(body: GoogleLoginRequest):
         # Create response with cookie
         response = JSONResponse(content={
             "message": "Google sign-in successful",
-            "user": user_data,
+            "user": user_data,  # ENSURE full user data is returned
             "access_token": access_token,
             "token_type": "bearer"
         })

@@ -513,7 +513,7 @@ if os.path.exists(FRONTEND_DIR):
     contents = os.listdir(FRONTEND_DIR)
     logger.info(f"📁 Contents: {contents}")
     
-    # Mount assets
+    # Mount assets directory
     assets_dir = os.path.join(FRONTEND_DIR, "assets")
     if os.path.exists(assets_dir):
         app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
@@ -553,6 +553,34 @@ async def serve_service_worker():
         "Cache-Control": "no-cache, no-store, must-revalidate",
         "Service-Worker-Allowed": "/"
     })
+
+# ------------------------------
+# Static files from root (favicon, manifest, etc.) - BEFORE SPA FALLBACK
+# ------------------------------
+@app.get("/favicon.png")
+async def serve_favicon():
+    favicon_path = os.path.join(FRONTEND_DIR, "favicon.png")
+    if not os.path.exists(favicon_path):
+        logger.error(f"❌ favicon.png NOT FOUND at {favicon_path}")
+        raise HTTPException(status_code=404, detail="Favicon not found")
+    logger.info(f"✅ Serving favicon.png from {favicon_path}")
+    return FileResponse(favicon_path, media_type="image/png")
+
+@app.get("/manifest.json")
+async def serve_manifest():
+    manifest_path = os.path.join(FRONTEND_DIR, "manifest.json")
+    if not os.path.exists(manifest_path):
+        logger.error(f"❌ manifest.json NOT FOUND at {manifest_path}")
+        raise HTTPException(status_code=404, detail="Manifest not found")
+    logger.info(f"✅ Serving manifest.json from {manifest_path}")
+    return FileResponse(manifest_path, media_type="application/json")
+
+@app.get("/ads.txt")
+async def serve_ads():
+    ads_path = os.path.join(FRONTEND_DIR, "ads.txt")
+    if not os.path.exists(ads_path):
+        raise HTTPException(status_code=404, detail="ads.txt not found")
+    return FileResponse(ads_path, media_type="text/plain")
 
 # ------------------------------
 # SPA Fallback (MUST BE LAST)

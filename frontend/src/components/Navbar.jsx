@@ -1,4 +1,4 @@
-// frontend/src/components/Navbar.jsx
+// frontend/src/components/Navbar.jsx - FIXED AVATAR DISPLAY
 import React, { useState, useRef, useEffect, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { 
@@ -6,11 +6,32 @@ import {
   ChevronDown, Sun, Moon, HelpCircle, Zap, DollarSign
 } from "lucide-react";
 import { UserContext } from "../context/UserContext";
-import api from "../services/api";
+
+// Logo component with error handling
+const Logo = () => {
+  const [imageError, setImageError] = useState(false);
+  
+  if (imageError) {
+    return (
+      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-lg">
+        SA
+      </div>
+    );
+  }
+  
+  return (
+    <img
+      src="/favicon.png"
+      alt="Syla Analytics Logo"
+      className="w-10 h-10 rounded-xl"
+      onError={() => setImageError(true)}
+    />
+  );
+};
 
 export default function Navbar() {
   const navigate = useNavigate();
-  const { user, logout, theme, setTheme } = useContext(UserContext);
+  const { user, logout, theme, setTheme, checkAuthStatus } = useContext(UserContext);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -28,7 +49,7 @@ export default function Navbar() {
     if (!user) return;
     
     try {
-      const response = await api.get('/notifications/', {
+      const response = await fetch('/api/notifications/', {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -120,37 +141,33 @@ export default function Navbar() {
     setTheme(theme === "light" ? "dark" : "light");
   };
 
-const markNotificationAsRead = async (notificationId) => {
-  try {
-    await fetch(`/api/notifications/${notificationId}`, {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ read: true })
-    });
+  const markNotificationAsRead = async (notificationId) => {
+    try {
+      await fetch(`/api/notifications/${notificationId}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ read: true })
+      });
 
-    // Update local state AND refresh
-    setNotifications(prev => 
-      prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
-    );
-    
-    // Refresh to get updated list
-    await fetchNotifications();
-  } catch (error) {
-    console.error('Failed to mark notification as read:', error);
-  }
-};
+      setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+      );
+      
+      await fetchNotifications();
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
+  };
 
   const handleNotificationClick = (notification) => {
-    // Mark as read
     if (!notification.read) {
       markNotificationAsRead(notification.id);
     }
 
-    // Navigate to action URL if available
     if (notification.action_url) {
       navigate(notification.action_url);
     }
@@ -168,14 +185,26 @@ const markNotificationAsRead = async (notificationId) => {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  // Get user avatar/initial
+  // FIXED: Get user avatar/initial with proper URL handling
   const getUserDisplay = () => {
     if (user?.avatar_url) {
+      // Handle both relative and absolute URLs
+      const avatarUrl = user.avatar_url.startsWith('http') 
+        ? user.avatar_url 
+        : user.avatar_url;
+      
       return (
         <img 
-          src={user.avatar_url} 
+          src={avatarUrl} 
           alt={user.name || 'User'} 
           className="w-8 h-8 rounded-full object-cover"
+          key={user.avatar_url} // Force re-render when avatar changes
+          onError={(e) => {
+            // Fallback to initial if image fails to load
+            console.error("Avatar failed to load:", avatarUrl);
+            e.target.style.display = 'none';
+            e.target.nextSibling?.style.display = 'flex';
+          }}
         />
       );
     }
@@ -193,13 +222,8 @@ const markNotificationAsRead = async (notificationId) => {
       <nav className="bg-white dark:bg-slate-900 shadow-sm" style={{ zIndex: 'var(--z-navbar)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Logo */}
             <Link to="/" className="flex items-center gap-3">
-              <img
-                src="/favicon.png"
-                alt="Syla Analytics Logo"
-                className="w-10 h-10 rounded-xl"
-              />
+              <Logo />
               <div>
                 <h1 className="text-xl font-bold text-gray-800 dark:text-slate-200">
                   Syla Analytics
@@ -210,7 +234,6 @@ const markNotificationAsRead = async (notificationId) => {
               </div>
             </Link>
 
-            {/* Right side - Auth buttons */}
             <div className="flex items-center gap-4">
               <button
                 onClick={toggleTheme}
@@ -244,13 +267,8 @@ const markNotificationAsRead = async (notificationId) => {
     <nav className="bg-white dark:bg-slate-900 shadow-sm" style={{ zIndex: 'var(--z-navbar)' }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
           <Link to="/" className="flex items-center gap-3">
-            <img
-              src="/favicon.png"
-              alt="Syla Analytics Logo"
-              className="w-10 h-10 rounded-xl"
-            />
+            <Logo />
             <div>
               <h1 className="text-xl font-bold text-gray-800 dark:text-slate-200">
                 Syla Analytics
@@ -273,7 +291,6 @@ const markNotificationAsRead = async (notificationId) => {
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
               />
               
-              {/* Search Results Dropdown */}
               {showSearchResults && (
                 <div 
                   className="absolute top-full left-0 mt-2 w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg max-h-64 overflow-y-auto"
@@ -317,7 +334,6 @@ const markNotificationAsRead = async (notificationId) => {
 
           {/* Right side */}
           <div className="flex items-center gap-2">
-            {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
@@ -326,7 +342,6 @@ const markNotificationAsRead = async (notificationId) => {
               {theme === "light" ? <Moon size={20} /> : <Sun size={20} />}
             </button>
 
-            {/* Help and Pricing*/}
             <div className="flex items-center gap-2">
               <Link to="/help" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
                 <HelpCircle size={20} className="text-gray-600 dark:text-slate-300" />

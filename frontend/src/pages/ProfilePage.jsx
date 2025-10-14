@@ -97,68 +97,75 @@ useEffect(() => {
     }
   };
 
+  // Also update the removeAvatar function:
   const removeAvatar = async () => {
     try {
-      const response = await fetch("/api/profile/avatar", {
+     const response = await fetch("/api/profile/avatar", {
         method: "DELETE",
         credentials: "include"
       });
 
       if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
+       const error = await response.json().catch(() => ({}));
         throw new Error(error.detail || "Failed to remove avatar");
-      }
+     }
 
       const updatedUser = await response.json();
-      setUser(updatedUser);
+    
+     // CRITICAL FIX: Update context
+     setUser(updatedUser);
+    
       setAvatarFile(null);
       setAvatarPreview(null);
-      setMessage("Avatar removed successfully!");
+     setMessage("Avatar removed successfully!");
       setTimeout(() => setMessage(""), 3000);
     } catch (error) {
-      setMessage(`Failed to remove avatar: ${error.message}`);
+     setMessage(`Failed to remove avatar: ${error.message}`);
     }
   };
   
   const saveProfile = async () => {
-    setLoading(true);
+   setLoading(true);
     setMessage("");
 
     try {
       const formDataToSend = new FormData();
-      
+    
       // Add all form fields
-      Object.entries(formData).forEach(([key, value]) => {
+     Object.entries(formData).forEach(([key, value]) => {
         formDataToSend.append(key, value || "");
-      });
+     });
 
       // Add avatar if selected
-      if (avatarFile) {
-        formDataToSend.append("avatar", avatarFile);
-      }
+     if (avatarFile) {
+       formDataToSend.append("avatar", avatarFile);
+     }
 
       const response = await fetch("/api/profile", {
         method: "PUT",
-        body: formDataToSend,
-        credentials: "include"
-      });
+       body: formDataToSend,
+       credentials: "include"
+     });
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
+     if (!response.ok) {
+       const error = await response.json().catch(() => ({}));
         throw new Error(error.detail || "Failed to update profile");
       }
 
       const updatedUser = await response.json();
-      setUser(updatedUser);
-      
+    
+     // CRITICAL FIX: Update context to trigger re-render across all components
+     setUser(updatedUser);
+    
       setMessage("Profile updated successfully!");
-      setAvatarFile(null);
+     setAvatarFile(null);
       setAvatarPreview(null);
-      setTimeout(() => setMessage(""), 3000);
-    } catch (error) {
-      setMessage(`Failed to update profile: ${error.message}`);
+    
+     setTimeout(() => setMessage(""), 3000);
+   } catch (error) {
+     setMessage(`Failed to update profile: ${error.message}`);
     } finally {
-      setLoading(false);
+     setLoading(false);
     }
   };
 

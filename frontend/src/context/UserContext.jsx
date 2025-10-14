@@ -1,36 +1,34 @@
+// frontend/src/context/UserContext.jsx - FIXED VERSION
 import React, { createContext, useState, useEffect } from "react";
 
 export const UserContext = createContext();
 
 export default function UserProvider({ children }) {
   const [user, setUser] = useState(() => {
-  const storedUser = localStorage.getItem("user");
-  return storedUser ? JSON.parse(storedUser) : null;
-});
+    const storedUser = localStorage.getItem("user");
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
 
   const [theme, setTheme] = useState("light");
   const [loading, setLoading] = useState(true);
 
-  // Optional: sync user state across browser tabs
+  // Sync user state across browser tabs
   useEffect(() => {
-  const handleStorage = (event) => {
-    if (event.key === "user") {
-      setUser(event.newValue ? JSON.parse(event.newValue) : null);
-    }
-  };
-  window.addEventListener("storage", handleStorage);
-  return () => window.removeEventListener("storage", handleStorage);
-}, []);
+    const handleStorage = (event) => {
+      if (event.key === "user") {
+        setUser(event.newValue ? JSON.parse(event.newValue) : null);
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
 
   // Initialize theme and check authentication on mount
   useEffect(() => {
-    // Load theme from localStorage
     const storedTheme = localStorage.getItem("theme") || "light";
     setTheme(storedTheme);
     document.body.classList.remove("dark", "light");
     document.body.classList.add(storedTheme);
-
-    // Check authentication status
     checkAuthStatus();
   }, []);
 
@@ -45,7 +43,6 @@ export default function UserProvider({ children }) {
     try {
       setLoading(true);
       
-      // First try to get user from localStorage for immediate display
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
         try {
@@ -55,13 +52,10 @@ export default function UserProvider({ children }) {
         }
       }
 
-      // Then verify with backend
       const response = await fetch("/api/auth/me", {
         method: "GET",
-        credentials: "include", // Include cookies
-        headers: {
-          "Content-Type": "application/json"
-        }
+        credentials: "include",
+        headers: { "Content-Type": "application/json" }
       });
 
       if (response.ok) {
@@ -69,10 +63,9 @@ export default function UserProvider({ children }) {
         setUser(userData);
         localStorage.setItem("user", JSON.stringify(userData));
       } else {
-        // Clear user data if authentication failed
         setUser(null);
         localStorage.removeItem("user");
-        localStorage.removeItem("token"); // Remove old token if exists
+        localStorage.removeItem("token");
       }
     } catch (error) {
       console.error("Auth check failed:", error);
@@ -92,7 +85,7 @@ export default function UserProvider({ children }) {
 
       const response = await fetch("/api/auth/login", {
         method: "POST",
-        credentials: "include", // Include cookies
+        credentials: "include",
         body: formData
       });
 
@@ -103,11 +96,9 @@ export default function UserProvider({ children }) {
 
       const data = await response.json();
       
-      // Update user state and localStorage
       setUser(data.user);
       localStorage.setItem("user", JSON.stringify(data.user));
       
-      // Store token as backup (though we're using cookies primarily)
       if (data.access_token) {
         localStorage.setItem("token", data.access_token);
       }
@@ -129,7 +120,7 @@ export default function UserProvider({ children }) {
 
       const response = await fetch("/api/auth/signup", {
         method: "POST",
-        credentials: "include", // Include cookies
+        credentials: "include",
         body: formData
       });
 
@@ -140,11 +131,9 @@ export default function UserProvider({ children }) {
 
       const data = await response.json();
       
-      // Update user state and localStorage
       setUser(data.user);
       localStorage.setItem("user", JSON.stringify(data.user));
       
-      // Store token as backup
       if (data.access_token) {
         localStorage.setItem("token", data.access_token);
       }
@@ -158,13 +147,13 @@ export default function UserProvider({ children }) {
 
   const googleSignIn = async (token) => {
     try {
-      const formData = new FormData();
-      formData.append("token", token);
-
       const response = await fetch("/api/auth/google", {
         method: "POST",
-        credentials: "include", // Include cookies
-        body: formData
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ credential: token })
       });
 
       if (!response.ok) {
@@ -174,11 +163,10 @@ export default function UserProvider({ children }) {
 
       const data = await response.json();
       
-      // Update user state and localStorage
+      // IMPORTANT: Update user state immediately
       setUser(data.user);
       localStorage.setItem("user", JSON.stringify(data.user));
       
-      // Store token as backup
       if (data.access_token) {
         localStorage.setItem("token", data.access_token);
       }
@@ -192,26 +180,32 @@ export default function UserProvider({ children }) {
 
   const logout = async () => {
     try {
-      // Call logout endpoint to clear server-side cookie
       await fetch("/api/auth/logout", {
         method: "POST",
         credentials: "include"
-      }).catch(() => {
-        // Ignore errors for logout endpoint
-      });
+      }).catch(() => {});
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
-      // Always clear local state
       setUser(null);
       localStorage.removeItem("user");
       localStorage.removeItem("token");
     }
   };
 
+  // FIXED: Force re-render when user is updated
   const updateUser = (updatedUserData) => {
-    setUser(updatedUserData);
-    localStorage.setItem("user", JSON.stringify(updatedUserData));
+    console.log("Updating user:", updatedUserData);
+    const newUser = { ...updatedUserData };
+    setUser(newUser);
+    localStorage.setItem("user", JSON.stringify(newUser));
+    
+    // Trigger storage event for other tabs
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'user',
+      newValue: JSON.stringify(newUser),
+      oldValue: localStorage.getItem("user")
+    }));
   };
 
   const refreshAuth = async () => {
@@ -226,6 +220,8 @@ export default function UserProvider({ children }) {
         if (data.access_token) {
           localStorage.setItem("token", data.access_token);
         }
+        // Also refresh user data
+        await checkAuthStatus();
         return true;
       }
       return false;
