@@ -6,15 +6,17 @@ import { resolve } from "path"
 export default defineConfig({
   plugins: [react()],
   base: '/',
+  publicDir: 'public', // Explicitly set public directory
   build: {
     outDir: resolve(__dirname, "dist"),
     emptyOutDir: true,
     chunkSizeWarningLimit: 5000,
+    // Copy public assets to dist
+    copyPublicDir: true,
   },
   server: {
     port: 5173,
     strictPort: false,
-    historyApiFallback: true,
     // Add proxy configuration for development
     proxy: {
       '/api': {
@@ -25,6 +27,11 @@ export default defineConfig({
     }
   },
   preview: {
-    historyApiFallback: true,
+    port: 5173,
   },
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+    }
+  }
 })
