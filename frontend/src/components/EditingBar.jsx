@@ -1,12 +1,13 @@
 // frontend/src/components/EditingBar.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { CHART_TYPES } from '../utils/chartConfigs';
 import { 
   Menu, Settings, Palette, Type, Move, RotateCcw, RotateCw, 
   BarChart3, LineChart, PieChart, Circle, AreaChart, TrendingUp, 
   SortAsc, SortDesc, Grid, Layers, Eye, EyeOff, Sliders, 
   Plus, Minus, RefreshCw, Undo2, Redo2, Save, Download,
-  Maximize2, Minimize2, ZoomIn, ZoomOut, Copy, Trash2, BarChart2
+  Maximize2, Minimize2, ZoomIn, ZoomOut, Copy, Trash2, BarChart2, Target, Gauge, BarChart
 } from "lucide-react";
 
 export default function EditingBar({ 
@@ -19,11 +20,18 @@ export default function EditingBar({
   const [gradientBarRef, setGradientBarRef] = useState(null);
 
   const chartTypes = [
-    { type: "bar", icon: BarChart3, label: "Bar" },
-    { type: "line", icon: LineChart, label: "Line" },
-    { type: "area", icon: AreaChart, label: "Area" },
-    { type: "pie", icon: PieChart, label: "Pie" },
-    { type: "scatter", icon: Circle, label: "Scatter" }
+    { type: CHART_TYPES.BAR, icon: BarChart, label: "Bar" },,
+    { type: CHART_TYPES.LINE, icon: LineChart, label: "Line" },
+    { type: CHART_TYPES.AREA, icon: AreaChart, label: "Area" },
+    { type: CHART_TYPES.PIE, icon: PieChart, label: "Pie" },
+    { type: CHART_TYPES.SCATTER, icon: Circle, label: "Scatter" },
+    { type: CHART_TYPES.COLUMN, icon: BarChart2, label: "Column" },
+    { type: CHART_TYPES.DOUGHNUT, icon: PieChart, label: "Doughnut" },
+    { type: CHART_TYPES.BUBBLE, icon: Circle, label: "Bubble" },
+    { type: CHART_TYPES.RADAR, icon: Target, label: "Radar" },
+    { type: CHART_TYPES.COMPARISON, icon: BarChart, label: "Compare" },
+    { type: CHART_TYPES.STACKED_BAR, icon: Layers, label: "Stacked" },
+    { type: CHART_TYPES.GAUGE, icon: Gauge, label: "Gauge" }
   ];
 
   const colorPresets = [
@@ -194,6 +202,19 @@ export default function EditingBar({
             >
               <Palette size={18} />
             </button>
+
+            <button
+            onClick={() => onOptionsChange({ enable3D: !chartOptions.enable3D })}
+            className={`p-2 rounded-lg transition-colors ${
+              chartOptions.enable3D 
+                ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' 
+                : 'hover:bg-gray-100 dark:hover:bg-slate-700'
+            }`}
+            title="Toggle 3D Effect"
+          >
+            <Layers size={18} />
+          </button>
+          
             {activeDropdown === 'colors' && (
               <div 
                 className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg p-3 min-w-[280px]"
@@ -210,6 +231,7 @@ export default function EditingBar({
                     />
                   ))}
                 </div>
+
                 
                 <div className="mb-3">
                   <input

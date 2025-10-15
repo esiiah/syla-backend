@@ -2,6 +2,8 @@
 import React, { useRef } from 'react';
 import { X, Download, Maximize2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Bar, Line, Pie, Scatter } from 'react-chartjs-2';
+import { CHART_TYPES, getChartConfig } from '../../utils/chartConfigs';
+import { DoughnutChart, RadarChart, BubbleChart, GaugeChart } from '../charts/AdvancedChartRenderer';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -39,14 +41,25 @@ export default function ExpandedChartModal({
 
   if (!data) return null;
 
-  const chartComponents = {
-    bar: Bar,
-    line: Line,
-    pie: Pie,
-    scatter: Scatter
+  const getChartComponent = () => {
+    switch (chartType) {
+      case 'bar': return Bar;
+      case 'line': return Line;
+      case 'area': return Line;
+      case 'pie': return Pie;
+      case 'scatter': return Scatter;
+      case 'doughnut': return DoughnutChart;
+      case 'radar': return RadarChart;
+      case 'bubble': return BubbleChart;
+      case 'gauge': return GaugeChart;
+      case 'column': return Bar;
+      case 'comparison': return Bar;
+      case 'stacked_bar': return Bar;
+      default: return Bar;
+    }
   };
-
-  const ChartComponent = chartComponents[chartType];
+   
+  const ChartComponent = getChartComponent();
 
   const chartConfig = {
     bar: {
@@ -61,18 +74,57 @@ export default function ExpandedChartModal({
       bgColor: 'rgba(34, 197, 94, 0.2)',
       borderColor: 'rgb(34, 197, 94)'
     },
+    area: {
+      color: '34, 197, 94',
+      colorEnd: '5, 150, 105',
+      bgColor: 'rgba(34, 197, 94, 0.2)',
+      borderColor: 'rgb(34, 197, 94)'
+    },
     pie: {
       color: '168, 85, 247',
       colors: ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#6366f1', '#f97316']
+    },
+    doughnut: {
+      color: '168, 85, 247',
+      colors: ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#6366f1', '#f97316']
+    },
+    radar: {
+      color: '16, 185, 129',
+      bgColor: 'rgba(16, 185, 129, 0.2)',
+      borderColor: 'rgb(16, 185, 129)'
     },
     scatter: {
       color: '249, 115, 22',
       colorEnd: '239, 68, 68',
       bgColor: 'rgba(249, 115, 22, 0.6)',
       borderColor: 'rgb(249, 115, 22)'
-    }
+    },
+    bubble: {
+      color: '234, 179, 8',
+      bgColor: 'rgba(234, 179, 8, 0.4)',
+      borderColor: 'rgb(234, 179, 8)'
+    },
+    gauge: {
+      color: '59, 130, 246',
+      bgColor: 'rgba(59, 130, 246, 0.3)',
+      borderColor: 'rgb(59, 130, 246)'
+    },
+    column: {
+      color: '59, 130, 246',
+      bgColor: 'rgba(59, 130, 246, 0.7)',
+      borderColor: 'rgb(59, 130, 246)'
+    },
+    comparison: {
+      color: '34, 197, 94',
+      bgColor: 'rgba(34, 197, 94, 0.7)',
+      borderColor: 'rgb(34, 197, 94)'
+    },
+    stacked_bar: {
+      color: '34, 197, 94',
+      bgColor: 'rgba(34, 197, 94, 0.7)',
+      borderColor: 'rgb(34, 197, 94)'
+   }
   };
-
   const config = chartConfig[chartType];
 
   // Prepare chart data
@@ -119,6 +171,47 @@ export default function ExpandedChartModal({
       fill: false
     });
   }
+  
+  const formatChartData = () => {
+    if (chartType === 'area') {
+      return {
+        ...chartData,
+        datasets: chartData.datasets.map(ds => ({
+          ...ds,
+          fill: true,
+          backgroundColor: 'rgba(59, 130, 246, 0.2)',
+          tension: 0.4
+        }))
+      };
+    }
+    
+    if (chartType === 'doughnut') {
+      return {
+        ...chartData,
+        datasets: chartData.datasets.map(ds => ({
+          ...ds,
+          cutout: '60%'
+        }))
+      };
+    }
+     
+    if (chartType === 'stacked_bar') {
+      return {
+        ...chartData,
+        datasets: [
+          { ...chartData.datasets[0], label: 'Series 1' },
+          {
+            ...chartData.datasets[0],
+            label: 'Series 2',
+            data: chartData.datasets[0].data.map(v => v * 0.7),
+            backgroundColor: 'rgba(34, 197, 94, 0.7)'
+          }
+        ]
+      };
+    }
+     
+    return chartData;
+  };
 
   const options = {
     responsive: true,
@@ -213,6 +306,12 @@ export default function ExpandedChartModal({
       mode: 'index'
     }
   };
+  if (chartType === 'stacked_bar') {
+    options.scales = {
+      x: { stacked: true },
+      y: { stacked: true, beginAtZero: true }
+    };
+  }
 
   const handleExportImage = () => {
     const chart = chartRef.current;

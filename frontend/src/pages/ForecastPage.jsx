@@ -11,6 +11,7 @@ import ExpandedChartModal from '../components/forecast/ExpandedChartModal';
 import { UserContext } from '../context/UserContext';
 import { useChartData } from '../context/ChartDataContext';
 import aiApi from '../services/aiApi';
+import ForecastPagination from '../components/forecast/ForecastPagination';
 
 export default function ForecastPage() {
   const navigate = useNavigate();
@@ -227,7 +228,7 @@ export default function ForecastPage() {
           {/* Charts Grid - Only show after forecast */}
           {forecastResult && (
             <div className="mb-6">
-              <ForecastChartGrid
+              <ForecastPagination
                 forecastData={forecastResult.forecast}
                 onChartClick={handleChartClick}
                 selectedChart={selectedChart}

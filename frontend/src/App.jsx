@@ -10,9 +10,11 @@ import Footer from "./components/Footer.jsx";
 import Navbar from "./components/Navbar";
 import ChartOptions from "./components/ChartOptions.jsx";
 import { useChartData } from "./context/ChartDataContext";
-import api from "./services/api"; // ✅ Import API utility
+import ChartSummaryReport from './components/ChartSummaryReport';
+import api from "./services/api"; 
 import "./App.css";
 import './styles/forecast-animations.css';
+import './styles/chart-themes.css'; 
 import { Link } from "react-router-dom";
 import { Settings, Brain } from "lucide-react";
 
@@ -278,45 +280,15 @@ function App() {
           </div>
           
           {/* Summary Section */}
-          {Object.keys(chartData.summary || {}).length > 0 && user && (
-            <section className="mt-6 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
-              <div className="p-5">
-                <h2 className="font-display text-lg mb-4">Summary</h2>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gray-100 dark:bg-black/30">
-                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-slate-200">Column</th>
-                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700 dark:text-slate-200">Details</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(chartData.summary || {}).map(([col, details], i) => (
-                        <tr key={i} className="odd:bg-gray-50 dark:odd:bg-black/20 border-b border-gray-200 dark:border-white/5 align-top">
-                          <td className="px-4 py-2 text-sm font-medium text-gray-800 dark:text-slate-200">{col}</td>
-                          <td className="px-4 py-2 text-sm text-gray-600 dark:text-slate-300">
-                            {details && typeof details === "object" ? (
-                              <table className="min-w-[200px] border border-gray-200 dark:border-white/10 rounded-lg overflow-hidden">
-                                <tbody>
-                                  {Object.entries(details).map(([k, v], j) => (
-                                    <tr key={j} className="odd:bg-gray-100 dark:odd:bg-black/30">
-                                      <td className="px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-slate-200 border-r border-gray-200 dark:border-white/10">{k}</td>
-                                      <td className="px-3 py-1.5 text-xs text-gray-600 dark:text-slate-300">{String(v)}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            ) : String(details)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </section>
-          )}
 
+          {Object.keys(chartData.summary || {}).length > 0 && user && (
+            <ChartSummaryReport 
+              summary={chartData.summary}
+              data={chartData.data}
+              chartTitle={chartData.chartTitle}
+            />
+          )}
+          
           <div className="mt-12">
             <Features />
           </div>

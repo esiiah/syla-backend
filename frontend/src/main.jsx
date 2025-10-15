@@ -19,6 +19,7 @@ import HelpPage from "./pages/HelpPage.jsx";
 import DocsPage from "./pages/DocsPage.jsx";
 import PricingPage from "./pages/PricingPage.jsx";
 import "./index.css";
+import './styles/chart-themes.css';
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

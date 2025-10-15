@@ -108,6 +108,33 @@ export default function ChartExportTool({
     };
   }, [isDragging, dragOffset]);
 
+  // Helper function to draw chart with custom background
+  const drawChartWithBackground = (chartInstance, backgroundColor, format) => {
+    if (!chartInstance || !chartInstance.canvas) {
+      throw new Error('Chart instance not available');
+    }
+
+    const originalCanvas = chartInstance.canvas;
+    const exportCanvas = document.createElement('canvas');
+    
+    // Set dimensions to match original
+    exportCanvas.width = originalCanvas.width;
+    exportCanvas.height = originalCanvas.height;
+    
+    const ctx = exportCanvas.getContext('2d');
+    
+    // Paint background color (default to white)
+    ctx.fillStyle = backgroundColor || '#ffffff';
+    ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+    
+    // Draw original chart on top
+    ctx.drawImage(originalCanvas, 0, 0);
+    
+    // Return data URL with specified format
+    const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+    return exportCanvas.toDataURL(mimeType, format === 'jpeg' ? 0.95 : 1.0);
+  };
+
   const updateConfig = (key, value) => {
     setExportConfig(prev => ({ ...prev, [key]: value }));
   };
@@ -143,26 +170,49 @@ export default function ChartExportTool({
           });
         }
       } else {
-        // Export as image format
+                // Export as image format (PNG, JPEG, SVG, PDF)
         if (onExportImage) {
-          // For image exports, we need to ensure white background is applied
-          const imageExportConfig = {
-            format,
-            background: background || "#ffffff", // Force white if not set
-            dpi,
-            filename: finalFilename,
-            includeMetadata,
-            includeWatermark: exportConfig.includeWatermark,
-            watermarkText: exportConfig.watermarkText
-          };
+          // For PNG and JPEG, we handle the export here with background
+          if (format === 'png' || format === 'jpeg') {
+            const imageExportConfig = {
+              format,
+              background: background || "#ffffff",
+              dpi,
+              filename: finalFilename,
+              includeMetadata,
+              includeWatermark: exportConfig.includeWatermark,
+              watermarkText: exportConfig.watermarkText,
+              useCustomBackground: true
+            };
 
-          await onExportImage(format, imageExportConfig);
-          
-          setExportStatus({ 
-            type: 'success', 
-            message: `${format.toUpperCase()} exported successfully!`,
-            action: 'download'
-          });
+            // Pass config to parent which will handle the actual export
+            await onExportImage(format, imageExportConfig);
+            
+            setExportStatus({ 
+              type: 'success', 
+              message: `${format.toUpperCase()} with white background exported successfully!`,
+              action: 'download'
+            });
+          } else {
+            // For SVG and PDF, use default export
+            const imageExportConfig = {
+              format,
+              background: background || "#ffffff",
+              dpi,
+              filename: finalFilename,
+              includeMetadata,
+              includeWatermark: exportConfig.includeWatermark,
+              watermarkText: exportConfig.watermarkText
+            };
+
+            await onExportImage(format, imageExportConfig);
+            
+            setExportStatus({ 
+              type: 'success', 
+              message: `${format.toUpperCase()} exported successfully!`,
+              action: 'download'
+            });
+          }
         }
       }
 

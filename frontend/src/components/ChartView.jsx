@@ -7,6 +7,17 @@ import {
   BarElement, PointElement, LineElement, ArcElement,
   Title, Tooltip, Legend, Filler
 } from "chart.js";
+import { 
+     DoughnutChart, 
+     RadarChart, 
+     BubbleChart, 
+     GaugeChart, 
+     ColumnChart,
+     ComparisonChart,
+     StackedBarChart
+   } from './charts/AdvancedChartRenderer';
+
+import { CHART_TYPES, getChartConfig } from '../utils/chartConfigs';
 import { Bar, Line, Pie, Scatter } from "react-chartjs-2";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import { TrendingUp, Download, Edit3 } from "lucide-react";
@@ -199,17 +210,37 @@ export default function ChartView({
     if (options.type === "scatter") {
       return {
         labels: lbls,
-        datasets: [{
+       datasets: [{
           label: yAxis || "Value",
-          data: safeVals.map((v, i) => ({ x: i, y: v })),
+         data: safeVals.map((v, i) => ({ x: i, y: v })),
           backgroundColor: finalColors,
           borderColor: borderColors,
+         pointBackgroundColor: finalColors,
+         pointBorderColor: borderColors,
+          pointBorderWidth: selectedBars.length > 0 ? 3 : 2,
           showLine: false,
-          pointRadius: 6,
+         pointRadius: 6,
           pointHoverRadius: 8,
-          borderWidth: selectedBars.length > 0 ? 3 : 1
-        }]
-      };
+          pointStyle: 'circle',
+          borderWidth: 0
+       }]
+     };
+    }
+
+    if (options.type === CHART_TYPES.AREA) {
+      // Create gradient for area chart
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+         
+      const color1 = options.color || '#2563eb';
+      const color2 = options.gradientStops?.[1] || '#93c5fd';
+         
+      gradient.addColorStop(0, color1);
+      gradient.addColorStop(1, color2);
+         
+      chartData.datasets[0].backgroundColor = gradient;
+      chartData.datasets[0].fill = true;
     }
 
     const core = {
@@ -252,6 +283,27 @@ export default function ChartView({
         borderDash: [5, 5]
       });
     }
+
+    if (options.type === CHART_TYPES.BUBBLE) {
+     // Bubble needs {x, y, r} format
+     chartData.datasets[0].data = vals.map((y, i) => ({
+       x: i,
+       y: y,
+       r: Math.abs(y / 10) + 5 // Bubble size based on value
+     }));
+   }
+
+   if (options.type === CHART_TYPES.GAUGE) {
+     // Gauge needs single value
+     const avgValue = vals.reduce((a, b) => a + b, 0) / vals.length;
+     return (
+       <GaugeChart 
+         value={avgValue}
+         max={Math.max(...vals) * 1.2}
+         options={chartOptions}
+       />
+     );
+   }
 
     return { labels: lbls, datasets: ds };
   }, [options, lbls, vals, safeVals, perColor, yAxis, map, safeCmp, cmp, selectedBars]);
@@ -323,11 +375,21 @@ export default function ChartView({
           borderColor: '#2563eb',
           borderWidth: 1,
           callbacks: {
-            label: ctx => {
+            title: ctx => {
+              if (options.type === "scatter" && ctx[0]) {
+                const xIndex = Math.round(ctx[0].parsed.x);
+               return lbls[xIndex] || `Point ${xIndex}`;
+               }
+              return ctx[0]?.label || "";
+           },
+           label: ctx => {
               const originalValue = ctx.dataset.originalData ? ctx.dataset.originalData[ctx.dataIndex] : ctx.formattedValue;
               const selected = selectedBars.includes(lbls[ctx.dataIndex]) ? " (Selected)" : "";
-              return `${ctx.dataset.label}: ${originalValue?.toLocaleString() || originalValue}${selected}`;
-            }
+              if (options.type === "scatter") {
+               return `${ctx.dataset.label}: ${originalValue?.toLocaleString() || originalValue}${selected}`;
+              }
+               return `${ctx.dataset.label}: ${originalValue?.toLocaleString() || originalValue}${selected}`;
+             }
           }
         }
       },
@@ -369,39 +431,126 @@ export default function ChartView({
       };
     }
 
+    if (options.enable3D && CHART_FEATURES[options.type]?.supports3D) {
+      chartData.datasets = chartData.datasets.map(dataset => ({
+       ...dataset,
+        borderWidth: 3,
+        shadowOffsetX: 3,
+        shadowOffsetY: 3,
+        shadowBlur: 10,
+        shadowColor: 'rgba(0, 0, 0, 0.3)'
+      }));
+    }
+
     if (options.type === "scatter") {
       opts.scales.x = {
         type: "linear",
         ticks: {
           color: tc,
-          callback: v => (Number.isInteger(v) && lbls[v]) ? lbls[v] : "",
-          stepSize: 1
-        },
-        min: -0.5,
-        max: lbls.length - 0.5
-      };
+         callback: v => {
+            const index = Math.round(v);
+           return (Number.isInteger(v) && index >= 0 && index < lbls.length) ? lbls[index] : "";
+         },
+         stepSize: 1
+       },
+       grid: { color: "rgba(0,0,0,0.1)" },
+       min: -0.5,
+       max: Math.max(0, lbls.length - 0.5)
+     };
     }
 
     return opts;
   }, [options, lbls, yAxis, onBarClick, onLegendToggle, selectedBars, selectionMode, minPos]);
 
-  const ChartComponent = options.type === "line" || options.type === "area" ? Line :
-    options.type === "pie" ? Pie :
-    options.type === "scatter" ? Scatter : Bar;
 
-  // Export functions
-  const exportImage = (format) => {
+   const getChartComponent = () => {
+     const config = getChartConfig(options.type);
+     
+     switch (options.type) {
+       case CHART_TYPES.BAR:
+         return Bar;
+       case CHART_TYPES.LINE:
+         return Line;
+       case CHART_TYPES.AREA:
+         return Line; // Line with fill
+       case CHART_TYPES.PIE:
+         return Pie;
+       case CHART_TYPES.SCATTER:
+         return Scatter;
+       case CHART_TYPES.DOUGHNUT:
+         return DoughnutChart;
+       case CHART_TYPES.RADAR:
+         return RadarChart;
+       case CHART_TYPES.BUBBLE:
+         return BubbleChart;
+       case CHART_TYPES.GAUGE:
+         return GaugeChart;
+       case CHART_TYPES.COLUMN:
+         return ColumnChart;
+       case CHART_TYPES.COMPARISON:
+         return ComparisonChart;
+       case CHART_TYPES.STACKED_BAR:
+         return StackedBarChart;
+       default:
+         return Bar;
+     }
+   };
+   
+   const ChartComponent = getChartComponent();
+
+  const exportImage = (format, config = {}) => {
     const chart = ref.current;
-    if (!chart?.toBase64Image) {
+    if (!chart?.canvas) {
       alert('Chart not ready for export');
       return;
     }
-    
-    const url = chart.toBase64Image(format === "jpeg" ? "image/jpeg" : "image/png");
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${chartTitle || 'chart'}.${format}`;
-    a.click();
+
+    try {
+      let dataURL;
+      
+      // For PNG and JPEG with custom background
+      if ((format === 'png' || format === 'jpeg') && config.useCustomBackground) {
+        const originalCanvas = chart.canvas;
+        const exportCanvas = document.createElement('canvas');
+        
+        // Match original dimensions
+        exportCanvas.width = originalCanvas.width;
+        exportCanvas.height = originalCanvas.height;
+        
+        const ctx = exportCanvas.getContext('2d');
+        
+        // Validate and apply background
+        const backgroundColor = config.background || '#ffffff';
+        
+        // Paint background first
+        ctx.fillStyle = backgroundColor;
+        ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+        
+        // Draw chart on top of background
+        ctx.drawImage(originalCanvas, 0, 0);
+        
+        // Convert to data URL with proper format
+        const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+        const quality = format === 'jpeg' ? 0.95 : 1.0;
+        dataURL = exportCanvas.toDataURL(mimeType, quality);
+      } else {
+        // Fallback to default Chart.js export
+        const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+        dataURL = chart.toBase64Image(mimeType);
+      }
+      
+      // Create and trigger download
+      const a = document.createElement('a');
+      a.href = dataURL;
+      a.download = config.filename || `${chartTitle || 'chart'}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export chart: ' + error.message);
+    }
   };
 
   const exportData = (format) => {
@@ -519,7 +668,7 @@ export default function ChartView({
           <button
             onClick={() => setShowExportTool(!showExportTool)}
             className="flex items-center gap-2 px-2.5 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 dark:border-white/20 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors text-sm font-medium"
-            title="Export Chart"
+            title="Export Chart (PNG, JPEG with white background)"
           >
             <Download size={16} />
             Export

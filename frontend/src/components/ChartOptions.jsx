@@ -3,8 +3,10 @@ import React, { useState, useEffect } from "react";
 import { 
   Settings, Palette, BarChart, TrendingUp, SortAsc, Ruler, Download, 
   Filter, Sliders, Grid, Eye, Save, RefreshCw, ChevronDown, ChevronUp,
-  BarChart2, LineChart, AreaChart, PieChart, Circle
+  BarChart2, LineChart, AreaChart, PieChart, Circle, Target, Layers, Gauge
 } from "lucide-react";
+
+import { CHART_TYPES, CHART_FEATURES, getChartConfig } from '../utils/chartConfigs';
 
 function ChartOptions({ 
   options = {}, 
@@ -43,7 +45,7 @@ function ChartOptions({
   // Get unique values for filter dropdowns
   const getUniqueValues = (column) => {
     if (!data.length) return [];
-    const values = [...new Set(data.map(row => row[col]).filter(v => v != null))];
+    const values = [...new Set(data.map(row => row[column]).filter(v => v != null))];
     return values.slice(0, 50); // Limit to prevent UI overflow
   };
 
@@ -85,11 +87,20 @@ function ChartOptions({
   };
 
   // Validation and chart type compatibility
-  const chartType = local.type || "bar";
-  const supportsCompare = !["pie", "scatter"].includes(chartType);
-  const supportsTrendline = ["bar", "line"].includes(chartType);
-  const supportsLog = ["bar", "line", "scatter"].includes(chartType);
-  const supportsStacking = ["bar"].includes(chartType);
+  const allChartTypes = [
+    { value: CHART_TYPES.BAR, label: "Bar", icon: BarChart },
+    { value: CHART_TYPES.LINE, label: "Line", icon: LineChart },
+    { value: CHART_TYPES.AREA, label: "Area", icon: AreaChart },
+    { value: CHART_TYPES.PIE, label: "Pie", icon: PieChart },
+    { value: CHART_TYPES.SCATTER, label: "Scatter", icon: Circle },
+    { value: CHART_TYPES.COLUMN, label: "Column", icon: BarChart2 },
+    { value: CHART_TYPES.DOUGHNUT, label: "Doughnut", icon: PieChart },
+    { value: CHART_TYPES.BUBBLE, label: "Bubble", icon: Circle },
+    { value: CHART_TYPES.RADAR, label: "Radar", icon: Target },
+    { value: CHART_TYPES.COMPARISON, label: "Compare", icon: BarChart },
+    { value: CHART_TYPES.STACKED_BAR, label: "Stacked", icon: Layers },
+    { value: CHART_TYPES.GAUGE, label: "Gauge", icon: Gauge },
+  ];
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -122,6 +133,9 @@ function ChartOptions({
     { id: "advanced", label: "Advanced", icon: Settings }
   ];
 
+  const chartConfig = getChartConfig(local.type) || {};
+  const features = chartConfig.features || {};
+ 
   return (
     <div className="mt-4 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5">
       {/* Header */}
@@ -353,35 +367,31 @@ function ChartOptions({
             {/* Chart type */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                Chart Type
+               Chart Type
               </label>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {[
-                  { value: "bar", label: "Bar", icon: BarChart2 },
-                  { value: "line", label: "Line", icon: LineChart },
-                  { value: "area", label: "Area", icon: AreaChart },
-                  { value: "pie", label: "Pie", icon: PieChart },
-                  { value: "scatter", label: "Scatter", icon: Circle },
-                  { value: "stacked_bar", label: "Stacked", icon: BarChart }
-                ].map(type => {
+
+              {/* Chart type buttons */}
+              <div className="flex gap-2 overflow-x-auto pb-2">
+               {allChartTypes.map((type) => {
                   const Icon = type.icon;
                   return (
-                    <button
-                      key={type.value}
+                   <button
+                     key={type.value}
                       onClick={() => commit({ type: type.value })}
-                      className={`flex flex-col items-center p-4 rounded-2xl text-sm font-medium transition-all ${
-                        local.type === type.value
-                          ? "border-blue-500 bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-lg"
+                      className={`flex flex-col items-center justify-center p-4 rounded-2xl text-sm font-medium transition-all ${
+                       local.type === type.value
+                         ? "border-blue-500 bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-lg"
                           : "border-gray-200 hover:border-gray-300 dark:border-slate-600 dark:hover:border-slate-500 bg-gradient-to-br from-blue-400/40 to-blue-600/40 text-white shadow-md"
                       }`}
                     >
                       <Icon size={24} className="mb-1 drop-shadow-lg" />
-                      {type.label}
+                     {type.label}
                     </button>
                   );
-                })}
-              </div>
+               })}
+             </div>
             </div>
+
 
             {/* Display options */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -601,18 +611,6 @@ function ChartOptions({
                   <span className="text-sm">Show Data Labels</span>
                 </label>
 
-                {supportsTrendline && (
-                  <label className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={local.trendline || false}
-                      onChange={e => commit({ trendline: e.target.checked })}
-                      className="rounded"
-                    />
-                    <span className="text-sm">Show Trendline</span>
-                  </label>
-                )}
-
                 {supportsLog && (
                   <div>
                     <label className="flex items-center gap-3 mb-2">
@@ -639,29 +637,53 @@ function ChartOptions({
                 )}
               </div>
             </div>
-
-            {/* Comparison */}
-            {supportsCompare && (
-              <div>
-                <h4 className="font-medium text-gray-700 dark:text-slate-300 mb-3">Comparison</h4>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                    Compare with Second Metric
-                  </label>
-                  <select
-                    value={local.compareField || ""}
-                    onChange={e => commit({ compareField: e.target.value })}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
-                  >
-                    <option value="">None</option>
-                    {numericColumns.map(col => (
-                      <option key={col} value={col}>{col}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Second metric will be displayed on a secondary axis
-                  </p>
-                </div>
+  
+            // Only show trendline if supported
+            {features.supportsTrendline && (
+               <label className="flex items-center gap-3">
+                <input
+                   type="checkbox"
+                   checked={local.trendline || false}
+                   onChange={e => commit({ trendline: e.target.checked })}
+                   className="rounded"
+                 />
+                   <span className="text-sm">Show Trendline</span>
+              </label>
+              )}
+   
+              // Only show log scale if supported
+              {features.supportsLogScale && (
+              <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={local.logScale || false}
+                    onChange={e => commit({ logScale: e.target.checked })}
+                  className="rounded"
+                   />
+                   <span className="text-sm">Logarithmic Scale</span>
+              </label>
+            )}
+   
+            // Add 3D toggle
+            {features.supports3D && (
+              <label className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={local.enable3D || false}
+                  onChange={e => commit({ enable3D: e.target.checked })}
+                  className="rounded"
+                />
+                <span className="text-sm">3D Effect</span>
+              </label>
+            )}
+   
+            // Gradient is ALWAYS available for area charts
+            {local.type === CHART_TYPES.AREA && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">
+                   <strong>Area Chart Gradient:</strong> Automatically applied
+                </p>
+                {/* Show gradient stop controls */}
               </div>
             )}
 
