@@ -20,7 +20,7 @@ export default function EditingBar({
   const [gradientBarRef, setGradientBarRef] = useState(null);
 
   const chartTypes = [
-    { type: CHART_TYPES.BAR, icon: BarChart, label: "Bar" },,
+    { type: CHART_TYPES.BAR, icon: BarChart3, label: "Bar" },
     { type: CHART_TYPES.LINE, icon: LineChart, label: "Line" },
     { type: CHART_TYPES.AREA, icon: AreaChart, label: "Area" },
     { type: CHART_TYPES.PIE, icon: PieChart, label: "Pie" },
@@ -62,7 +62,6 @@ export default function EditingBar({
     setActiveDropdown(null);
   };
 
-  // Gradient handling
   const handleGradientToggle = () => {
     const newGradient = !chartOptions.gradient;
     const updates = { gradient: newGradient };
@@ -81,7 +80,6 @@ export default function EditingBar({
     const position = (event.clientX - rect.left) / rect.width;
     const newColor = interpolateColor(chartOptions.gradientStops || [], position);
     
-    // Add new gradient stop
     const stops = [...(chartOptions.gradientStops || [])];
     const insertIndex = Math.floor(position * stops.length);
     stops.splice(insertIndex, 0, newColor);
@@ -110,18 +108,15 @@ export default function EditingBar({
     const segmentIndex = Math.min(Math.floor(position / segmentSize), stops.length - 2);
     const segmentPosition = (position - segmentIndex * segmentSize) / segmentSize;
     
-    // Simple color interpolation (you might want to use a more sophisticated method)
-    return stops[segmentIndex]; // For now, just return the nearest color
+    return stops[segmentIndex];
   };
 
   return (
     <div
       className={`bg-white dark:bg-slate-800 shadow-lg ${className}`}
-      style={{ zIndex: 30 }} // Lower than navbar but higher than content
-      >
-      {/* Main Toolbar */}
+      style={{ zIndex: 30 }}
+    >
       <div className="px-4 py-2 flex items-center justify-between">
-        {/* Left Section - Sidebar Toggle & File Operations */}
         <div className="flex items-center gap-1">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -150,9 +145,7 @@ export default function EditingBar({
           </button>
         </div>
 
-        {/* Center Section - Chart Tools */}
         <div className="flex items-center gap-1">
-          {/* Chart Type Dropdown */}
           <div className="relative">
             <button
               onClick={() => toggleDropdown('chartType')}
@@ -171,7 +164,7 @@ export default function EditingBar({
             {activeDropdown === 'chartType' && (
               <div 
                 className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg min-w-[120px]"
-                style={{ zIndex: 70 }} // Higher than navbar dropdowns
+                style={{ zIndex: 70 }}
               >
                 {chartTypes.map(({ type, icon: Icon, label }) => (
                   <button
@@ -189,7 +182,6 @@ export default function EditingBar({
             )}
           </div>
 
-          {/* Color Picker Dropdown */}
           <div className="relative">
             <button
               onClick={() => toggleDropdown('colors')}
@@ -202,23 +194,11 @@ export default function EditingBar({
             >
               <Palette size={18} />
             </button>
-
-            <button
-            onClick={() => onOptionsChange({ enable3D: !chartOptions.enable3D })}
-            className={`p-2 rounded-lg transition-colors ${
-              chartOptions.enable3D 
-                ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' 
-                : 'hover:bg-gray-100 dark:hover:bg-slate-700'
-            }`}
-            title="Toggle 3D Effect"
-          >
-            <Layers size={18} />
-          </button>
-          
+            
             {activeDropdown === 'colors' && (
               <div 
                 className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg p-3 min-w-[280px]"
-                style={{ zIndex: 70 }} // Higher than navbar dropdowns
+                style={{ zIndex: 70 }}
               >
                 <div className="grid grid-cols-3 gap-2 mb-3">
                   {colorPresets.map(({ name, color }) => (
@@ -232,7 +212,6 @@ export default function EditingBar({
                   ))}
                 </div>
 
-                
                 <div className="mb-3">
                   <input
                     type="color"
@@ -242,7 +221,6 @@ export default function EditingBar({
                   />
                 </div>
 
-                {/* Gradient Toggle */}
                 <div className="mb-3">
                   <label className="flex items-center gap-2 text-sm">
                     <input
@@ -255,7 +233,6 @@ export default function EditingBar({
                   </label>
                 </div>
 
-                {/* Gradient Bar */}
                 {chartOptions.gradient && (
                   <div className="space-y-2">
                     <div 
@@ -269,7 +246,6 @@ export default function EditingBar({
                       onClick={handleGradientBarClick}
                       title="Click to add gradient stop"
                     >
-                      {/* Gradient stops indicators */}
                       {(chartOptions.gradientStops || []).map((stop, index) => (
                         <div
                           key={index}
@@ -296,7 +272,18 @@ export default function EditingBar({
             )}
           </div>
 
-          {/* Logarithmic Scale Toggle */}
+          <button
+            onClick={() => onOptionsChange({ enable3D: !chartOptions.enable3D })}
+            className={`p-2 rounded-lg transition-colors ${
+              chartOptions.enable3D 
+                ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' 
+                : 'hover:bg-gray-100 dark:hover:bg-slate-700'
+            }`}
+            title="Toggle 3D Effect"
+          >
+            <Layers size={18} />
+          </button>
+
           <button
             onClick={() => onOptionsChange({ logScale: !chartOptions.logScale })}
             className={`p-2 rounded-lg transition-colors ${
@@ -309,7 +296,6 @@ export default function EditingBar({
             <BarChart2 size={18} />
           </button>
 
-          {/* Sort Dropdown */}
           <div className="relative">
             <button
               onClick={() => toggleDropdown('sort')}
@@ -325,7 +311,7 @@ export default function EditingBar({
             {activeDropdown === 'sort' && (
               <div 
                 className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg min-w-[120px]"
-                style={{ zIndex: 70 }} // Higher than navbar dropdowns
+                style={{ zIndex: 70 }}
               >
                 <button
                   onClick={() => handleSortChange('none')}
@@ -360,7 +346,6 @@ export default function EditingBar({
 
           <div className="w-px h-6 bg-gray-300 dark:bg-slate-600 mx-2" />
 
-          {/* Toggle Options */}
           <button
             onClick={() => onOptionsChange({ showLabels: !chartOptions.showLabels })}
             className={`p-2 rounded-lg transition-colors ${
@@ -384,21 +369,8 @@ export default function EditingBar({
           >
             <TrendingUp size={18} />
           </button>
-
-          <button
-            onClick={() => onOptionsChange({ gradient: !chartOptions.gradient })}
-            className={`p-2 rounded-lg transition-colors ${
-              chartOptions.gradient 
-                ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' 
-                : 'hover:bg-gray-100 dark:hover:bg-slate-700'
-            }`}
-            title="Toggle Gradient"
-          >
-            <Layers size={18} />
-          </button>
         </div>
 
-        {/* Right Section - View Controls & Settings */}
         <div className="flex items-center gap-1">
           <button
             onClick={onUndo}
@@ -448,7 +420,6 @@ export default function EditingBar({
         </div>
       </div>
 
-      {/* Close dropdown when clicking outside */}
       {activeDropdown && (
         <div 
           className="fixed inset-0 z-40" 

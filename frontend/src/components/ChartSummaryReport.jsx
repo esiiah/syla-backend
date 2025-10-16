@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { Download, FileText } from 'lucide-react';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 export default function ChartSummaryReport({ summary = {}, data = [], chartTitle = "" }) {
   
@@ -140,7 +140,7 @@ export default function ChartSummaryReport({ summary = {}, data = [], chartTitle
       }
     });
     
-    doc.autoTable({
+    autoTable(doc, {
       startY: yPos,
       head: [['Column', 'Metric', 'Value']],
       body: tableData,

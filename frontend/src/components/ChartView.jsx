@@ -3,33 +3,33 @@ import React, { useMemo, useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Chart as ChartJS,
-  CategoryScale, LinearScale, LogarithmicScale,
+  CategoryScale, LinearScale, LogarithmicScale, RadialLinearScale,
   BarElement, PointElement, LineElement, ArcElement,
   Title, Tooltip, Legend, Filler
 } from "chart.js";
+import { Bar, Line, Pie, Scatter, Doughnut, PolarArea, Radar } from "react-chartjs-2";
 import { 
-     DoughnutChart, 
-     RadarChart, 
-     BubbleChart, 
-     GaugeChart, 
-     ColumnChart,
-     ComparisonChart,
-     StackedBarChart
-   } from './charts/AdvancedChartRenderer';
+  DoughnutChart, 
+  RadarChart, 
+  BubbleChart, 
+  GaugeChart, 
+  ColumnChart,
+  ComparisonChart,
+  StackedBarChart
+} from './charts/AdvancedChartRenderer';
 
 import { CHART_TYPES, getChartConfig } from '../utils/chartConfigs';
-import { Bar, Line, Pie, Scatter } from "react-chartjs-2";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import { TrendingUp, Download, Edit3 } from "lucide-react";
 import ChartExportTool from "./export/ChartExportTool";
 
 ChartJS.register(
-  CategoryScale, LinearScale, LogarithmicScale,
+  CategoryScale, LinearScale, LogarithmicScale, RadialLinearScale,
   BarElement, PointElement, LineElement, ArcElement,
   Title, Tooltip, Legend, Filler, ChartDataLabels
 );
 
-// Helper functions
+// Helper functions remain the same...
 const parseNum = v => (v == null || v === "" ? 0 : +String(v).replace(/,/g, "") || 0);
 const lerp = (a, b, t) => a + (b - a) * t;
 const hexToRgb = h => {
@@ -39,7 +39,6 @@ const hexToRgb = h => {
   return { r: (x >> 16) & 255, g: (x >> 8) & 255, b: x & 255 };
 };
 const rgbToHex = ({ r, g, b }) => "#" + [r, g, b].map(c => c.toString(16).padStart(2, "0")).join("");
-
 
 const interpolateColor = (color1, color2, factor) => {
   const rgb1 = hexToRgb(color1);
@@ -110,7 +109,6 @@ export default function ChartView({
   const [showExportTool, setShowExportTool] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Store data for export and forecast
   useEffect(() => {
     if (data && data.length > 0) {
       localStorage.setItem("uploadedData", JSON.stringify(data));
@@ -124,7 +122,6 @@ export default function ChartView({
     if (!yAxis && columns[1]) setYAxis(columns[1]);
   }, [columns, xAxis, yAxis, setXAxis, setYAxis]);
 
-  // Process data for chart
   const labels = useMemo(() => data.map((r, i) => r?.[xAxis] ?? `Row ${i + 1}`), [data, xAxis]);
   const values = useMemo(() => data.map(r => parseNum(r?.[yAxis])), [data, yAxis]);
   const compareVals = useMemo(() => 
@@ -132,7 +129,6 @@ export default function ChartView({
     [data, options.compareField]
   );
 
-  // Sort and map data
   const pairs = labels.map((l, i) => ({
     l, 
     v: values[i], 
@@ -149,12 +145,10 @@ export default function ChartView({
   const cmp = compareVals ? pairs.map(p => p.c) : null;
   const map = pairs.map(p => p.i);
 
-  // Handle log scale
   const minPos = Math.max(1e-6, Math.min(...[...vals, ...(cmp || [])].filter(v => v > 0)) || 1);
   const safeVals = options.logScale ? vals.map(v => v > 0 ? v : minPos * 0.01) : vals;
   const safeCmp = cmp ? (options.logScale ? cmp.map(v => v > 0 ? v : minPos * 0.01) : cmp) : null;
 
-  // Generate chart data
   const chartData = useMemo(() => {
     const base = options.color || "#2563eb";
     const N = lbls.length || 1;
@@ -166,16 +160,13 @@ export default function ChartView({
       colors = Array(N).fill(base);
     }
 
-    // Apply per-element colors and selection highlighting
     const finalColors = colors.map((color, i) => {
       const originalIndex = map[i];
       let finalColor = perColor[originalIndex] || color;
       
-      // Highlight selected items
       if (selectedBars.includes(lbls[i])) {
         const rgb = hexToRgb(finalColor);
         if (rgb) {
-          // Brighten selected items
           finalColor = rgbToHex({
             r: Math.min(255, rgb.r + 40),
             g: Math.min(255, rgb.g + 40),
@@ -194,7 +185,8 @@ export default function ChartView({
       return color;
     });
 
-    if (options.type === "pie") {
+    // PIE & DOUGHNUT
+    if (options.type === CHART_TYPES.PIE || options.type === CHART_TYPES.DOUGHNUT) {
       return {
         labels: lbls,
         datasets: [{
@@ -207,52 +199,92 @@ export default function ChartView({
       };
     }
 
-    if (options.type === "scatter") {
+    // SCATTER & BUBBLE
+    if (options.type === CHART_TYPES.SCATTER || options.type === CHART_TYPES.BUBBLE) {
+      const scatterData = safeVals.map((v, i) => ({
+        x: i,
+        y: v,
+        r: options.type === CHART_TYPES.BUBBLE ? Math.abs(v / 10) + 5 : undefined
+      }));
+
       return {
         labels: lbls,
-       datasets: [{
+        datasets: [{
           label: yAxis || "Value",
-         data: safeVals.map((v, i) => ({ x: i, y: v })),
+          data: scatterData,
           backgroundColor: finalColors,
           borderColor: borderColors,
-         pointBackgroundColor: finalColors,
-         pointBorderColor: borderColors,
+          pointBackgroundColor: finalColors,
+          pointBorderColor: borderColors,
           pointBorderWidth: selectedBars.length > 0 ? 3 : 2,
           showLine: false,
-         pointRadius: 6,
+          pointRadius: options.type === CHART_TYPES.BUBBLE ? undefined : 6,
           pointHoverRadius: 8,
           pointStyle: 'circle',
           borderWidth: 0
-       }]
-     };
+        }]
+      };
     }
 
+    // RADAR
+    if (options.type === CHART_TYPES.RADAR) {
+      return {
+        labels: lbls,
+        datasets: [{
+          label: yAxis || "Value",
+          data: safeVals,
+          backgroundColor: `${base}33`,
+          borderColor: base,
+          borderWidth: 2,
+          pointBackgroundColor: base,
+          pointBorderColor: '#fff',
+          pointHoverBackgroundColor: '#fff',
+          pointHoverBorderColor: base
+        }]
+      };
+    }
+
+    // AREA (Line with fill)
     if (options.type === CHART_TYPES.AREA) {
-      // Create gradient for area chart
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-         
+      
       const color1 = options.color || '#2563eb';
       const color2 = options.gradientStops?.[1] || '#93c5fd';
-         
+      
       gradient.addColorStop(0, color1);
       gradient.addColorStop(1, color2);
-         
-      chartData.datasets[0].backgroundColor = gradient;
-      chartData.datasets[0].fill = true;
+
+      return {
+        labels: lbls,
+        datasets: [{
+          label: yAxis || "Value",
+          type: "line",
+          data: safeVals,
+          originalData: vals,
+          backgroundColor: gradient,
+          borderColor: color1,
+          borderWidth: 3,
+          tension: 0.4,
+          fill: true,
+          pointRadius: 4,
+          pointHoverRadius: 6
+        }]
+      };
     }
 
+    // STANDARD (Bar, Line, Column, etc.)
     const core = {
       label: yAxis || "Value",
-      type: options.type === "line" ? "line" : "bar",
+      type: options.type === CHART_TYPES.LINE ? "line" : "bar",
       data: safeVals,
       originalData: vals,
       backgroundColor: finalColors,
       borderColor: borderColors,
-      borderWidth: selectedBars.length > 0 ? 3 : (options.type === "line" ? 3 : 1),
-      tension: options.type === "line" ? 0.4 : undefined,
-      fill: options.type === "area" ? true : false
+      borderWidth: selectedBars.length > 0 ? 3 : (options.type === CHART_TYPES.LINE ? 3 : 1),
+      tension: options.type === CHART_TYPES.LINE ? 0.4 : undefined,
+      fill: false
     };
 
     const ds = [core];
@@ -269,7 +301,7 @@ export default function ChartView({
       });
     }
 
-    if (options.trendline && options.type !== "pie") {
+    if (options.trendline && options.type !== CHART_TYPES.PIE) {
       ds.push({
         label: `${yAxis} Trend`,
         type: "line",
@@ -284,21 +316,9 @@ export default function ChartView({
       });
     }
 
-    if (options.type === CHART_TYPES.BUBBLE) {
-      // Bubble needs {x, y, r} format
-      core.data = vals.map((y, i) => ({
-        x: i,
-        y: y,
-        r: Math.abs(y / 10) + 5
-      }));
-      core.type = 'bubble';
-    }
-
-
     return { labels: lbls, datasets: ds };
   }, [options, lbls, vals, safeVals, perColor, yAxis, map, safeCmp, cmp, selectedBars]);
 
-  // Chart options
   const chartOptions = useMemo(() => {
     const tc = themeText();
     const ys = options.logScale ? "logarithmic" : "linear";
@@ -350,7 +370,7 @@ export default function ChartView({
           color: tc,
           display: ctx => ctx.dataset?.datalabels?.display ?? !!options.showLabels,
           formatter: (value, ctx) => {
-            if (options.type === "pie") {
+            if (options.type === CHART_TYPES.PIE || options.type === CHART_TYPES.DOUGHNUT) {
               const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
               const percentage = ((value / total) * 100).toFixed(1);
               return `${percentage}%`;
@@ -366,25 +386,36 @@ export default function ChartView({
           borderWidth: 1,
           callbacks: {
             title: ctx => {
-              if (options.type === "scatter" && ctx[0]) {
+              if ((options.type === CHART_TYPES.SCATTER || options.type === CHART_TYPES.BUBBLE) && ctx[0]) {
                 const xIndex = Math.round(ctx[0].parsed.x);
-               return lbls[xIndex] || `Point ${xIndex}`;
-               }
+                return lbls[xIndex] || `Point ${xIndex}`;
+              }
               return ctx[0]?.label || "";
-           },
-           label: ctx => {
+            },
+            label: ctx => {
               const originalValue = ctx.dataset.originalData ? ctx.dataset.originalData[ctx.dataIndex] : ctx.formattedValue;
               const selected = selectedBars.includes(lbls[ctx.dataIndex]) ? " (Selected)" : "";
-              if (options.type === "scatter") {
-               return `${ctx.dataset.label}: ${originalValue?.toLocaleString() || originalValue}${selected}`;
-              }
-               return `${ctx.dataset.label}: ${originalValue?.toLocaleString() || originalValue}${selected}`;
-             }
+              return `${ctx.dataset.label}: ${originalValue?.toLocaleString() || originalValue}${selected}`;
+            }
           }
         }
       },
-      scales: options.type === "pie" ? {} : {
-        x: {
+      scales: (options.type === CHART_TYPES.PIE || options.type === CHART_TYPES.DOUGHNUT) ? {} : 
+             options.type === CHART_TYPES.RADAR ? {} : {
+        x: options.type === CHART_TYPES.SCATTER || options.type === CHART_TYPES.BUBBLE ? {
+          type: "linear",
+          ticks: {
+            color: tc,
+            callback: v => {
+              const index = Math.round(v);
+              return (Number.isInteger(v) && index >= 0 && index < lbls.length) ? lbls[index] : "";
+            },
+            stepSize: 1
+          },
+          grid: { color: "rgba(0,0,0,0.1)" },
+          min: -0.5,
+          max: Math.max(0, lbls.length - 0.5)
+        } : {
           ticks: { 
             color: tc,
             maxRotation: 45,
@@ -406,7 +437,7 @@ export default function ChartView({
       }
     };
 
-    if (options.compareField && options.type !== "pie" && options.type !== "scatter") {
+    if (options.compareField && options.type !== CHART_TYPES.PIE && options.type !== CHART_TYPES.SCATTER) {
       opts.scales.y1 = {
         type: ys,
         position: "right",
@@ -421,37 +452,29 @@ export default function ChartView({
       };
     }
 
-    if (options.enable3D && CHART_FEATURES[options.type]?.supports3D) {
-      chartData.datasets = chartData.datasets.map(dataset => ({
-       ...dataset,
-        borderWidth: 3,
-        shadowOffsetX: 3,
-        shadowOffsetY: 3,
-        shadowBlur: 10,
-        shadowColor: 'rgba(0, 0, 0, 0.3)'
-      }));
-    }
-
-    if (options.type === "scatter") {
-      opts.scales.x = {
-        type: "linear",
-        ticks: {
-          color: tc,
-         callback: v => {
-            const index = Math.round(v);
-           return (Number.isInteger(v) && index >= 0 && index < lbls.length) ? lbls[index] : "";
-         },
-         stepSize: 1
-       },
-       grid: { color: "rgba(0,0,0,0.1)" },
-       min: -0.5,
-       max: Math.max(0, lbls.length - 0.5)
-     };
+    // Radar-specific scale config
+    if (options.type === CHART_TYPES.RADAR) {
+      opts.scales = {
+        r: {
+          beginAtZero: true,
+          ticks: {
+            color: tc,
+            backdropColor: 'transparent'
+          },
+          grid: {
+            color: 'rgba(0,0,0,0.1)'
+          },
+          pointLabels: {
+            color: tc,
+            font: { size: 11 }
+          }
+        }
+      };
     }
 
     return opts;
   }, [options, lbls, yAxis, onBarClick, onLegendToggle, selectedBars, selectionMode, minPos]);
-
+  
 
   // Render special chart types
   if (options.type === CHART_TYPES.GAUGE) {
@@ -466,7 +489,7 @@ export default function ChartView({
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={goToForecast}
+              onClick={() => navigate('/forecast')}
               className="flex items-center gap-2 px-2.5 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg text-sm font-medium"
             >
               <TrendingUp size={16} />
@@ -491,21 +514,21 @@ export default function ChartView({
     switch (options.type) {
       case CHART_TYPES.BAR:
       case CHART_TYPES.COLUMN:
+      case CHART_TYPES.COMPARISON:
+      case CHART_TYPES.STACKED_BAR:
         return Bar;
       case CHART_TYPES.LINE:
       case CHART_TYPES.AREA:
         return Line;
       case CHART_TYPES.PIE:
-      case CHART_TYPES.DOUGHNUT:
         return Pie;
+      case CHART_TYPES.DOUGHNUT:
+        return Doughnut;
       case CHART_TYPES.SCATTER:
       case CHART_TYPES.BUBBLE:
         return Scatter;
       case CHART_TYPES.RADAR:
-        return Line; // Use Line as fallback for radar
-      case CHART_TYPES.COMPARISON:
-      case CHART_TYPES.STACKED_BAR:
-        return Bar;
+        return Radar;
       default:
         return Bar;
     }
@@ -522,29 +545,23 @@ export default function ChartView({
 
     try {
       let dataURL;
-      
-      // For PNG and JPEG with custom background
+      // For PNG and JPEG with custom background      
       if ((format === 'png' || format === 'jpeg') && config.useCustomBackground) {
         const originalCanvas = chart.canvas;
         const exportCanvas = document.createElement('canvas');
-        
-        // Match original dimensions
+        // Match original dimensions        
         exportCanvas.width = originalCanvas.width;
         exportCanvas.height = originalCanvas.height;
         
-        const ctx = exportCanvas.getContext('2d');
-        
+        const ctx = exportCanvas.getContext('2d');        
         // Validate and apply background
         const backgroundColor = config.background || '#ffffff';
-        
-        // Paint background first
+        // Paint background first        
         ctx.fillStyle = backgroundColor;
-        ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-        
+        ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);        
         // Draw chart on top of background
         ctx.drawImage(originalCanvas, 0, 0);
-        
-        // Convert to data URL with proper format
+        // Convert to data URL with proper format     
         const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
         const quality = format === 'jpeg' ? 0.95 : 1.0;
         dataURL = exportCanvas.toDataURL(mimeType, quality);
@@ -553,8 +570,7 @@ export default function ChartView({
         const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
         dataURL = chart.toBase64Image(mimeType);
       }
-      
-      // Create and trigger download
+       // Create and trigger download
       const a = document.createElement('a');
       a.href = dataURL;
       a.download = config.filename || `${chartTitle || 'chart'}.${format}`;
@@ -636,14 +652,15 @@ export default function ChartView({
 
   return (
     <div className="rounded-2xl bg-white border shadow-sm dark:bg-ink/80 dark:border-white/5 p-5">
-      {/* Header */}
+     {/* Header */}
       <div className="flex justify-between items-start mb-4">
         <div className="flex-1">
           <h3 className="font-display text-lg font-medium mb-2 text-gray-800 dark:text-slate-200">
             {chartTitle || "Data Visualization"}
           </h3>
-          
+
           {/* Status indicators */}
+
           <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-slate-400">
             <span>{data.length.toLocaleString()} data points</span>
             {options.logScale && <span>Log Scale</span>}
@@ -661,6 +678,7 @@ export default function ChartView({
         </div>
 
         {/* Action buttons */}
+
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate('/editing')}
@@ -672,7 +690,7 @@ export default function ChartView({
           </button>
 
           <button
-            onClick={goToForecast}
+            onClick={() => navigate('/forecast')}
             className="flex items-center gap-2 px-2.5 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg text-sm font-medium"
             title="Generate AI Forecast"
           >
@@ -683,7 +701,7 @@ export default function ChartView({
           <button
             onClick={() => setShowExportTool(!showExportTool)}
             className="flex items-center gap-2 px-2.5 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 dark:border-white/20 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors text-sm font-medium"
-            title="Export Chart (PNG, JPEG with white background)"
+            title="Export Chart"
           >
             <Download size={16} />
             Export
@@ -692,6 +710,7 @@ export default function ChartView({
       </div>
 
       {/* Chart container */}
+
       <div className="mt-4 rounded-xl p-4 bg-gradient-to-b from-gray-50 to-white border dark:from-black/20 dark:to-black/10 dark:border-white/10">
         <div style={{ height: 400, position: 'relative' }}>
           <ChartComponent
