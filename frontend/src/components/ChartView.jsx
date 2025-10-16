@@ -285,25 +285,15 @@ export default function ChartView({
     }
 
     if (options.type === CHART_TYPES.BUBBLE) {
-     // Bubble needs {x, y, r} format
-     chartData.datasets[0].data = vals.map((y, i) => ({
-       x: i,
-       y: y,
-       r: Math.abs(y / 10) + 5 // Bubble size based on value
-     }));
-   }
+      // Bubble needs {x, y, r} format
+      core.data = vals.map((y, i) => ({
+        x: i,
+        y: y,
+        r: Math.abs(y / 10) + 5
+      }));
+      core.type = 'bubble';
+    }
 
-   if (options.type === CHART_TYPES.GAUGE) {
-     // Gauge needs single value
-     const avgValue = vals.reduce((a, b) => a + b, 0) / vals.length;
-     return (
-       <GaugeChart 
-         value={avgValue}
-         max={Math.max(...vals) * 1.2}
-         options={chartOptions}
-       />
-     );
-   }
 
     return { labels: lbls, datasets: ds };
   }, [options, lbls, vals, safeVals, perColor, yAxis, map, safeCmp, cmp, selectedBars]);
@@ -463,40 +453,65 @@ export default function ChartView({
   }, [options, lbls, yAxis, onBarClick, onLegendToggle, selectedBars, selectionMode, minPos]);
 
 
-   const getChartComponent = () => {
-     const config = getChartConfig(options.type);
-     
-     switch (options.type) {
-       case CHART_TYPES.BAR:
-         return Bar;
-       case CHART_TYPES.LINE:
-         return Line;
-       case CHART_TYPES.AREA:
-         return Line; // Line with fill
-       case CHART_TYPES.PIE:
-         return Pie;
-       case CHART_TYPES.SCATTER:
-         return Scatter;
-       case CHART_TYPES.DOUGHNUT:
-         return DoughnutChart;
-       case CHART_TYPES.RADAR:
-         return RadarChart;
-       case CHART_TYPES.BUBBLE:
-         return BubbleChart;
-       case CHART_TYPES.GAUGE:
-         return GaugeChart;
-       case CHART_TYPES.COLUMN:
-         return ColumnChart;
-       case CHART_TYPES.COMPARISON:
-         return ComparisonChart;
-       case CHART_TYPES.STACKED_BAR:
-         return StackedBarChart;
-       default:
-         return Bar;
-     }
-   };
-   
-   const ChartComponent = getChartComponent();
+  // Render special chart types
+  if (options.type === CHART_TYPES.GAUGE) {
+    const avgValue = vals.reduce((a, b) => a + b, 0) / (vals.length || 1);
+    return (
+      <div className="rounded-2xl bg-white border shadow-sm dark:bg-ink/80 dark:border-white/5 p-5">
+        <div className="flex justify-between items-start mb-4">
+          <div className="flex-1">
+            <h3 className="font-display text-lg font-medium mb-2 text-gray-800 dark:text-slate-200">
+              {chartTitle || "Data Visualization"}
+            </h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={goToForecast}
+              className="flex items-center gap-2 px-2.5 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg text-sm font-medium"
+            >
+              <TrendingUp size={16} />
+              Forecast
+            </button>
+          </div>
+        </div>
+        <div className="mt-4 rounded-xl p-4 bg-gradient-to-b from-gray-50 to-white border dark:from-black/20 dark:to-black/10 dark:border-white/10">
+          <div style={{ height: 400, position: 'relative' }}>
+            <GaugeChart 
+              value={avgValue}
+              max={Math.max(...vals) * 1.2}
+              options={chartOptions}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const getChartComponent = () => {
+    switch (options.type) {
+      case CHART_TYPES.BAR:
+      case CHART_TYPES.COLUMN:
+        return Bar;
+      case CHART_TYPES.LINE:
+      case CHART_TYPES.AREA:
+        return Line;
+      case CHART_TYPES.PIE:
+      case CHART_TYPES.DOUGHNUT:
+        return Pie;
+      case CHART_TYPES.SCATTER:
+      case CHART_TYPES.BUBBLE:
+        return Scatter;
+      case CHART_TYPES.RADAR:
+        return Line; // Use Line as fallback for radar
+      case CHART_TYPES.COMPARISON:
+      case CHART_TYPES.STACKED_BAR:
+        return Bar;
+      default:
+        return Bar;
+    }
+  };
+
+  const ChartComponent = getChartComponent();
 
   const exportImage = (format, config = {}) => {
     const chart = ref.current;

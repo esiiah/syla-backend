@@ -611,7 +611,21 @@ function ChartOptions({
                   <span className="text-sm">Show Data Labels</span>
                 </label>
 
-                {supportsLog && (
+                {/* Only show trendline if chart type supports it */}
+                {(local.type === 'line' || local.type === 'bar' || local.type === 'area') && (
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={local.trendline || false}
+                      onChange={e => commit({ trendline: e.target.checked })}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Show Trendline</span>
+                  </label>
+                )}
+
+                {/* Only show log scale for appropriate chart types */}
+                {(local.type === 'bar' || local.type === 'line' || local.type === 'scatter') && (
                   <div>
                     <label className="flex items-center gap-3 mb-2">
                       <input
@@ -635,57 +649,21 @@ function ChartOptions({
                     )}
                   </div>
                 )}
+
+                {/* 3D toggle for pie/doughnut */}
+                {(local.type === CHART_TYPES.PIE || local.type === CHART_TYPES.DOUGHNUT) && (
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={local.enable3D || false}
+                      onChange={e => commit({ enable3D: e.target.checked })}
+                      className="rounded"
+                    />
+                    <span className="text-sm">3D Effect</span>
+                  </label>
+                )}
               </div>
             </div>
-  
-            // Only show trendline if supported
-            {features.supportsTrendline && (
-               <label className="flex items-center gap-3">
-                <input
-                   type="checkbox"
-                   checked={local.trendline || false}
-                   onChange={e => commit({ trendline: e.target.checked })}
-                   className="rounded"
-                 />
-                   <span className="text-sm">Show Trendline</span>
-              </label>
-              )}
-   
-              // Only show log scale if supported
-              {features.supportsLogScale && (
-              <label className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={local.logScale || false}
-                    onChange={e => commit({ logScale: e.target.checked })}
-                  className="rounded"
-                   />
-                   <span className="text-sm">Logarithmic Scale</span>
-              </label>
-            )}
-   
-            // Add 3D toggle
-            {features.supports3D && (
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={local.enable3D || false}
-                  onChange={e => commit({ enable3D: e.target.checked })}
-                  className="rounded"
-                />
-                <span className="text-sm">3D Effect</span>
-              </label>
-            )}
-   
-            // Gradient is ALWAYS available for area charts
-            {local.type === CHART_TYPES.AREA && (
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                <p className="text-xs text-blue-700 dark:text-blue-300 mb-2">
-                   <strong>Area Chart Gradient:</strong> Automatically applied
-                </p>
-                {/* Show gradient stop controls */}
-              </div>
-            )}
 
             {/* Export settings */}
             <div>
@@ -697,12 +675,12 @@ function ChartOptions({
                     value={local.exportFormat || "png"}
                     onChange={e => commit({ exportFormat: e.target.value })}
                     className="w-full rounded border px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-800"
-                  >
+                 >
                     <option value="png">PNG</option>
                     <option value="svg">SVG</option>
                     <option value="pdf">PDF</option>
                     <option value="csv">CSV (data)</option>
-                  </select>
+                   </select>
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 mb-1">DPI</label>
@@ -729,7 +707,7 @@ function ChartOptions({
                     onChange={e => commit({ enableAnimations: e.target.checked })}
                     className="rounded"
                   />
-                  <span className="text-sm">Enable Animations</span>
+                 <span className="text-sm">Enable Animations</span>
                 </label>
                 <label className="flex items-center gap-3">
                   <input

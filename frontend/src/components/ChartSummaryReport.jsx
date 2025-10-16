@@ -178,20 +178,20 @@ export default function ChartSummaryReport({ summary = {}, data = [], chartTitle
                   {col}
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-300">
-                  {details && typeof details === "object" ? (
+                  {details && typeof details === "object" && !Array.isArray(details) ? (
                     <table className="min-w-[300px] border border-gray-300 dark:border-slate-600 rounded-lg overflow-hidden shadow-sm">
                       <tbody>
-                        {Object.entries(details).map(([k, v], j) => (
-                          <tr 
-                            key={j} 
-                            className={`${
-                              j % 2 === 0 
+                      {Object.entries(details).map(([k, v], j) => (
+                        <tr 
+                          key={j} 
+                          className={`${
+                            j % 2 === 0 
                                 ? 'bg-gray-100 dark:bg-slate-800' 
-                                : 'bg-white dark:bg-slate-900'
+                              : 'bg-white dark:bg-slate-900'
                             }`}
                           >
                             <td className="px-4 py-2 text-xs font-medium text-gray-700 dark:text-slate-200 border-r border-gray-300 dark:border-slate-600 uppercase tracking-wide">
-                              {k}
+                              {String(k)}
                             </td>
                             <td className="px-4 py-2 text-xs text-gray-900 dark:text-slate-100 font-mono">
                               {formatNumber(v)}
@@ -201,7 +201,7 @@ export default function ChartSummaryReport({ summary = {}, data = [], chartTitle
                       </tbody>
                     </table>
                   ) : (
-                    <span className="font-mono">{formatNumber(details)}</span>
+                    <span className="font-mono">{formatNumber(String(details))}</span>
                   )}
                 </td>
               </tr>
