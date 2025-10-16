@@ -1,8 +1,10 @@
 // frontend/src/components/forecast/ForecastSummary.jsx
-import React from 'react';
+import React, { useContext } from 'react';
 import { FileText, TrendingUp, AlertCircle, CheckCircle, Download, Sparkles } from 'lucide-react';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { chartToBase64, analyzeForecastTrend } from '../../utils/pdfChartGenerator';
+import { UserContext } from '../../context/UserContext';
 
 export default function ForecastSummary({ 
   summary, 
@@ -13,54 +15,59 @@ export default function ForecastSummary({
   scenario,
   onExportReport 
 }) {
+  const { user } = useContext(UserContext);
   
   const handleExportPDF = async () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     
-    // ========== COVER PAGE ==========
-    // Header background
+    // ========== HEADER ==========
     doc.setFillColor(37, 99, 235);
     doc.rect(0, 0, pageWidth, 50, 'F');
     
-    // Title
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(28);
+    // Logo
+    doc.setFontSize(24);
     doc.setFont('helvetica', 'bold');
-    doc.text('AI Forecast Report', pageWidth / 2, 30, { align: 'center' });
-    
-    // Subtitle
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-    doc.text(targetColumn || 'Forecast Analysis', pageWidth / 2, 40, { align: 'center' });
-    
-    // Metadata box
-    doc.setFillColor(245, 247, 250);
-    doc.rect(14, 60, pageWidth - 28, 35, 'F');
-    
-    doc.setTextColor(60, 60, 60);
+    doc.setTextColor(255, 255, 255);
+    doc.text('SYLA', 14, 20);
     doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Generated: ${new Date().toLocaleString()}`, 20, 70);
-    doc.text(`Model: ${forecastData?.model_used || 'Hybrid AI'}`, 20, 78);
-    doc.text(`Confidence: ${Math.round((forecastData?.confidence_level || 0.95) * 100)}%`, 20, 86);
-    doc.text(`Forecast Periods: ${forecastData?.forecast?.length || 0}`, pageWidth - 20, 70, { align: 'right' });
-    doc.text(`Target: ${targetColumn || 'N/A'}`, pageWidth - 20, 78, { align: 'right' });
+    doc.text('ANALYTICS', 14, 27);
     
+    // Title
+    doc.setFontSize(22);
+    doc.text('AI Forecast Report', pageWidth / 2, 25, { align: 'center' });
+    
+    // Username
+    doc.setFontSize(9);
+    doc.setTextColor(200, 200, 200);
+    doc.text(`Prepared for: ${user?.name || 'User'}`, pageWidth / 2, 35, { align: 'center' });
+    
+    // Date & Time
+    doc.setFontSize(8);
+    const now = new Date();
+    doc.text(
+      `Generated: ${now.toLocaleDateString()} at ${now.toLocaleTimeString()}`,
+      pageWidth / 2,
+      42,
+      { align: 'center' }
+    );
+    
+    doc.setTextColor(40, 40, 40);
+    
+    let yPos = 60;
+
     // ========== EXECUTIVE SUMMARY ==========
-    let yPos = 110;
-    
-    doc.setFontSize(18);
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(37, 99, 235);
     doc.text('Executive Summary', 14, yPos);
+    yPos += 8;
     
-    yPos += 10;
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(60, 60, 60);
-    
+     
     const summaryText = summary || 'AI-powered forecast analysis based on historical trends and scenario parameters.';
     const splitSummary = doc.splitTextToSize(summaryText, pageWidth - 28);
     doc.text(splitSummary, 14, yPos);
@@ -81,106 +88,62 @@ export default function ForecastSummary({
       doc.text(scenarioText, 14, yPos);
       yPos += scenarioText.length * 5 + 15;
     }
-    
-    // ========== KEY INSIGHTS ==========
-    if (yPos > pageHeight - 60) {
-      doc.addPage();
-      yPos = 20;
-    }
-    
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(37, 99, 235);
-    doc.text('Key Insights', 14, yPos);
-    yPos += 10;
-    
-    const displayInsights = insights || [
-      'Forecast indicates steady trend based on historical patterns',
-      'Seasonal variations detected and factored into predictions',
-      'Confidence intervals provide range of likely outcomes',
-      'Model accuracy validated against historical performance'
-    ];
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(60, 60, 60);
-    
-    displayInsights.slice(0, 6).forEach((insight, idx) => {
-      const bullet = `${idx + 1}. ${insight}`;
-      const splitInsight = doc.splitTextToSize(bullet, pageWidth - 28);
-      doc.text(splitInsight, 14, yPos);
-      yPos += splitInsight.length * 5 + 4;
-    });
-    
-    yPos += 10;
-    
-    // ========== RECOMMENDATIONS ==========
-    if (yPos > pageHeight - 60) {
-      doc.addPage();
-      yPos = 20;
-    }
-    
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(37, 99, 235);
-    doc.text('Actionable Recommendations', 14, yPos);
-    yPos += 10;
-    
-    const displayRecommendations = recommendations || [
-      'Monitor actual performance against forecast on a monthly basis',
-      'Adjust operational strategies if deviations exceed confidence bounds',
-      'Implement early warning systems for significant trend changes',
-      'Review and update forecast quarterly with new data',
-      'Consider scenario planning for best/worst case outcomes'
-    ];
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(60, 60, 60);
-    
-    displayRecommendations.slice(0, 6).forEach((rec, idx) => {
-      const bullet = `${idx + 1}. ${rec}`;
-      const splitRec = doc.splitTextToSize(bullet, pageWidth - 28);
-      doc.text(splitRec, 14, yPos);
-      yPos += splitRec.length * 5 + 4;
-    });
-    
-    // ========== FORECAST DATA TABLE ==========
-    if (forecastData && forecastData.forecast && forecastData.forecast.length > 0) {
-      doc.addPage();
       
-      doc.setFontSize(18);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(37, 99, 235);
-      doc.text('Detailed Forecast Data', 14, 20);
-
-      // ===== EMBEDDED CHARTS =====
+    // ========== CHART ANALYSIS WITH BULLETS ==========
+    if (yPos > pageHeight - 60) {
       doc.addPage();
       yPos = 20;
+    }
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(37, 99, 235);
+    doc.text('Forecast Analysis', 14, yPos);
+    yPos += 8;
+    
+    // Generate smart insights
+    const analysis = analyzeForecastTrend(forecastData);
+    
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 60, 60);
+    
+    analysis.insights.slice(0, 6).forEach((insight, idx) => {
+      const bullet = `• ${insight}`;
+      const splitInsight = doc.splitTextToSize(bullet, pageWidth - 32);
+      doc.text(splitInsight, 18, yPos);
+      yPos += splitInsight.length * 5 + 2;
+    });
+    
+    yPos += 10;
+    
+    // ========== EMBEDDED CHARTS ==========
+    doc.addPage();
+    yPos = 20;
 
-      doc.setFontSize(16);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(37, 99, 235);
-      doc.text('Visual Forecast Analysis', 14, yPos);
-      yPos += 10;
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(37, 99, 235);
+    doc.text('Visual Forecast Analysis', 14, yPos);
+    yPos += 10;
 
-      // Prepare chart options with labels ENABLED for PDF
-      const pdfChartOptions = {
-        width: 500,
-        height: 300,
-        animation: false,
-        plugins: {
-          legend: {
-              display: true,
-              position: 'bottom',
-              labels: {
-              font: { size: 10 },
-              boxWidth: 12,
-              padding: 8
-            }
-          },
-          datalabels: {
-          display: true, // SHOW LABELS IN PDF
+    // Prepare chart options with labels ENABLED for PDF
+    const pdfChartOptions = {
+      width: 500,
+      height: 300,
+      animation: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: {
+            font: { size: 10 },
+            boxWidth: 12,
+            padding: 8
+          }
+        },
+        datalabels: {
+          display: true,
           color: '#000',
           font: { size: 9, weight: 'bold' },
           formatter: (value) => value.toFixed(0),
@@ -190,7 +153,7 @@ export default function ForecastSummary({
         }
       },
       scales: {
-       y: { 
+        y: { 
           beginAtZero: true, 
           title: { display: true, text: targetColumn || 'Value' },
           ticks: { font: { size: 10 } }
@@ -204,10 +167,10 @@ export default function ForecastSummary({
 
     // Chart 1: BAR CHART
     const barChartData = {
-      labels: forecastData.timestamps?.slice(0, 12) || [],
+      labels: forecastData?.timestamps?.slice(0, 12) || [],
       datasets: [{
         label: targetColumn || 'Forecast',
-        data: forecastData.forecast?.slice(0, 12) || [],
+        data: forecastData?.forecast?.slice(0, 12) || [],
         backgroundColor: 'rgba(59, 130, 246, 0.7)',
         borderColor: 'rgb(59, 130, 246)',
         borderWidth: 2
@@ -225,10 +188,10 @@ export default function ForecastSummary({
 
     // Chart 2: LINE CHART
     const lineChartData = {
-      labels: forecastData.timestamps?.slice(0, 12) || [],
+      labels: forecastData?.timestamps?.slice(0, 12) || [],
       datasets: [{
         label: targetColumn || 'Forecast',
-        data: forecastData.forecast?.slice(0, 12) || [],
+        data: forecastData?.forecast?.slice(0, 12) || [],
         borderColor: 'rgb(34, 197, 94)',
         backgroundColor: 'rgba(34, 197, 94, 0.2)',
         borderWidth: 3,
@@ -245,16 +208,11 @@ export default function ForecastSummary({
     doc.text('2. Line Chart Forecast', 14, yPos);
     yPos += 5;
 
-    const lineChartBase64 = await chartToBase64('line', lineChartData, {
-      ...pdfChartOptions,
-      scales: {
-        ...pdfChartOptions.scales
-      }
-    });
+    const lineChartBase64 = await chartToBase64('line', lineChartData, pdfChartOptions);
     doc.addImage(lineChartBase64, 'PNG', 14, yPos, 180, 100);
     yPos += 110;
 
-    // NEW PAGE FOR CHARTS 3 & 4
+    // ========== NEW PAGE FOR CHARTS 3 & 4 ==========
     doc.addPage();
     yPos = 20;
 
@@ -266,10 +224,10 @@ export default function ForecastSummary({
 
     // Chart 3: AREA CHART
     const areaChartData = {
-      labels: forecastData.timestamps?.slice(0, 12) || [],
+      labels: forecastData?.timestamps?.slice(0, 12) || [],
       datasets: [{
         label: targetColumn || 'Forecast',
-        data: forecastData.forecast?.slice(0, 12) || [],
+        data: forecastData?.forecast?.slice(0, 12) || [],
         borderColor: 'rgb(168, 85, 247)',
         backgroundColor: 'rgba(168, 85, 247, 0.3)',
         borderWidth: 2,
@@ -289,10 +247,10 @@ export default function ForecastSummary({
 
     // Chart 4: PIE CHART
     const pieChartData = {
-      labels: forecastData.timestamps?.slice(0, 6) || [], // Only show first 6 for pie
+      labels: forecastData?.timestamps?.slice(0, 6) || [],
       datasets: [{
         label: targetColumn || 'Forecast',
-        data: forecastData.forecast?.slice(0, 6) || [],
+        data: forecastData?.forecast?.slice(0, 6) || [],
         backgroundColor: [
           'rgba(59, 130, 246, 0.8)',
           'rgba(34, 197, 94, 0.8)',
@@ -311,16 +269,25 @@ export default function ForecastSummary({
 
     const pieChartBase64 = await chartToBase64('pie', pieChartData, {
       ...pdfChartOptions,
-      scales: {} // No scales for pie chart
+      scales: {}
     });
-    doc.addImage(pieChartBase64, 'PNG', 14, yPos, 180, 100);      
+    doc.addImage(pieChartBase64, 'PNG', 14, yPos, 180, 100);
+    
+    // ========== FORECAST DATA TABLE ==========
+    if (forecastData && forecastData.forecast && forecastData.forecast.length > 0) {
+      doc.addPage();
+      
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(37, 99, 235);
+      doc.text('Detailed Forecast Data', 14, 20);
 
       const tableData = forecastData.forecast.map((val, i) => [
         forecastData.timestamps?.[i] || `Period ${i + 1}`,
         val.toFixed(2),
         (forecastData.lower?.[i] || val * 0.8).toFixed(2),
         (forecastData.upper?.[i] || val * 1.2).toFixed(2),
-        `${((forecastData.upper?.[i] || val * 1.2) - (forecastData.lower?.[i] || val * 0.8)).toFixed(2)}`
+        ((forecastData.upper?.[i] || val * 1.2) - (forecastData.lower?.[i] || val * 0.8)).toFixed(2)
       ]);
       
       doc.autoTable({
@@ -388,28 +355,84 @@ export default function ForecastSummary({
         });
       }
     }
-    
+
+    // ========== RECOMMENDATIONS ==========
+    doc.addPage();
+    yPos = 20;
+  
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(37, 99, 235);
+    doc.text('Actionable Recommendations', 14, yPos);
+    yPos += 10;
+  
+    const recs = generateRecommendations(analysis);
+  
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 60, 60);
+  
+    recs.forEach((rec, idx) => {
+      const bullet = `${idx + 1}. ${rec}`;
+      const splitRec = doc.splitTextToSize(bullet, pageWidth - 28);
+      doc.text(splitRec, 14, yPos);
+      yPos += splitRec.length * 5 + 4;
+    });
+
     // ========== FOOTER ON ALL PAGES ==========
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
-      doc.setTextColor(150);
+      doc.setTextColor(120, 120, 120);
       doc.text(
-        `Page ${i} of ${pageCount} • Generated by Syla Analytics`,
+        `Generated by Syla Analytics • © 2025 • Visit sylaanalytics.com`,
         pageWidth / 2,
         pageHeight - 10,
         { align: 'center' }
       );
+      doc.text(
+        `Page ${i} of ${totalPages}`,
+        pageWidth - 20,
+        pageHeight - 10,
+        { align: 'right' }
+      );
     }
-    
-    // Save the PDF
+      
+    // Save
     const fileName = `forecast-report-${targetColumn?.replace(/\s+/g, '-') || 'analysis'}-${new Date().toISOString().split('T')[0]}.pdf`;
     doc.save(fileName);
-    
+          
     if (onExportReport) {
       onExportReport();
     }
+  };
+
+  const generateRecommendations = (analysis) => {
+    const recs = [];
+    
+    if (analysis.trend === 'upward') {
+      recs.push('Scale infrastructure and increase inventory to meet growing demand');
+      recs.push('Invest in marketing to capitalize on positive momentum');
+      recs.push('Hire additional staff to handle projected workload increase');
+    } else if (analysis.trend === 'downward') {
+      recs.push('Implement cost reduction strategies immediately');
+      recs.push('Analyze root causes of decline and address key issues');
+      recs.push('Consider pivoting strategy or launching recovery initiatives');
+    } else {
+      recs.push('Maintain current operations while monitoring for changes');
+      recs.push('Focus on efficiency improvements and optimization');
+    }
+    
+    recs.push('Review forecast monthly and update with actual performance data');
+    recs.push('Set up automated alerts for deviations exceeding 15% from projections');
+    recs.push('Conduct scenario planning for best/worst case outcomes');
+    
+    if (parseFloat(analysis.volatility) > 20) {
+      recs.push('Develop contingency plans for high-volatility scenarios');
+    }
+    
+    return recs;
   };
 
   // Default values
@@ -431,7 +454,7 @@ export default function ForecastSummary({
   const displayRecommendations = recommendations && recommendations.length > 0 ? recommendations : defaultRecommendations;
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 rounded-2xl border border-blue-200 dark:border-slate-700 overflow-hidden shadow-lg">
+  <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 rounded-2xl border border-blue-200 dark:border-slate-700 overflow-hidden shadow-lg">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
         <div className="flex items-start justify-between">
