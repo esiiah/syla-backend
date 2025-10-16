@@ -322,8 +322,12 @@ export default function ChartView({
   const chartOptions = useMemo(() => {
     const tc = themeText();
     const ys = options.logScale ? "logarithmic" : "linear";
-    
+  
+    // Determine if chart should be horizontal (BAR) or vertical (COLUMN, COMPARISON, STACKED)
+    const isHorizontal = options.type === CHART_TYPES.BAR;
+  
     const opts = {
+      indexAxis: isHorizontal ? 'y' : 'x', // BAR = horizontal, others = vertical
       maintainAspectRatio: false,
       responsive: true,
       interaction: {
@@ -401,7 +405,7 @@ export default function ChartView({
         }
       },
       scales: (options.type === CHART_TYPES.PIE || options.type === CHART_TYPES.DOUGHNUT) ? {} : 
-             options.type === CHART_TYPES.RADAR ? {} : {
+      options.type === CHART_TYPES.RADAR ? {} : {
         x: options.type === CHART_TYPES.SCATTER || options.type === CHART_TYPES.BUBBLE ? {
           type: "linear",
           ticks: {
@@ -513,10 +517,13 @@ export default function ChartView({
   const getChartComponent = () => {
     switch (options.type) {
       case CHART_TYPES.BAR:
-      case CHART_TYPES.COLUMN:
-      case CHART_TYPES.COMPARISON:
-      case CHART_TYPES.STACKED_BAR:
         return Bar;
+      case CHART_TYPES.COLUMN:
+        return ColumnChart;
+      case CHART_TYPES.COMPARISON:
+        return ComparisonChart;
+      case CHART_TYPES.STACKED_BAR:
+        return StackedBarChart;
       case CHART_TYPES.LINE:
       case CHART_TYPES.AREA:
         return Line;

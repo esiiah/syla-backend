@@ -51,15 +51,20 @@ function ChartOptions({
 
   // Gradient management
   const addGradientStop = () => {
-    if (!local.gradientStops || local.gradientStops.length >= 5) return;
-    const stops = [...(local.gradientStops || [local.color || '#2563eb']), '#ffffff'];
-    commit({ gradientStops: stops, gradient: true });
+    const currentStops = local.gradientStops || [local.color || '#2563eb', '#ffffff'];
+    if (currentStops.length >= 5) return;
+  
+    // Add a new color between the last two
+    const newColor = currentStops[currentStops.length - 1];
+    commit({ gradientStops: [...currentStops, newColor], gradient: true });
   };
 
-  const removeGradientStop = () => {
-    if (!local.gradientStops || local.gradientStops.length <= 2) return;
-    const stops = local.gradientStops.slice(0, -1);
-    commit({ gradientStops: stops });
+  const removeGradientStop = (index) => {
+    const currentStops = local.gradientStops || [];
+    if (currentStops.length <= 2) return;
+  
+    const newStops = currentStops.filter((_, i) => i !== index);
+    commit({ gradientStops: newStops });
   };
 
   const updateGradientStop = (idx, color) => {
@@ -537,41 +542,57 @@ function ChartOptions({
             {/* Gradient stops */}
             {local.gradient && (
               <div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-3">
                   <label className="text-sm font-medium text-gray-700 dark:text-slate-300">
-                    Gradient Stops
+                    Gradient Colors ({(local.gradientStops || []).length} / 5)
                   </label>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={addGradientStop}
-                      disabled={!local.gradientStops || local.gradientStops.length >= 5}
-                      className="px-2 py-1 text-xs bg-blue-500 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      + Add
-                    </button>
-                    <button
-                      onClick={removeGradientStop}
-                      disabled={!local.gradientStops || local.gradientStops.length <= 2}
-                      className="px-2 py-1 text-xs bg-red-500 text-white rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  {(local.gradientStops || [local.color || '#2563eb']).map((color, i) => (
-                    <div key={i} className="flex flex-col items-center gap-1">
-                      <input
-                        type="color"
-                        value={color}
-                        onChange={e => updateGradientStop(i, e.target.value)}
-                        className="w-8 h-8 rounded border"
-                      />
-                      <span className="text-xs text-gray-500">{i + 1}</span>
+              </div>
+    
+                {/* Color stop inputs */}
+                <div className="grid grid-cols-3 gap-3 mb-3">
+                  {(local.gradientStops || [local.color || '#2563eb', '#ffffff']).map((color, i) => (
+                    <div key={i} className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={color}
+                          onChange={e => updateGradientStop(i, e.target.value)}
+                          className="w-full h-10 rounded-lg border-2 border-gray-300 cursor-pointer hover:border-blue-400 transition-colors"
+                        />
+                      </div>
+                      <button
+                        onClick={() => removeGradientStop(i)}
+                        disabled={(local.gradientStops || []).length <= 2}
+                        className="w-full px-2 py-1 text-xs bg-red-100 text-red-600 rounded hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      > 
+                        Remove
+                      </button>
                     </div>
                   ))}
                 </div>
-              </div>
+
+                {/* Add color button */}
+                <button
+                  onClick={addGradientStop}
+                  disabled={(local.gradientStops || []).length >= 5}
+                  className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  + Add Color Stop
+                </button>
+
+                {/* Gradient preview */}
+                <div className="mt-3">
+                  <label className="block text-xs text-gray-500 mb-2">Preview</label>
+                  <div 
+                    className="h-12 rounded-lg border-2 border-gray-300"
+                    style={{
+                      background: local.gradientStops && local.gradientStops.length > 1
+                        ? `linear-gradient(to right, ${local.gradientStops.join(', ')})`
+                        : `linear-gradient(to right, ${local.color || '#2563eb'}, #60a5fa)`
+                    }}
+                  />
+                </div>
+            </div>
             )}
 
             {/* Per-series colors */}

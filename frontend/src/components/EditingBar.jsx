@@ -1,23 +1,20 @@
 // frontend/src/components/EditingBar.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CHART_TYPES } from '../utils/chartConfigs';
-import { 
-  Menu, Settings, Palette, Type, Move, RotateCcw, RotateCw, 
-  BarChart3, LineChart, PieChart, Circle, AreaChart, TrendingUp, 
-  SortAsc, SortDesc, Grid, Layers, Eye, EyeOff, Sliders, 
-  Plus, Minus, RefreshCw, Undo2, Redo2, Save, Download,
-  Maximize2, Minimize2, ZoomIn, ZoomOut, Copy, Trash2, BarChart2, Target, Gauge, BarChart
+import { CHART_TYPES } from "../utils/chartConfigs";
+import {
+  Menu, Settings, Palette, BarChart3, LineChart, PieChart, Circle, AreaChart,
+  TrendingUp, SortAsc, SortDesc, Grid, Layers, Eye, EyeOff, Download, Save,
+  RefreshCw, Undo2, Redo2, Maximize2, BarChart2, Target, Gauge, BarChart
 } from "lucide-react";
 
-export default function EditingBar({ 
-  sidebarOpen, setSidebarOpen, chartOptions, onOptionsChange, 
+export default function EditingBar({
+  sidebarOpen, setSidebarOpen, chartOptions, onOptionsChange,
   onSave, onExport, onUndo, onRedo, canUndo, canRedo,
   onResetView, onFitToScreen, className = ""
 }) {
   const navigate = useNavigate();
   const [activeDropdown, setActiveDropdown] = useState(null);
-  const [gradientBarRef, setGradientBarRef] = useState(null);
 
   const chartTypes = [
     { type: CHART_TYPES.BAR, icon: BarChart3, label: "Bar" },
@@ -31,7 +28,7 @@ export default function EditingBar({
     { type: CHART_TYPES.RADAR, icon: Target, label: "Radar" },
     { type: CHART_TYPES.COMPARISON, icon: BarChart, label: "Compare" },
     { type: CHART_TYPES.STACKED_BAR, icon: Layers, label: "Stacked" },
-    { type: CHART_TYPES.GAUGE, icon: Gauge, label: "Gauge" }
+    { type: CHART_TYPES.GAUGE, icon: Gauge, label: "Gauge" },
   ];
 
   const colorPresets = [
@@ -40,7 +37,7 @@ export default function EditingBar({
     { name: "Purple", color: "#7c3aed" },
     { name: "Orange", color: "#ea580c" },
     { name: "Pink", color: "#db2777" },
-    { name: "Teal", color: "#0d9488" }
+    { name: "Teal", color: "#0d9488" },
   ];
 
   const toggleDropdown = (dropdown) => {
@@ -65,34 +62,24 @@ export default function EditingBar({
   const handleGradientToggle = () => {
     const newGradient = !chartOptions.gradient;
     const updates = { gradient: newGradient };
-    
     if (newGradient && !chartOptions.gradientStops) {
       updates.gradientStops = [chartOptions.color || "#2563eb", "#60a5fa"];
     }
-    
     onOptionsChange(updates);
   };
 
-  const handleGradientBarClick = (event) => {
-    if (!gradientBarRef) return;
-    
-    const rect = gradientBarRef.getBoundingClientRect();
-    const position = (event.clientX - rect.left) / rect.width;
-    const newColor = interpolateColor(chartOptions.gradientStops || [], position);
-    
-    const stops = [...(chartOptions.gradientStops || [])];
-    const insertIndex = Math.floor(position * stops.length);
-    stops.splice(insertIndex, 0, newColor);
-    
-    onOptionsChange({ gradientStops: stops });
+  const addGradientStop = () => {
+    const stops = chartOptions.gradientStops || [chartOptions.color || "#2563eb", "#60a5fa"];
+    if (stops.length >= 5) return;
+    const newColor = stops[Math.floor(stops.length / 2)];
+    onOptionsChange({ gradientStops: [...stops, newColor] });
   };
 
   const removeGradientStop = (index) => {
-    if (!chartOptions.gradientStops || chartOptions.gradientStops.length <= 2) return;
-    
-    const stops = [...chartOptions.gradientStops];
-    stops.splice(index, 1);
-    onOptionsChange({ gradientStops: stops });
+    const stops = chartOptions.gradientStops || [];
+    if (stops.length <= 2) return;
+    const newStops = stops.filter((_, i) => i !== index);
+    onOptionsChange({ gradientStops: newStops });
   };
 
   const updateGradientStop = (index, color) => {
@@ -101,22 +88,10 @@ export default function EditingBar({
     onOptionsChange({ gradientStops: stops });
   };
 
-  const interpolateColor = (stops, position) => {
-    if (stops.length < 2) return stops[0] || "#2563eb";
-    
-    const segmentSize = 1 / (stops.length - 1);
-    const segmentIndex = Math.min(Math.floor(position / segmentSize), stops.length - 2);
-    const segmentPosition = (position - segmentIndex * segmentSize) / segmentSize;
-    
-    return stops[segmentIndex];
-  };
-
   return (
-    <div
-      className={`bg-white dark:bg-slate-800 shadow-lg ${className}`}
-      style={{ zIndex: 30 }}
-    >
+    <div className={`bg-white dark:bg-slate-800 shadow-lg ${className}`} style={{ zIndex: 30 }}>
       <div className="px-4 py-2 flex items-center justify-between">
+        {/* Left section: Sidebar, Save, Export */}
         <div className="flex items-center gap-1">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -125,9 +100,9 @@ export default function EditingBar({
           >
             <Menu size={18} />
           </button>
-          
+
           <div className="w-px h-6 bg-gray-300 dark:bg-slate-600 mx-2" />
-          
+
           <button
             onClick={onSave}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
@@ -135,7 +110,7 @@ export default function EditingBar({
           >
             <Save size={18} />
           </button>
-          
+
           <button
             onClick={onExport}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
@@ -145,24 +120,26 @@ export default function EditingBar({
           </button>
         </div>
 
+        {/* Middle section: chart options */}
         <div className="flex items-center gap-1">
+          {/* Chart Type */}
           <div className="relative">
             <button
-              onClick={() => toggleDropdown('chartType')}
+              onClick={() => toggleDropdown("chartType")}
               className={`p-2 rounded-lg transition-colors ${
-                activeDropdown === 'chartType' 
-                  ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' 
-                  : 'hover:bg-gray-100 dark:hover:bg-slate-700'
+                activeDropdown === "chartType"
+                  ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30"
+                  : "hover:bg-gray-100 dark:hover:bg-slate-700"
               }`}
               title="Chart Type"
             >
-              {chartTypes.find(t => t.type === chartOptions.type)?.icon 
-                ? React.createElement(chartTypes.find(t => t.type === chartOptions.type).icon, { size: 18 })
-                : <BarChart3 size={18} />
-              }
+              {chartTypes.find((t) => t.type === chartOptions.type)?.icon
+                ? React.createElement(chartTypes.find((t) => t.type === chartOptions.type).icon, { size: 18 })
+                : <BarChart3 size={18} />}
             </button>
-            {activeDropdown === 'chartType' && (
-              <div 
+
+            {activeDropdown === "chartType" && (
+              <div
                 className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg min-w-[120px]"
                 style={{ zIndex: 70 }}
               >
@@ -171,7 +148,7 @@ export default function EditingBar({
                     key={type}
                     onClick={() => handleChartTypeChange(type)}
                     className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors ${
-                      chartOptions.type === type ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30' : ''
+                      chartOptions.type === type ? "bg-blue-50 text-blue-600 dark:bg-blue-900/30" : ""
                     }`}
                   >
                     <Icon size={16} />
@@ -182,21 +159,22 @@ export default function EditingBar({
             )}
           </div>
 
+          {/* Color settings */}
           <div className="relative">
             <button
-              onClick={() => toggleDropdown('colors')}
+              onClick={() => toggleDropdown("colors")}
               className={`p-2 rounded-lg transition-colors ${
-                activeDropdown === 'colors' 
-                  ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' 
-                  : 'hover:bg-gray-100 dark:hover:bg-slate-700'
+                activeDropdown === "colors"
+                  ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30"
+                  : "hover:bg-gray-100 dark:hover:bg-slate-700"
               }`}
               title="Colors"
             >
               <Palette size={18} />
             </button>
-            
-            {activeDropdown === 'colors' && (
-              <div 
+
+            {activeDropdown === "colors" && (
+              <div
                 className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg p-3 min-w-[280px]"
                 style={{ zIndex: 70 }}
               >
@@ -234,107 +212,126 @@ export default function EditingBar({
                 </div>
 
                 {chartOptions.gradient && (
-                  <div className="space-y-2">
-                    <div 
-                      ref={setGradientBarRef}
-                      className="relative h-6 rounded cursor-pointer border"
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      {(chartOptions.gradientStops || [chartOptions.color || "#2563eb", "#60a5fa"]).map(
+                        (stop, index) => (
+                          <div key={index} className="flex flex-col items-center gap-1">
+                            <input
+                              type="color"
+                              value={stop}
+                              onChange={(e) => updateGradientStop(index, e.target.value)}
+                              className="w-12 h-12 rounded-lg border-2 border-gray-300 cursor-pointer hover:border-blue-400 transition-colors"
+                              title={`Color ${index + 1}`}
+                            />
+                            <button
+                              onClick={() => removeGradientStop(index)}
+                              disabled={chartOptions.gradientStops?.length <= 2}
+                              className="text-xs px-2 py-0.5 rounded bg-red-100 text-red-600 hover:bg-red-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Remove color"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <button
+                        onClick={addGradientStop}
+                        disabled={chartOptions.gradientStops?.length >= 5}
+                        className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <span>+</span> Add Color
+                      </button>
+                      <span className="text-xs text-gray-500">
+                        {chartOptions.gradientStops?.length || 2} / 5 colors
+                      </span>
+                    </div>
+
+                    <div
+                      className="h-8 rounded-lg border"
                       style={{
-                        background: chartOptions.gradientStops 
-                          ? `linear-gradient(to right, ${chartOptions.gradientStops.join(', ')})`
-                          : `linear-gradient(to right, ${chartOptions.color || '#2563eb'}, #60a5fa)`
+                        background: chartOptions.gradientStops
+                          ? `linear-gradient(to right, ${chartOptions.gradientStops.join(", ")})`
+                          : `linear-gradient(to right, ${chartOptions.color || "#2563eb"}, #60a5fa)`,
                       }}
-                      onClick={handleGradientBarClick}
-                      title="Click to add gradient stop"
-                    >
-                      {(chartOptions.gradientStops || []).map((stop, index) => (
-                        <div
-                          key={index}
-                          className="absolute top-0 w-3 h-3 border-2 border-white rounded-full cursor-pointer transform -translate-y-1 hover:scale-125 transition-transform"
-                          style={{ 
-                            backgroundColor: stop,
-                            left: `${(index / Math.max(1, (chartOptions.gradientStops?.length || 1) - 1)) * 100}%`,
-                            transform: 'translateX(-50%) translateY(-25%)'
-                          }}
-                          onDoubleClick={(e) => {
-                            e.stopPropagation();
-                            removeGradientStop(index);
-                          }}
-                          title="Double-click to remove"
-                        />
-                      ))}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Click to add stops • Double-click stops to remove
-                    </div>
+                      title="Gradient preview"
+                    />
                   </div>
                 )}
               </div>
             )}
           </div>
 
+          {/* Toggle 3D */}
           <button
             onClick={() => onOptionsChange({ enable3D: !chartOptions.enable3D })}
             className={`p-2 rounded-lg transition-colors ${
-              chartOptions.enable3D 
-                ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' 
-                : 'hover:bg-gray-100 dark:hover:bg-slate-700'
+              chartOptions.enable3D
+                ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30"
+                : "hover:bg-gray-100 dark:hover:bg-slate-700"
             }`}
             title="Toggle 3D Effect"
           >
             <Layers size={18} />
           </button>
 
+          {/* Toggle Log scale */}
           <button
             onClick={() => onOptionsChange({ logScale: !chartOptions.logScale })}
             className={`p-2 rounded-lg transition-colors ${
-              chartOptions.logScale 
-                ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' 
-                : 'hover:bg-gray-100 dark:hover:bg-slate-700'
+              chartOptions.logScale
+                ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30"
+                : "hover:bg-gray-100 dark:hover:bg-slate-700"
             }`}
             title="Toggle Logarithmic Scale"
           >
             <BarChart2 size={18} />
           </button>
 
+          {/* Sort */}
           <div className="relative">
             <button
-              onClick={() => toggleDropdown('sort')}
+              onClick={() => toggleDropdown("sort")}
               className={`p-2 rounded-lg transition-colors ${
-                activeDropdown === 'sort' 
-                  ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' 
-                  : 'hover:bg-gray-100 dark:hover:bg-slate-700'
+                activeDropdown === "sort"
+                  ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30"
+                  : "hover:bg-gray-100 dark:hover:bg-slate-700"
               }`}
               title="Sort Data"
             >
               <SortAsc size={18} />
             </button>
-            {activeDropdown === 'sort' && (
-              <div 
+
+            {activeDropdown === "sort" && (
+              <div
                 className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg min-w-[120px]"
                 style={{ zIndex: 70 }}
               >
                 <button
-                  onClick={() => handleSortChange('none')}
+                  onClick={() => handleSortChange("none")}
                   className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors ${
-                    chartOptions.sort === 'none' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30' : ''
+                    chartOptions.sort === "none" ? "bg-blue-50 text-blue-600 dark:bg-blue-900/30" : ""
                   }`}
                 >
                   <Grid size={16} />
                   No Sort
                 </button>
                 <button
-                  onClick={() => handleSortChange('asc')}
+                  onClick={() => handleSortChange("asc")}
                   className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors ${
-                    chartOptions.sort === 'asc' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30' : ''
+                    chartOptions.sort === "asc" ? "bg-blue-50 text-blue-600 dark:bg-blue-900/30" : ""
                   }`}
                 >
                   <SortAsc size={16} />
                   Ascending
                 </button>
                 <button
-                  onClick={() => handleSortChange('desc')}
+                  onClick={() => handleSortChange("desc")}
                   className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors ${
-                    chartOptions.sort === 'desc' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30' : ''
+                    chartOptions.sort === "desc" ? "bg-blue-50 text-blue-600 dark:bg-blue-900/30" : ""
                   }`}
                 >
                   <SortDesc size={16} />
@@ -346,24 +343,26 @@ export default function EditingBar({
 
           <div className="w-px h-6 bg-gray-300 dark:bg-slate-600 mx-2" />
 
+          {/* Show Labels */}
           <button
             onClick={() => onOptionsChange({ showLabels: !chartOptions.showLabels })}
             className={`p-2 rounded-lg transition-colors ${
-              chartOptions.showLabels 
-                ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' 
-                : 'hover:bg-gray-100 dark:hover:bg-slate-700'
+              chartOptions.showLabels
+                ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30"
+                : "hover:bg-gray-100 dark:hover:bg-slate-700"
             }`}
             title="Toggle Data Labels"
           >
             {chartOptions.showLabels ? <Eye size={18} /> : <EyeOff size={18} />}
           </button>
 
+          {/* Trendline */}
           <button
             onClick={() => onOptionsChange({ trendline: !chartOptions.trendline })}
             className={`p-2 rounded-lg transition-colors ${
-              chartOptions.trendline 
-                ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30' 
-                : 'hover:bg-gray-100 dark:hover:bg-slate-700'
+              chartOptions.trendline
+                ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30"
+                : "hover:bg-gray-100 dark:hover:bg-slate-700"
             }`}
             title="Toggle Trendline"
           >
@@ -371,6 +370,7 @@ export default function EditingBar({
           </button>
         </div>
 
+        {/* Right section: Undo/Redo and View */}
         <div className="flex items-center gap-1">
           <button
             onClick={onUndo}
@@ -380,7 +380,7 @@ export default function EditingBar({
           >
             <Undo2 size={18} />
           </button>
-          
+
           <button
             onClick={onRedo}
             disabled={!canRedo}
@@ -411,7 +411,7 @@ export default function EditingBar({
           <div className="w-px h-6 bg-gray-300 dark:bg-slate-600 mx-2" />
 
           <button
-            onClick={() => navigate('/settings')}
+            onClick={() => navigate("/settings")}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
             title="Settings"
           >
@@ -421,10 +421,7 @@ export default function EditingBar({
       </div>
 
       {activeDropdown && (
-        <div 
-          className="fixed inset-0 z-40" 
-          onClick={() => setActiveDropdown(null)}
-        />
+        <div className="fixed inset-0 z-40" onClick={() => setActiveDropdown(null)} />
       )}
     </div>
   );

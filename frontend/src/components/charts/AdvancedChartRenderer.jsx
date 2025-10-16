@@ -74,12 +74,23 @@ export const GaugeChart = ({ value, max = 100, options }) => {
   useEffect(() => {
     if (!canvasRef.current) return;
     
-    const ctx = canvasRef.current.getContext('2d');
-    const width = canvasRef.current.width;
-    const height = canvasRef.current.height;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    
+    // Get parent container dimensions
+    const container = canvas.parentElement;
+    const containerWidth = container.clientWidth;
+    const containerHeight = container.clientHeight;
+    
+    // Set canvas size
+    canvas.width = containerWidth;
+    canvas.height = containerHeight;
+    
+    const width = canvas.width;
+    const height = canvas.height;
     const centerX = width / 2;
-    const centerY = height * 0.75;
-    const radius = Math.min(width, height) * 0.4;
+    const centerY = height * 0.7; // Position gauge lower
+    const radius = Math.min(width, height) * 0.35; // Smaller radius
     
     // Clear canvas
     ctx.clearRect(0, 0, width, height);
@@ -87,54 +98,60 @@ export const GaugeChart = ({ value, max = 100, options }) => {
     // Draw gauge background
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, Math.PI, 2 * Math.PI);
-    ctx.lineWidth = 20;
+    ctx.lineWidth = 25;
     ctx.strokeStyle = '#e5e7eb';
+    ctx.lineCap = 'round';
     ctx.stroke();
     
     // Draw gauge value
-    const percentage = value / max;
+    const percentage = Math.min(value / max, 1);
     const endAngle = Math.PI + (percentage * Math.PI);
     
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, Math.PI, endAngle);
-    ctx.lineWidth = 20;
+    ctx.lineWidth = 25;
+    ctx.lineCap = 'round';
     
     // Color based on value
     const color = percentage > 0.7 ? '#10b981' : percentage > 0.4 ? '#f59e0b' : '#ef4444';
     ctx.strokeStyle = color;
     ctx.stroke();
     
+    // Draw center circle
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius - 35, 0, 2 * Math.PI);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    
     // Draw center text
-    ctx.font = 'bold 32px Inter';
+    ctx.font = 'bold 36px Inter';
     ctx.fillStyle = '#1f2937';
     ctx.textAlign = 'center';
-    ctx.fillText(Math.round(value), centerX, centerY + 10);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(Math.round(value), centerX, centerY - 10);
     
-    ctx.font = '14px Inter';
+    ctx.font = '16px Inter';
     ctx.fillStyle = '#6b7280';
-    ctx.fillText(`of ${max}`, centerX, centerY + 30);
+    ctx.fillText(`of ${max}`, centerX, centerY + 25);
     
   }, [value, max]);
   
   return (
     <canvas
       ref={canvasRef}
-      width={400}
-      height={300}
-      style={{ width: '100%', height: 'auto' }}
+      style={{ width: '100%', height: '100%', display: 'block' }}
     />
   );
 };
 
 export const ColumnChart = ({ data, options }) => {
-  // Column is just vertical bar chart
   return (
     <Chart
       type="bar"
       data={data}
       options={{
         ...options,
-        indexAxis: 'x', // Vertical orientation
+        indexAxis: 'x', // Vertical bars
         plugins: {
           ...options?.plugins,
           legend: {
@@ -148,7 +165,6 @@ export const ColumnChart = ({ data, options }) => {
 };
 
 export const ComparisonChart = ({ data, options }) => {
-  // Comparison chart shows multiple datasets side by side
   return (
     <Chart
       type="bar"
@@ -161,11 +177,14 @@ export const ComparisonChart = ({ data, options }) => {
             'rgba(16, 185, 129, 0.7)',
             'rgba(249, 115, 22, 0.7)',
             'rgba(168, 85, 247, 0.7)'
-          ][index % 4]
+          ][index % 4],
+          barPercentage: 0.8,
+          categoryPercentage: 0.9
         }))
       }}
       options={{
         ...options,
+        indexAxis: 'x', // Vertical bars
         plugins: {
           ...options?.plugins,
           legend: {
@@ -178,6 +197,7 @@ export const ComparisonChart = ({ data, options }) => {
   );
 };
 
+// Replace StackedBarChart component
 export const StackedBarChart = ({ data, options }) => {
   return (
     <Chart
@@ -185,9 +205,16 @@ export const StackedBarChart = ({ data, options }) => {
       data={data}
       options={{
         ...options,
+        indexAxis: 'x', // Vertical bars
         scales: {
-          x: { stacked: true },
-          y: { stacked: true }
+          x: { 
+            stacked: true,
+            grid: { color: "rgba(0,0,0,0.1)" }
+          },
+          y: { 
+            stacked: true,
+            grid: { color: "rgba(0,0,0,0.1)" }
+          }
         },
         plugins: {
           ...options?.plugins,

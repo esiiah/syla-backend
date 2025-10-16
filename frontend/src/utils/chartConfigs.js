@@ -2,17 +2,17 @@
 // Centralized configuration for all 12 chart types
 
 export const CHART_TYPES = {
-  BAR: 'bar',
+  BAR: 'bar',              // Horizontal bars
+  COLUMN: 'column',        // Vertical bars
   LINE: 'line',
   AREA: 'area',
   PIE: 'pie',
-  SCATTER: 'scatter',
-  COLUMN: 'column',
   DOUGHNUT: 'doughnut',
+  SCATTER: 'scatter',
   BUBBLE: 'bubble',
   RADAR: 'radar',
-  COMPARISON: 'comparison',
-  STACKED_BAR: 'stacked_bar',
+  COMPARISON: 'comparison',  // Side-by-side vertical bars
+  STACKED_BAR: 'stacked',    // Stacked vertical bars
   GAUGE: 'gauge'
 };
 
@@ -141,22 +141,144 @@ export const CHART_FEATURES = {
 };
 
 // Get chart-specific configuration
-export const getChartConfig = (chartType, options = {}) => {
-  const features = CHART_FEATURES[chartType] || CHART_FEATURES[CHART_TYPES.BAR];
-  
-  return {
-    type: chartType,
-    features,
-    availableOptions: {
-      gradient: features.supportsGradient,
-      trendline: features.supportsTrendline,
-      logScale: features.supportsLogScale,
-      compare: features.supportsCompare,
-      stacking: features.supportsStacking,
-      labels: features.supportsLabels,
-      threeD: features.supports3D
+export const getChartConfig = (chartType) => {
+  const configs = {
+    [CHART_TYPES.BAR]: {
+      name: 'Bar Chart',
+      description: 'Horizontal bars for comparing categories',
+      indexAxis: 'y',
+      stacked: false,
+      features: {  sort: true, gradient: true, trendline: true, logScale: true,
+        comparison: true, labels: true,   threeD: true }
+    },
+
+    [CHART_TYPES.COLUMN]: {
+      name: 'Column Chart',
+      description: 'Vertical bars for category comparison',
+      indexAxis: 'x',
+      stacked: false,
+      features: { sort: true, gradient: true,  trendline: true,  logScale: true,
+        comparison: true, labels: true, threeD: true }
+    },
+
+    [CHART_TYPES.LINE]: {
+      name: 'Line Chart',
+      description: 'Trends or changes over time',
+      indexAxis: 'x',
+      stacked: false,
+      features: { sort: false, gradient: true, trendline: true, logScale: true,
+        comparison: true, labels: true, threeD: true }
+    },
+
+    [CHART_TYPES.AREA]: {
+      name: 'Area Chart',
+      description: 'Filled area under a line showing volume or magnitude',
+      indexAxis: 'x',
+      stacked: true,
+      features: { sort: false,  gradient: true, trendline: true, logScale: true,  comparison: true,
+        labels: true, threeD: false
+      }
+    },
+
+    [CHART_TYPES.PIE]: {
+      name: 'Pie Chart',
+      description: 'Circular slices representing parts of a whole',
+      features: { sort: false, gradient: true, trendline: false, logScale: false, comparison: false,
+        labels: true, threeD: true }
+    },
+
+    [CHART_TYPES.DOUGHNUT]: {
+      name: 'Doughnut Chart',
+      description: 'Like a pie chart with a central hole',
+      features: { sort: false, gradient: true, trendline: false,
+        logScale: false, comparison: false, labels: true, threeD: true }
+    },
+    
+    [CHART_TYPES.SCATTER]: {
+      name: 'Scatter Plot',
+      description: 'Points showing relationships between two variables',
+      features: {
+        sort: false,
+        gradient: true,
+        trendline: true,
+        logScale: true,
+        comparison: false,
+        labels: true,
+        threeD: false
+      }
+    },
+    [CHART_TYPES.BUBBLE]: {
+      name: 'Bubble Chart',
+      description: 'Scatter plot with variable bubble sizes',
+      features: {
+        sort: false,
+        gradient: true,
+        trendline: false,
+        logScale: true,
+        comparison: false,
+        labels: true,
+        threeD: false
+      }
+    },
+    [CHART_TYPES.RADAR]: {
+      name: 'Radar Chart',
+      description: 'Values displayed on multiple axes from a central point',
+      features: {
+        sort: false,
+        gradient: true,
+        trendline: false,
+        logScale: false,
+        comparison: true,
+        labels: true,
+        threeD: false
+      }
+    },
+    [CHART_TYPES.COMPARISON]: {
+      name: 'Comparison Chart',
+      description: 'Side-by-side vertical bars to compare series',
+      indexAxis: 'x',
+      stacked: false,
+      features: {
+        sort: true,
+        gradient: true,
+        trendline: false,
+        logScale: true,
+        comparison: true,
+        labels: true,
+        threeD: true
+      }
+    },
+    [CHART_TYPES.STACKED_BAR]: {
+      name: 'Stacked Bar Chart',
+      description: 'Bars stacked to show parts of a whole across categories',
+      indexAxis: 'x',
+      stacked: true,
+      features: {
+        sort: true,
+        gradient: true,
+        trendline: false,
+        logScale: true,
+        comparison: false,
+        labels: true,
+        threeD: true
+      }
+    },
+    [CHART_TYPES.GAUGE]: {
+      name: 'Gauge Chart',
+      description: 'Circular gauge showing current progress or performance',
+      features: {
+        sort: false,
+        gradient: true,
+        trendline: false,
+        logScale: false,
+        comparison: false,
+        labels: true,
+        threeD: false
+      }
     }
   };
+
+  return configs[chartType] || configs[CHART_TYPES.BAR];
 };
 
 // Generate gradient for area charts
