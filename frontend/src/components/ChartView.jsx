@@ -199,7 +199,7 @@ export default function ChartView({
       };
     }
 
-// SCATTER & BUBBLE
+    // SCATTER & BUBBLE
     if (options.type === CHART_TYPES.SCATTER || options.type === CHART_TYPES.BUBBLE) {
       const maxVal = Math.max(...safeVals.map(v => Math.abs(v)));
       const minVal = Math.min(...safeVals.map(v => Math.abs(v)));
@@ -208,9 +208,9 @@ export default function ChartView({
       const scatterData = safeVals.map((v, i) => {
         let bubbleSize = undefined;
         if (options.type === CHART_TYPES.BUBBLE) {
-          // Normalize value to 0-1 range, then scale to 15-40 pixels
+          // Normalize value to 0-1 range, then scale to MUCH larger sizes: 25-60 pixels
           const normalized = (Math.abs(v) - minVal) / range;
-          bubbleSize = 15 + (normalized * 25); // Range: 15-40px
+          bubbleSize = 25 + (normalized * 35); // Range: 25-60px for visible bubbles
         }
         
         return {
@@ -478,7 +478,7 @@ export default function ChartView({
         }
       },
       
-      scales:
+scales:
         (options.type === CHART_TYPES.PIE || options.type === CHART_TYPES.DOUGHNUT)
           ? {}
           : options.type === CHART_TYPES.RADAR
@@ -487,11 +487,13 @@ export default function ChartView({
           ? {
               x: {
                 stacked: true,
+                type: ys,
                 ticks: { 
                   color: tc,
                   callback: (value) => value.toLocaleString()
                 },
-                grid: { color: "rgba(0,0,0,0.1)" }
+                grid: { color: "rgba(0,0,0,0.1)" },
+                min: options.logScale ? minPos * 0.1 : undefined
               },
               y: {
                 stacked: true,
@@ -503,7 +505,28 @@ export default function ChartView({
                 grid: { color: "rgba(0,0,0,0.1)" }
               }
             }
+          : isHorizontal
+          ? {
+              // For horizontal bars (COLUMN, COMPARISON): x=values, y=labels
+              x: {
+                type: ys,
+                ticks: { 
+                  color: tc,
+                  callback: (value) => value.toLocaleString()
+                },
+                min: options.logScale ? minPos * 0.1 : undefined,
+                grid: { color: "rgba(0,0,0,0.1)" }
+              },
+              y: {
+                ticks: { 
+                  color: tc,
+                  maxRotation: 0
+                },
+                grid: { color: "rgba(0,0,0,0.1)" }
+              }
+            }
           : {
+              // For vertical bars (BAR, LINE, etc): x=labels, y=values
               x:
                 options.type === CHART_TYPES.SCATTER || options.type === CHART_TYPES.BUBBLE
                   ? {
