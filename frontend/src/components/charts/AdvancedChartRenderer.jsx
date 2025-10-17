@@ -250,10 +250,11 @@ export const StackedBarChart = ({ data, options }) => {
       data={data}
       options={{
         ...options,
-        indexAxis: 'y', // Horizontal stacked bars
+        indexAxis: 'y',
         scales: {
           x: { 
             stacked: true,
+            beginAtZero: true,
             grid: { color: "rgba(0,0,0,0.1)" }
           },
           y: { 

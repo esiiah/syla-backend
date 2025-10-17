@@ -201,36 +201,46 @@ export default function ChartView({
 
     // SCATTER & BUBBLE
     if (options.type === CHART_TYPES.SCATTER || options.type === CHART_TYPES.BUBBLE) {
-      const scatterData = safeVals.map((v, i) => ({
-        x: i,
-        y: v,
-        r: options.type === CHART_TYPES.BUBBLE ? Math.abs(v / 10) + 8 : undefined
-      }));
+      const scatterData = safeVals.map((v, i) => {
+        const bubbleSize = options.type === CHART_TYPES.BUBBLE 
+          ? Math.max(10, Math.abs(v) / (Math.max(...safeVals) / 30)) 
+          : undefined;
+        
+        return {
+          x: i,
+          y: v,
+          r: bubbleSize
+        };
+      });
 
       return {
         labels: lbls,
         datasets: [{
           label: yAxis || "Value",
           data: scatterData,
-          // Bubble: semi-transparent with blur effect, Scatter: slightly bigger solid dots
           backgroundColor: options.type === CHART_TYPES.BUBBLE 
-            ? finalColors.map(c => c.replace(')', ', 0.4)').replace('rgb', 'rgba'))
+            ? finalColors.map(c => {
+                if (c.startsWith('#')) {
+                  const rgb = hexToRgb(c);
+                  return rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)` : c;
+                }
+                return c.replace(')', ', 0.4)').replace('rgb(', 'rgba(');
+              })
             : finalColors,
           borderColor: options.type === CHART_TYPES.BUBBLE 
-            ? finalColors.map(c => c.replace(')', ', 0.6)').replace('rgb', 'rgba'))
+            ? finalColors.map(c => {
+                if (c.startsWith('#')) {
+                  const rgb = hexToRgb(c);
+                  return rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.7)` : c;
+                }
+                return c.replace(')', ', 0.7)').replace('rgb(', 'rgba(');
+              })
             : borderColors,
-          pointBackgroundColor: options.type === CHART_TYPES.BUBBLE 
-            ? finalColors.map(c => c.replace(')', ', 0.4)').replace('rgb', 'rgba'))
-            : finalColors,
-          pointBorderColor: options.type === CHART_TYPES.BUBBLE 
-            ? finalColors.map(c => c.replace(')', ', 0.6)').replace('rgb', 'rgba'))
-            : borderColors,
-          pointBorderWidth: options.type === CHART_TYPES.BUBBLE ? 2 : (selectedBars.length > 0 ? 3 : 2),
+          borderWidth: options.type === CHART_TYPES.BUBBLE ? 2 : (selectedBars.length > 0 ? 3 : 2),
           showLine: false,
           pointRadius: options.type === CHART_TYPES.BUBBLE ? undefined : 8,
           pointHoverRadius: options.type === CHART_TYPES.BUBBLE ? undefined : 10,
-          pointStyle: 'circle',
-          borderWidth: options.type === CHART_TYPES.BUBBLE ? 3 : 0
+          pointStyle: 'circle'
         }]
       };
     }
@@ -283,7 +293,6 @@ export default function ChartView({
       };
     }
 
-    // STANDARD (Bar, Line, Column, etc.)
     const core = {
       label: yAxis || "Value",
       type: options.type === CHART_TYPES.LINE ? "line" : "bar",
@@ -298,7 +307,53 @@ export default function ChartView({
 
     const ds = [core];
 
-    if (safeCmp) {
+    // Handle COMPARISON chart - add second dataset
+    if (options.type === CHART_TYPES.COMPARISON && safeCmp) {
+      ds.push({
+        label: options.compareField || 'Comparison',
+        type: "bar",
+        data: safeCmp,
+        originalData: cmp,
+        backgroundColor: cmp.map((_, i) => {
+          const rgb = hexToRgb(finalColors[i]);
+          if (rgb) {
+            return rgbToHex({
+              r: Math.min(255, rgb.r + 60),
+              g: Math.max(0, rgb.g - 30),
+              b: Math.min(255, rgb.b + 60)
+            });
+          }
+          return finalColors[i];
+        }),
+        borderColor: "#10b981",
+        borderWidth: 1
+      });
+    }
+
+    // Handle STACKED_BAR - create multiple series
+    if (options.type === CHART_TYPES.STACKED_BAR) {
+      ds.push({
+        label: `${yAxis} (Secondary)`,
+        type: "bar",
+        data: safeVals.map(v => v * 0.6),
+        originalData: vals.map(v => v * 0.6),
+        backgroundColor: finalColors.map(color => {
+          const rgb = hexToRgb(color);
+          if (rgb) {
+            return rgbToHex({
+              r: Math.max(0, rgb.r - 40),
+              g: Math.min(255, rgb.g + 40),
+              b: Math.max(0, rgb.b - 40)
+            });
+          }
+          return color;
+        }),
+        borderColor: "#059669",
+        borderWidth: 1
+      });
+    }
+
+    if (safeCmp && options.type !== CHART_TYPES.COMPARISON && options.type !== CHART_TYPES.STACKED_BAR) {
       ds.push({
         label: options.compareField,
         type: core.type,
@@ -415,42 +470,57 @@ export default function ChartView({
           }
         }
       },
-      scales: (options.type === CHART_TYPES.PIE || options.type === CHART_TYPES.DOUGHNUT) ? {} : 
-      options.type === CHART_TYPES.RADAR ? {} : {
-        x: options.type === CHART_TYPES.SCATTER || options.type === CHART_TYPES.BUBBLE ? {
-          type: "linear",
-          ticks: {
-            color: tc,
-            callback: v => {
-              const index = Math.round(v);
-              return (Number.isInteger(v) && index >= 0 && index < lbls.length) ? lbls[index] : "";
-            },
-            stepSize: 1
-          },
-          grid: { color: "rgba(0,0,0,0.1)" },
-          min: -0.5,
-          max: Math.max(0, lbls.length - 0.5)
-        } : {
-          ticks: { 
-            color: tc,
-            maxRotation: 45,
-            minRotation: 0
-          },
-          grid: { color: "rgba(0,0,0,0.1)" }
-        },
-        y: {
-          type: ys,
-          ticks: { 
-            color: tc,
-            callback: function(value) {
-              return value.toLocaleString();
+      
+      scales:
+        (options.type === CHART_TYPES.PIE || options.type === CHART_TYPES.DOUGHNUT)
+          ? {}
+          : options.type === CHART_TYPES.RADAR
+          ? {}
+          : options.type === CHART_TYPES.STACKED_BAR
+          ? {
+              x: {
+                stacked: true,
+                ticks: { 
+                  color: tc,
+                  callback: (value) => value.toLocaleString()
+                },
+                grid: { color: "rgba(0,0,0,0.1)" }
+              },
+              y: {
+                stacked: true,
+                ticks: { 
+                  color: tc,
+                  maxRotation: 45,
+                  minRotation: 0
+                },
+                grid: { color: "rgba(0,0,0,0.1)" }
+              }
             }
-          },
-          grid: { color: "rgba(0,0,0,0.1)" },
-          min: options.logScale ? minPos * 0.1 : undefined
-        }
-      }
+          : {
+              x:
+                options.type === CHART_TYPES.SCATTER || options.type === CHART_TYPES.BUBBLE
+                  ? {
+                      type: "linear",
+                      position: "bottom",
+                      ticks: { color: tc },
+                      grid: { color: "rgba(0,0,0,0.1)" }
+                    }
+                  : {
+                      ticks: { color: tc },
+                      grid: { color: "rgba(0,0,0,0.1)" }
+                    },
+              y: {
+                type: ys,
+                ticks: { 
+                  color: tc,
+                  callback: (value) => value.toLocaleString()
+                },
+                min: options.logScale ? minPos * 0.1 : undefined,
+                grid: { color: "rgba(0,0,0,0.1)" }
+              }
+            }
     };
+
     // Add rounded corners for horizontal bars
     if (isHorizontal) {
       opts.elements = {
