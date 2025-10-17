@@ -30,7 +30,7 @@ function ChartOptions({
   const commit = (patch) => {
     const updated = { ...local, ...patch };
     setLocal(updated);
-    setOptions(prev => ({ ...prev, ...patch }));
+    setOptions(updated);
   };
 
   // Get numeric and categorical columns
@@ -327,7 +327,11 @@ function ChartOptions({
                 </label>
                 <select
                   value={local.aggregateBy || ""}
-                  onChange={e => commit({ aggregateBy: e.target.value })}
+                  onChange={e => {
+                    const value = e.target.value;
+                    commit({ aggregateBy: value });
+                    setOptions({ ...local, aggregateBy: value }); // Force immediate update
+                  }}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
                 >
                   <option value="">No grouping</option>
@@ -343,7 +347,11 @@ function ChartOptions({
                 </label>
                 <select
                   value={local.metric || ""}
-                  onChange={e => commit({ metric: e.target.value })}
+                  onChange={e => {
+                    const value = e.target.value;
+                    commit({ metric: value });
+                    setOptions({ ...local, metric: value });
+                  }}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
                 >
                   {numericColumns.map(col => (
@@ -358,7 +366,11 @@ function ChartOptions({
                 </label>
                 <select
                   value={local.aggregateFunction || "sum"}
-                  onChange={e => commit({ aggregateFunction: e.target.value })}
+                  onChange={e => {
+                    const value = e.target.value;
+                    commit({ aggregateFunction: value });
+                    setOptions({ ...local, aggregateFunction: value });
+                  }}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
                 >
                   <option value="sum">Sum</option>

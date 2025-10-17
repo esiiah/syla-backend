@@ -118,11 +118,16 @@ export default function EditingPage() {
   };
 
   const handleOptionsChange = (newOptions) => {
+    // Accept both partial updates and full option objects
+    const mergedOptions = typeof newOptions === 'object' && newOptions !== null
+      ? { ...chartData.chartOptions, ...newOptions }
+      : chartData.chartOptions;
+    
     const updatedData = {
       ...chartData,
-      chartOptions: { ...chartData.chartOptions, ...newOptions }
+      chartOptions: mergedOptions
     };
-    updateChartOptions(newOptions);
+    updateChartOptions(mergedOptions);
     addToHistory(updatedData, 'options_change');
   };
 

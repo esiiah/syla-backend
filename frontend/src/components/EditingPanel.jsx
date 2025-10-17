@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Edit3, Trash2, Square } from "lucide-react";
 import ChartView from "./ChartView";
+import ChartOptions from "./ChartOptions";
 import { useChartData } from "../context/ChartDataContext";
 
 // Editable Text Component
@@ -285,6 +286,15 @@ export default function EditingPanel({
               selectionMode={selectionMode}
             />
           </div>
+          {/* ADD THIS SECTION */}
+          <ChartOptions
+            options={chartData.chartOptions}
+            setOptions={(newOptions) => {
+              updateChartData({ chartOptions: { ...chartData.chartOptions, ...newOptions } });
+            }}
+            columns={chartData.columns}
+            data={chartData.data}
+          />
         </div>
       </div>
     </div>
