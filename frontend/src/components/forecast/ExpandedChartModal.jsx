@@ -91,7 +91,14 @@ export default function ExpandedChartModal({
     labels: data?.timestamps || [],
     datasets: [{
       label: title || 'Forecast Data',
-      data: data?.forecast || [],
+      // FIX: Scatter/Bubble need proper data structure
+      data: (chartType === 'scatter' || chartType === 'bubble') 
+        ? (data?.forecast || []).map((val, i) => ({
+            x: i,
+            y: val,
+            r: chartType === 'bubble' ? (Math.abs(val) / Math.max(...(data?.forecast || [1])) * 40 + 15) : undefined
+          }))
+        : data?.forecast || [],
       backgroundColor: chartType === 'pie' || chartType === 'doughnut'
         ? config.colors 
         : config.bgColor,
@@ -103,7 +110,8 @@ export default function ExpandedChartModal({
       fill: chartType === 'line' || chartType === 'area',
       pointBackgroundColor: config.borderColor,
       pointBorderColor: '#fff',
-      pointBorderWidth: 2
+      pointBorderWidth: 2,
+      showLine: (chartType === 'scatter' || chartType === 'bubble') ? false : undefined
     }]
   };
 
@@ -199,66 +207,89 @@ export default function ExpandedChartModal({
         }
       }
     },
+
     scales: chartType === 'pie' || chartType === 'doughnut' ? {} : 
-           chartType === 'radar' ? {
-             r: {
-               beginAtZero: true,
-               ticks: {
-                 font: { size: 12 },
-                 backdropColor: 'transparent',
-                 color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b'
-               },
-               pointLabels: {
-                 font: { size: 12 },
-                 color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b'
-               },
-               grid: {
-                 color: 'rgba(0, 0, 0, 0.06)'
-               }
-             }
-           } : 
-           chartType === 'stacked_bar' ? {
-             x: { 
-               stacked: true,
-               ticks: {
-                 font: { size: 13 },
-                 maxRotation: 45,
-                 minRotation: 0,
-                 color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b'
-               }
-             },
-             y: { 
-               stacked: true, 
-               beginAtZero: true,
-               grid: { color: 'rgba(0, 0, 0, 0.06)', drawBorder: false },
-               ticks: {
-                 font: { size: 13 },
-                 padding: 12,
-                 color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b',
-                 callback: function(value) { return value.toLocaleString(); }
-               }
-             }
-           } : {
-             y: {
-               beginAtZero: true,
-               grid: { color: 'rgba(0, 0, 0, 0.06)', drawBorder: false },
-               ticks: {
-                 font: { size: 13 },
-                 padding: 12,
-                 color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b',
-                 callback: function(value) { return value.toLocaleString(); }
-               }
-             },
-             x: {
-               grid: { display: false, drawBorder: false },
-               ticks: {
-                 font: { size: 13 },
-                 maxRotation: 45,
-                 minRotation: 0,
-                 color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b'
-               }
-             }
-           },
+       chartType === 'radar' ? {
+        r: {
+          beginAtZero: true,
+          ticks: {
+            font: { size: 12 },
+            backdropColor: 'transparent',
+            color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b'
+          },
+          pointLabels: {
+            font: { size: 12 },
+            color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b'
+          },
+          grid: {
+            color: 'rgba(0, 0, 0, 0.06)'
+          }
+        }
+      } : 
+      chartType === 'stacked_bar' ? {
+        x: { 
+          stacked: true,
+          ticks: {
+            font: { size: 13 },
+            maxRotation: 45,
+            minRotation: 0,
+            color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b'
+          }
+        },
+        y: { 
+          stacked: true, 
+          beginAtZero: true,
+          grid: { color: 'rgba(0, 0, 0, 0.06)', drawBorder: false },
+          ticks: {
+            font: { size: 13 },
+            padding: 12,
+            color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b',
+            callback: function(value) { return value.toLocaleString(); }
+          }
+        }
+      } :
+      // FIX: Scatter/Bubble scales
+      (chartType === 'scatter' || chartType === 'bubble') ? {
+        x: {
+          type: 'linear',
+          position: 'bottom',
+          ticks: {
+            font: { size: 13 },
+            color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b'
+          },
+          grid: { color: 'rgba(0, 0, 0, 0.06)', drawBorder: false }
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(0, 0, 0, 0.06)', drawBorder: false },
+          ticks: {
+            font: { size: 13 },
+            padding: 12,
+            color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b',
+            callback: function(value) { return value.toLocaleString(); }
+          }
+        }
+      } : {
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(0, 0, 0, 0.06)', drawBorder: false },
+          ticks: {
+            font: { size: 13 },
+            padding: 12,
+            color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b',
+            callback: function(value) { return value.toLocaleString(); }
+          }
+        },
+        x: {
+          grid: { display: false, drawBorder: false },
+          ticks: {
+            font: { size: 13 },
+            maxRotation: 45,
+            minRotation: 0,
+            color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b'
+          }
+        }
+      },
     animation: { duration: 750, easing: 'easeInOutQuart' },
     interaction: { intersect: false, mode: 'index' }
   };

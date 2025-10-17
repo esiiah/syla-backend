@@ -208,10 +208,20 @@ export default function ForecastSummary({
       doc.text('1. Bar Chart Forecast', 14, yPos);
       yPos += 5;
 
-      const barImg = await chartToBase64('bar', barChartData, pdfChartOptions);
-      if (barImg) {
-        doc.addImage(barImg, 'PNG', 14, yPos, 180, 100);
-        yPos += 110;
+      try {
+        const barImg = await chartToBase64('bar', barChartData, pdfChartOptions);
+        if (barImg && barImg.startsWith('data:image')) {
+          doc.addImage(barImg, 'PNG', 14, yPos, 180, 100);
+          yPos += 110;
+        } else {
+          throw new Error('Invalid chart image');
+        }
+      } catch (chartError) {
+        console.warn('Bar chart render failed:', chartError);
+        doc.setFontSize(10);
+        doc.setTextColor(150, 150, 150);
+        doc.text('Chart could not be rendered', 14, yPos + 20);
+        yPos += 50;
       }
 
       // Chart 2: LINE
@@ -236,21 +246,34 @@ export default function ForecastSummary({
         yPos = 20;
       }
 
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(37, 99, 235);
       doc.text('2. Line Chart Forecast', 14, yPos);
       yPos += 5;
 
-      const lineImg = await chartToBase64('line', lineChartData, pdfChartOptions);
-      if (lineImg) {
-        doc.addImage(lineImg, 'PNG', 14, yPos, 180, 100);
-        yPos += 110;
+      try {
+        const lineImg = await chartToBase64('line', lineChartData, pdfChartOptions);
+        if (lineImg && lineImg.startsWith('data:image')) {
+          doc.addImage(lineImg, 'PNG', 14, yPos, 180, 100);
+          yPos += 110;
+        } else {
+          throw new Error('Invalid chart image');
+        }
+      } catch (chartError) {
+        console.warn('Line chart render failed:', chartError);
+        doc.setFontSize(10);
+        doc.setTextColor(150, 150, 150);
+        doc.text('Chart could not be rendered', 14, yPos + 20);
+        yPos += 50;
       }
-
       // NEW PAGE
       doc.addPage();
       yPos = 20;
 
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
+      doc.setTextColor(37, 99, 235);
       doc.text('Additional Visualizations', 14, yPos);
       yPos += 10;
 
@@ -270,13 +293,24 @@ export default function ForecastSummary({
       };
 
       doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
       doc.text('3. Area Chart Forecast', 14, yPos);
       yPos += 5;
 
-      const areaImg = await chartToBase64('line', areaChartData, pdfChartOptions);
-      if (areaImg) {
-        doc.addImage(areaImg, 'PNG', 14, yPos, 180, 100);
-        yPos += 110;
+      try {
+        const areaImg = await chartToBase64('line', areaChartData, pdfChartOptions);
+        if (areaImg && areaImg.startsWith('data:image')) {
+          doc.addImage(areaImg, 'PNG', 14, yPos, 180, 100);
+          yPos += 110;
+        } else {
+          throw new Error('Invalid chart image');
+        }
+      } catch (chartError) {
+        console.warn('Area chart render failed:', chartError);
+        doc.setFontSize(10);
+        doc.setTextColor(150, 150, 150);
+        doc.text('Chart could not be rendered', 14, yPos + 20);
+        yPos += 50;
       }
 
       // Chart 4: PIE
@@ -297,34 +331,47 @@ export default function ForecastSummary({
         }]
       };
 
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
       doc.text('4. Distribution Pie Chart', 14, yPos);
       yPos += 5;
 
-      const pieImg = await chartToBase64('pie', pieChartData, {
-        ...pdfChartOptions,
-        scales: {},
-        plugins: {
-          ...pdfChartOptions.plugins,
-          legend: { display: true, position: 'right', labels: { font: { size: 9 } } },
-          datalabels: {
-            display: true,
-            color: '#fff',
-            font: { size: 10, weight: 'bold' },
-            formatter: (value, ctx) => {
-              const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
-              return `${((value / total) * 100).toFixed(1)}%`;
+      try {
+        const pieImg = await chartToBase64('pie', pieChartData, {
+          ...pdfChartOptions,
+          scales: {},
+          plugins: {
+            ...pdfChartOptions.plugins,
+            legend: { display: true, position: 'right', labels: { font: { size: 9 } } },
+            datalabels: {
+              display: true,
+              color: '#fff',
+              font: { size: 10, weight: 'bold' },
+              formatter: (value, ctx) => {
+                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                return `${((value / total) * 100).toFixed(1)}%`;
+              }
             }
           }
-        }
-      });
+        });
     
-      if (pieImg) {
-        doc.addImage(pieImg, 'PNG', 14, yPos, 180, 100);
+        if (pieImg && pieImg.startsWith('data:image')) {
+          doc.addImage(pieImg, 'PNG', 14, yPos, 180, 100);
+        } else {
+          throw new Error('Invalid chart image');
+        }
+      } catch (chartError) {
+        console.warn('Pie chart render failed:', chartError);
+        doc.setFontSize(10);
+        doc.setTextColor(150, 150, 150);
+        doc.text('Chart could not be rendered', 14, yPos + 20);
       }
 
     } catch (error) {
-      console.error('Chart error:', error);
-      doc.text('Charts could not be rendered', 14, yPos);
+      console.error('Chart rendering error:', error);
+      doc.setFontSize(10);
+      doc.setTextColor(200, 50, 50);
+      doc.text('Some charts could not be rendered. Please try again.', 14, yPos);
     }
     
     // ========== FORECAST DATA TABLE ==========

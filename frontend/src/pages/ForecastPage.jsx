@@ -156,19 +156,24 @@ export default function ForecastPage() {
   };
 
   const sortedForecastData = React.useMemo(() => {
-  if (!forecastResult?.forecast) return null;
+    if (!forecastResult?.forecast) return null;
   
   const forecast = forecastResult.forecast;
+  
+  // FIX: Default returns original order (no sorting)
   if (sortOrder === 'none') return forecast;
   
+  // Only sort if explicitly requested
   const indices = forecast.forecast.map((_, i) => i);
   const sorted = [...indices].sort((a, b) => {
     if (sortOrder === 'asc') {
       return forecast.forecast[a] - forecast.forecast[b];
     }
+    // sortOrder === 'desc'
     return forecast.forecast[b] - forecast.forecast[a];
   });
   
+  // Return sorted data
   return {
     forecast: sorted.map(i => forecast.forecast[i]),
     lower: forecast.lower ? sorted.map(i => forecast.lower[i]) : undefined,
