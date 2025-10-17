@@ -1,6 +1,6 @@
 // frontend/src/components/forecast/ForecastChartGrid.jsx
 import React from 'react';
-import { Bar, Line, Pie, Scatter } from 'react-chartjs-2';
+import { Bar, Line, Pie, Scatter, Doughnut, PolarArea, Radar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -9,10 +9,12 @@ import {
   PointElement,
   LineElement,
   ArcElement,
+  RadialLinearScale,
   Title,
   Tooltip,
   Legend
 } from 'chart.js';
+import { GaugeChart } from '../charts/AdvancedChartRenderer';
 
 ChartJS.register(
   CategoryScale,
@@ -21,6 +23,7 @@ ChartJS.register(
   PointElement,
   LineElement,
   ArcElement,
+  RadialLinearScale,
   Title,
   Tooltip,
   Legend
@@ -34,8 +37,8 @@ const ChartCard = ({ chart, data, onClick, isSelected }) => {
     scatter: Scatter,
     area: Line,
     column: Bar,
-    doughnut: Pie,
-    radar: RadarChart,
+    doughnut: Doughnut,
+    radar: Radar,
     bubble: Scatter,
     comparison: Bar,
     stacked_bar: Bar,
@@ -44,8 +47,6 @@ const ChartCard = ({ chart, data, onClick, isSelected }) => {
 
   const ChartComponent = chartComponents[chart.id] || Bar;
 
-
-  // Chart-specific configurations
   const getChartConfig = () => {
     const baseDataset = {
       label: 'Forecast',
@@ -65,14 +66,17 @@ const ChartCard = ({ chart, data, onClick, isSelected }) => {
     }
 
     if (chart.id === 'pie' || chart.id === 'doughnut') {
+      const colors = [
+        `rgba(${chart.color}, 0.9)`,
+        `rgba(${chart.color}, 0.7)`,
+        `rgba(${chart.color}, 0.5)`,
+        `rgba(${chart.color}, 0.3)`,
+        `rgba(${chart.color}, 0.8)`,
+        `rgba(${chart.color}, 0.6)`
+      ];
       return {
         ...baseDataset,
-        backgroundColor: [
-          `rgba(${chart.color}, 0.8)`,
-          `rgba(${chart.color}, 0.6)`,
-          `rgba(${chart.color}, 0.4)`,
-          `rgba(${chart.color}, 0.2)`
-        ]
+        backgroundColor: colors.slice(0, (data?.forecast || []).length)
       };
     }
 
@@ -81,6 +85,17 @@ const ChartCard = ({ chart, data, onClick, isSelected }) => {
         ...baseDataset,
         pointRadius: chart.id === 'bubble' ? 8 : 6,
         pointHoverRadius: chart.id === 'bubble' ? 10 : 8
+      };
+    }
+
+    if (chart.id === 'radar') {
+      return {
+        ...baseDataset,
+        backgroundColor: `rgba(${chart.color}, 0.2)`,
+        pointBackgroundColor: `rgb(${chart.color})`,
+        pointBorderColor: '#fff',
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: `rgb(${chart.color})`
       };
     }
 
@@ -110,7 +125,6 @@ const ChartCard = ({ chart, data, onClick, isSelected }) => {
     return baseDataset;
   };
 
-
   const chartData = {
     labels: data?.timestamps || [],
     datasets: Array.isArray(getChartConfig()) ? getChartConfig() : [getChartConfig()]
@@ -121,7 +135,7 @@ const ChartCard = ({ chart, data, onClick, isSelected }) => {
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: chart.id === 'pie' || chart.id === 'doughnut' || chart.id === 'stacked_bar',
+        display: chart.id === 'pie' || chart.id === 'doughnut' || chart.id === 'stacked_bar' || chart.id === 'radar',
         position: 'bottom',
         labels: {
           font: { size: 9 },
@@ -137,36 +151,49 @@ const ChartCard = ({ chart, data, onClick, isSelected }) => {
         displayColors: true
       },
       datalabels: {
-        display: false // Never show labels in interactive view
+        display: false
       }
     },
-    scales: chart.id !== 'pie' && chart.id !== 'doughnut' && chart.id !== 'radar' && chart.id !== 'gauge' ? {
-      y: {
-        beginAtZero: true,
-        grid: {
-          color: 'rgba(0, 0, 0, 0.05)',
-          drawBorder: false
-        },
-        ticks: {
-          font: { size: 9 },
-          color: 'rgba(100, 116, 139, 0.8)'
-        }
-      },
-      x: {
-        grid: {
-          display: false
-        },
-        ticks: {
-          font: { size: 9 },
-          color: 'rgba(100, 116, 139, 0.8)',
-          maxRotation: 45,
-          minRotation: 0
-        }
-      }
-    } : chart.id === 'stacked_bar' ? {
-      x: { stacked: true },
-      y: { stacked: true }
-    } : {},
+    scales: chart.id === 'pie' || chart.id === 'doughnut' ? {} : 
+           chart.id === 'radar' ? {
+             r: {
+               beginAtZero: true,
+               ticks: {
+                 font: { size: 8 },
+                 backdropColor: 'transparent'
+               },
+               pointLabels: {
+                 font: { size: 9 }
+               }
+             }
+           } : 
+           chart.id === 'stacked_bar' ? {
+             x: { stacked: true, ticks: { font: { size: 9 } } },
+             y: { stacked: true, beginAtZero: true, ticks: { font: { size: 9 } } }
+           } : {
+             y: {
+               beginAtZero: true,
+               grid: {
+                 color: 'rgba(0, 0, 0, 0.05)',
+                 drawBorder: false
+               },
+               ticks: {
+                 font: { size: 9 },
+                 color: 'rgba(100, 116, 139, 0.8)'
+               }
+             },
+             x: {
+               grid: {
+                 display: false
+               },
+               ticks: {
+                 font: { size: 9 },
+                 color: 'rgba(100, 116, 139, 0.8)',
+                 maxRotation: 45,
+                 minRotation: 0
+               }
+             }
+           },
     animation: {
       duration: 1000,
       easing: 'easeInOutQuart'
@@ -187,7 +214,6 @@ const ChartCard = ({ chart, data, onClick, isSelected }) => {
           : 'border-gray-200 dark:border-slate-700'
       } p-4 cursor-pointer transition-all duration-300 group`}
     >
-      {/* Chart Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div 
@@ -206,13 +232,12 @@ const ChartCard = ({ chart, data, onClick, isSelected }) => {
         />
       </div>
 
-      {/* Chart Canvas */}
       <div className="h-40 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-800 dark:to-slate-900 rounded-lg p-2 shadow-inner">
-        {data ? (
+        {data && (data.forecast || []).length > 0 ? (
           chart.id === 'gauge' ? (
             <GaugeChart 
-              value={data.forecast[0] || 0}
-              max={Math.max(...data.forecast) * 1.2}
+              value={(data.forecast || [])[0] || 0}
+              max={Math.max(...(data.forecast || [0])) * 1.2}
               options={options}
             />
           ) : (
@@ -225,10 +250,8 @@ const ChartCard = ({ chart, data, onClick, isSelected }) => {
         )}
       </div>
 
-      {/* Hover Overlay Indicator */}
       <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl pointer-events-none" />
       
-      {/* Selected Badge */}
       {isSelected && (
         <div className="absolute top-2 right-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg">
           Viewing
@@ -238,12 +261,11 @@ const ChartCard = ({ chart, data, onClick, isSelected }) => {
   );
 };
 
-// Update export to accept chartTypes prop
 export default function ForecastChartGrid({ 
   forecastData, 
   onChartClick, 
   selectedChart,
-  chartTypes = ['bar', 'line', 'pie', 'scatter'] // Default to 4 charts
+  chartTypes = ['bar', 'line', 'pie', 'scatter']
 }) {
   const allChartConfigs = [
     { id: 'bar', label: 'Bar Chart', color: '59, 130, 246', colorEnd: '79, 70, 229' },
@@ -260,7 +282,6 @@ export default function ForecastChartGrid({
     { id: 'gauge', label: 'Gauge Chart', color: '244, 63, 94', colorEnd: '225, 29, 72' }
   ];
 
-  // Filter to only show requested chart types
   const displayCharts = allChartConfigs.filter(chart => chartTypes.includes(chart.id));
 
   return (

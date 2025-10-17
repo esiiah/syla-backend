@@ -1,9 +1,7 @@
 // frontend/src/components/forecast/ExpandedChartModal.jsx
 import React, { useRef } from 'react';
 import { X, Download, Maximize2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { Bar, Line, Pie, Scatter } from 'react-chartjs-2';
-import { CHART_TYPES, getChartConfig } from '../../utils/chartConfigs';
-import { DoughnutChart, RadarChart, BubbleChart, GaugeChart } from '../charts/AdvancedChartRenderer';
+import { Bar, Line, Pie, Scatter, Doughnut, Radar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -12,11 +10,13 @@ import {
   PointElement,
   LineElement,
   ArcElement,
+  RadialLinearScale,
   Title,
   Tooltip,
   Legend,
   Filler
 } from 'chart.js';
+import { GaugeChart } from '../charts/AdvancedChartRenderer';
 
 ChartJS.register(
   CategoryScale,
@@ -25,6 +25,7 @@ ChartJS.register(
   PointElement,
   LineElement,
   ArcElement,
+  RadialLinearScale,
   Title,
   Tooltip,
   Legend,
@@ -43,113 +44,70 @@ export default function ExpandedChartModal({
 
   const getChartComponent = () => {
     switch (chartType) {
-      case 'bar': return Bar;
-      case 'line': return Line;
-      case 'area': return Line;
-      case 'pie': return Pie;
-      case 'scatter': return Scatter;
-      case 'doughnut': return DoughnutChart;
-      case 'radar': return RadarChart;
-      case 'bubble': return BubbleChart;
-      case 'gauge': return GaugeChart;
-      case 'column': return Bar;
-      case 'comparison': return Bar;
-      case 'stacked_bar': return Bar;
-      default: return Bar;
+      case 'bar':
+      case 'column':
+      case 'comparison':
+      case 'stacked_bar':
+        return Bar;
+      case 'line':
+      case 'area':
+        return Line;
+      case 'pie':
+        return Pie;
+      case 'doughnut':
+        return Doughnut;
+      case 'scatter':
+      case 'bubble':
+        return Scatter;
+      case 'radar':
+        return Radar;
+      case 'gauge':
+        return GaugeChart;
+      default:
+        return Bar;
     }
   };
    
   const ChartComponent = getChartComponent();
 
   const chartConfig = {
-    bar: {
-      color: '59, 130, 246',
-      colorEnd: '79, 70, 229',
-      bgColor: 'rgba(59, 130, 246, 0.7)',
-      borderColor: 'rgb(59, 130, 246)'
-    },
-    line: {
-      color: '34, 197, 94',
-      colorEnd: '5, 150, 105',
-      bgColor: 'rgba(34, 197, 94, 0.2)',
-      borderColor: 'rgb(34, 197, 94)'
-    },
-    area: {
-      color: '34, 197, 94',
-      colorEnd: '5, 150, 105',
-      bgColor: 'rgba(34, 197, 94, 0.2)',
-      borderColor: 'rgb(34, 197, 94)'
-    },
-    pie: {
-      color: '168, 85, 247',
-      colors: ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#6366f1', '#f97316']
-    },
-    doughnut: {
-      color: '168, 85, 247',
-      colors: ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#6366f1', '#f97316']
-    },
-    radar: {
-      color: '16, 185, 129',
-      bgColor: 'rgba(16, 185, 129, 0.2)',
-      borderColor: 'rgb(16, 185, 129)'
-    },
-    scatter: {
-      color: '249, 115, 22',
-      colorEnd: '239, 68, 68',
-      bgColor: 'rgba(249, 115, 22, 0.6)',
-      borderColor: 'rgb(249, 115, 22)'
-    },
-    bubble: {
-      color: '234, 179, 8',
-      bgColor: 'rgba(234, 179, 8, 0.4)',
-      borderColor: 'rgb(234, 179, 8)'
-    },
-    gauge: {
-      color: '59, 130, 246',
-      bgColor: 'rgba(59, 130, 246, 0.3)',
-      borderColor: 'rgb(59, 130, 246)'
-    },
-    column: {
-      color: '59, 130, 246',
-      bgColor: 'rgba(59, 130, 246, 0.7)',
-      borderColor: 'rgb(59, 130, 246)'
-    },
-    comparison: {
-      color: '34, 197, 94',
-      bgColor: 'rgba(34, 197, 94, 0.7)',
-      borderColor: 'rgb(34, 197, 94)'
-    },
-    stacked_bar: {
-      color: '34, 197, 94',
-      bgColor: 'rgba(34, 197, 94, 0.7)',
-      borderColor: 'rgb(34, 197, 94)'
-   }
+    bar: { color: '59, 130, 246', colorEnd: '79, 70, 229', bgColor: 'rgba(59, 130, 246, 0.7)', borderColor: 'rgb(59, 130, 246)' },
+    line: { color: '34, 197, 94', colorEnd: '5, 150, 105', bgColor: 'rgba(34, 197, 94, 0.2)', borderColor: 'rgb(34, 197, 94)' },
+    area: { color: '34, 197, 94', colorEnd: '5, 150, 105', bgColor: 'rgba(34, 197, 94, 0.2)', borderColor: 'rgb(34, 197, 94)' },
+    pie: { color: '168, 85, 247', colors: ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#6366f1', '#f97316'] },
+    doughnut: { color: '168, 85, 247', colors: ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#6366f1', '#f97316'] },
+    radar: { color: '16, 185, 129', bgColor: 'rgba(16, 185, 129, 0.2)', borderColor: 'rgb(16, 185, 129)' },
+    scatter: { color: '249, 115, 22', colorEnd: '239, 68, 68', bgColor: 'rgba(249, 115, 22, 0.6)', borderColor: 'rgb(249, 115, 22)' },
+    bubble: { color: '234, 179, 8', bgColor: 'rgba(234, 179, 8, 0.4)', borderColor: 'rgb(234, 179, 8)' },
+    gauge: { color: '59, 130, 246', bgColor: 'rgba(59, 130, 246, 0.3)', borderColor: 'rgb(59, 130, 246)' },
+    column: { color: '59, 130, 246', bgColor: 'rgba(59, 130, 246, 0.7)', borderColor: 'rgb(59, 130, 246)' },
+    comparison: { color: '34, 197, 94', bgColor: 'rgba(34, 197, 94, 0.7)', borderColor: 'rgb(34, 197, 94)' },
+    stacked_bar: { color: '34, 197, 94', bgColor: 'rgba(34, 197, 94, 0.7)', borderColor: 'rgb(34, 197, 94)' }
   };
-  const config = chartConfig[chartType];
+  
+  const config = chartConfig[chartType] || chartConfig.bar;
 
-  // Prepare chart data
   const chartData = {
     labels: data?.timestamps || [],
     datasets: [{
       label: title || 'Forecast Data',
       data: data?.forecast || [],
-      backgroundColor: chartType === 'pie' 
+      backgroundColor: chartType === 'pie' || chartType === 'doughnut'
         ? config.colors 
         : config.bgColor,
-      borderColor: chartType === 'pie' ? '#ffffff' : config.borderColor,
-      borderWidth: chartType === 'pie' ? 2 : 3,
-      tension: chartType === 'line' ? 0.4 : 0,
-      pointRadius: chartType === 'line' || chartType === 'scatter' ? 6 : 0,
-      pointHoverRadius: chartType === 'line' || chartType === 'scatter' ? 8 : 0,
-      fill: chartType === 'line',
+      borderColor: chartType === 'pie' || chartType === 'doughnut' ? '#ffffff' : config.borderColor,
+      borderWidth: chartType === 'pie' || chartType === 'doughnut' ? 2 : 3,
+      tension: chartType === 'line' || chartType === 'area' ? 0.4 : 0,
+      pointRadius: chartType === 'line' || chartType === 'scatter' || chartType === 'bubble' ? 6 : 0,
+      pointHoverRadius: chartType === 'line' || chartType === 'scatter' || chartType === 'bubble' ? 8 : 0,
+      fill: chartType === 'line' || chartType === 'area',
       pointBackgroundColor: config.borderColor,
       pointBorderColor: '#fff',
       pointBorderWidth: 2
     }]
   };
 
-  // Add confidence bounds for non-pie charts
-  if (data?.lower && data?.upper && chartType !== 'pie') {
+  if (data?.lower && data?.upper && chartType !== 'pie' && chartType !== 'doughnut') {
     chartData.datasets.push({
       label: 'Lower Bound',
       data: data.lower,
@@ -172,46 +130,35 @@ export default function ExpandedChartModal({
     });
   }
   
-  const formatChartData = () => {
-    if (chartType === 'area') {
-      return {
-        ...chartData,
-        datasets: chartData.datasets.map(ds => ({
-          ...ds,
-          fill: true,
-          backgroundColor: 'rgba(59, 130, 246, 0.2)',
-          tension: 0.4
-        }))
-      };
-    }
-    
-    if (chartType === 'doughnut') {
-      return {
-        ...chartData,
-        datasets: chartData.datasets.map(ds => ({
-          ...ds,
-          cutout: '60%'
-        }))
-      };
-    }
-     
-    if (chartType === 'stacked_bar') {
-      return {
-        ...chartData,
-        datasets: [
-          { ...chartData.datasets[0], label: 'Series 1' },
-          {
-            ...chartData.datasets[0],
-            label: 'Series 2',
-            data: chartData.datasets[0].data.map(v => v * 0.7),
-            backgroundColor: 'rgba(34, 197, 94, 0.7)'
-          }
-        ]
-      };
-    }
-     
-    return chartData;
-  };
+  if (chartType === 'area') {
+    chartData.datasets[0].fill = true;
+    chartData.datasets[0].backgroundColor = 'rgba(59, 130, 246, 0.2)';
+    chartData.datasets[0].tension = 0.4;
+  }
+  
+  if (chartType === 'doughnut') {
+    chartData.datasets[0].cutout = '60%';
+  }
+   
+  if (chartType === 'stacked_bar') {
+    chartData.datasets = [
+      { ...chartData.datasets[0], label: 'Series 1' },
+      {
+        ...chartData.datasets[0],
+        label: 'Series 2',
+        data: chartData.datasets[0].data.map(v => v * 0.7),
+        backgroundColor: 'rgba(34, 197, 94, 0.7)'
+      }
+    ];
+  }
+
+  if (chartType === 'radar') {
+    chartData.datasets[0].backgroundColor = 'rgba(59, 130, 246, 0.2)';
+    chartData.datasets[0].pointBackgroundColor = 'rgb(59, 130, 246)';
+    chartData.datasets[0].pointBorderColor = '#fff';
+    chartData.datasets[0].pointHoverBackgroundColor = '#fff';
+    chartData.datasets[0].pointHoverBorderColor = 'rgb(59, 130, 246)';
+  }
 
   const options = {
     responsive: true,
@@ -223,36 +170,24 @@ export default function ExpandedChartModal({
         labels: {
           usePointStyle: true,
           padding: 20,
-          font: {
-            size: 14,
-            weight: '500'
-          },
+          font: { size: 14, weight: '500' },
           color: document.body.classList.contains('dark') ? '#e2e8f0' : '#334155'
         }
       },
-      title: {
-        display: false
-      },
+      title: { display: false },
       tooltip: {
         enabled: true,
         backgroundColor: 'rgba(0, 0, 0, 0.9)',
         padding: 16,
-        titleFont: {
-          size: 15,
-          weight: 'bold'
-        },
-        bodyFont: {
-          size: 14
-        },
+        titleFont: { size: 15, weight: 'bold' },
+        bodyFont: { size: 14 },
         borderColor: config.borderColor || 'rgba(255, 255, 255, 0.2)',
         borderWidth: 2,
         displayColors: true,
         callbacks: {
           label: function(context) {
             let label = context.dataset.label || '';
-            if (label) {
-              label += ': ';
-            }
+            if (label) label += ': ';
             if (context.parsed.y !== null) {
               label += context.parsed.y.toLocaleString(undefined, {
                 minimumFractionDigits: 2,
@@ -264,54 +199,69 @@ export default function ExpandedChartModal({
         }
       }
     },
-    scales: chartType !== 'pie' ? {
-      y: {
-        beginAtZero: true,
-        grid: {
-          color: 'rgba(0, 0, 0, 0.06)',
-          drawBorder: false
-        },
-        ticks: {
-          font: {
-            size: 13
-          },
-          padding: 12,
-          color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b',
-          callback: function(value) {
-            return value.toLocaleString();
-          }
-        }
-      },
-      x: {
-        grid: {
-          display: false,
-          drawBorder: false
-        },
-        ticks: {
-          font: {
-            size: 13
-          },
-          maxRotation: 45,
-          minRotation: 0,
-          color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b'
-        }
-      }
-    } : {},
-    animation: {
-      duration: 750,
-      easing: 'easeInOutQuart'
-    },
-    interaction: {
-      intersect: false,
-      mode: 'index'
-    }
+    scales: chartType === 'pie' || chartType === 'doughnut' ? {} : 
+           chartType === 'radar' ? {
+             r: {
+               beginAtZero: true,
+               ticks: {
+                 font: { size: 12 },
+                 backdropColor: 'transparent',
+                 color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b'
+               },
+               pointLabels: {
+                 font: { size: 12 },
+                 color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b'
+               },
+               grid: {
+                 color: 'rgba(0, 0, 0, 0.06)'
+               }
+             }
+           } : 
+           chartType === 'stacked_bar' ? {
+             x: { 
+               stacked: true,
+               ticks: {
+                 font: { size: 13 },
+                 maxRotation: 45,
+                 minRotation: 0,
+                 color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b'
+               }
+             },
+             y: { 
+               stacked: true, 
+               beginAtZero: true,
+               grid: { color: 'rgba(0, 0, 0, 0.06)', drawBorder: false },
+               ticks: {
+                 font: { size: 13 },
+                 padding: 12,
+                 color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b',
+                 callback: function(value) { return value.toLocaleString(); }
+               }
+             }
+           } : {
+             y: {
+               beginAtZero: true,
+               grid: { color: 'rgba(0, 0, 0, 0.06)', drawBorder: false },
+               ticks: {
+                 font: { size: 13 },
+                 padding: 12,
+                 color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b',
+                 callback: function(value) { return value.toLocaleString(); }
+               }
+             },
+             x: {
+               grid: { display: false, drawBorder: false },
+               ticks: {
+                 font: { size: 13 },
+                 maxRotation: 45,
+                 minRotation: 0,
+                 color: document.body.classList.contains('dark') ? '#cbd5e1' : '#64748b'
+               }
+             }
+           },
+    animation: { duration: 750, easing: 'easeInOutQuart' },
+    interaction: { intersect: false, mode: 'index' }
   };
-  if (chartType === 'stacked_bar') {
-    options.scales = {
-      x: { stacked: true },
-      y: { stacked: true, beginAtZero: true }
-    };
-  }
 
   const handleExportImage = () => {
     const chart = chartRef.current;
@@ -348,7 +298,6 @@ export default function ExpandedChartModal({
     URL.revokeObjectURL(url);
   };
 
-  // Calculate statistics
   const forecast = data?.forecast || [];
   const stats = forecast.length > 0 ? {
     average: (forecast.reduce((a, b) => a + b, 0) / forecast.length).toFixed(2),
@@ -367,7 +316,6 @@ export default function ExpandedChartModal({
         className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-6xl max-h-[90vh] shadow-2xl flex flex-col animate-slideUp overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700 bg-gradient-to-r from-gray-50 to-white dark:from-slate-800 dark:to-slate-900">
           <div className="flex items-center gap-3">
             <div 
@@ -414,15 +362,22 @@ export default function ExpandedChartModal({
           </div>
         </div>
 
-        {/* Chart Content */}
         <div className="flex-1 p-8 overflow-auto bg-gradient-to-br from-gray-50 to-white dark:from-slate-900 dark:to-slate-800">
           <div className="h-full min-h-[500px]">
             {forecast.length > 0 ? (
-              <ChartComponent 
-                ref={chartRef}
-                data={chartData} 
-                options={options} 
-              />
+              chartType === 'gauge' ? (
+                <GaugeChart 
+                  value={forecast[0] || 0}
+                  max={Math.max(...forecast) * 1.2}
+                  options={options}
+                />
+              ) : (
+                <ChartComponent 
+                  ref={chartRef}
+                  data={chartData} 
+                  options={options} 
+                />
+              )
             ) : (
               <div className="h-full flex items-center justify-center">
                 <div className="text-center">
@@ -438,31 +393,21 @@ export default function ExpandedChartModal({
           </div>
         </div>
 
-        {/* Footer Stats */}
         {stats && (
           <div className="p-5 border-t border-gray-200 dark:border-slate-700 bg-gradient-to-r from-gray-50 to-white dark:from-slate-800 dark:to-slate-900">
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
                 <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Average</p>
-                <p className="text-lg font-bold text-gray-800 dark:text-slate-200">
-                  {stats.average}
-                </p>
+                <p className="text-lg font-bold text-gray-800 dark:text-slate-200">{stats.average}</p>
               </div>
-              
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
                 <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Peak</p>
-                <p className="text-lg font-bold text-green-600 dark:text-green-400">
-                  {stats.peak}
-                </p>
+                <p className="text-lg font-bold text-green-600 dark:text-green-400">{stats.peak}</p>
               </div>
-              
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
                 <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Trough</p>
-                <p className="text-lg font-bold text-red-600 dark:text-red-400">
-                  {stats.trough}
-                </p>
+                <p className="text-lg font-bold text-red-600 dark:text-red-400">{stats.trough}</p>
               </div>
-              
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
                 <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Trend</p>
                 <div className="flex items-center justify-center gap-1">
@@ -484,12 +429,9 @@ export default function ExpandedChartModal({
                   </p>
                 </div>
               </div>
-              
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
                 <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Periods</p>
-                <p className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                  {forecast.length}
-                </p>
+                <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{forecast.length}</p>
               </div>
             </div>
           </div>
