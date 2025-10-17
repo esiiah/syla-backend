@@ -77,62 +77,107 @@ export const GaugeChart = ({ value, max = 100, options }) => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     
-    // Get parent container dimensions
     const container = canvas.parentElement;
     const containerWidth = container.clientWidth;
     const containerHeight = container.clientHeight;
     
-    // Set canvas size
     canvas.width = containerWidth;
     canvas.height = containerHeight;
     
     const width = canvas.width;
     const height = canvas.height;
     const centerX = width / 2;
-    const centerY = height * 0.7; // Position gauge lower
-    const radius = Math.min(width, height) * 0.35; // Smaller radius
+    const centerY = height * 0.65;
+    const radius = Math.min(width, height) * 0.35;
     
-    // Clear canvas
     ctx.clearRect(0, 0, width, height);
     
-    // Draw gauge background
+    // Outer glow ring
     ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, Math.PI, 2 * Math.PI);
-    ctx.lineWidth = 25;
+    ctx.arc(centerX, centerY, radius + 15, Math.PI * 0.75, Math.PI * 2.25);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(59, 130, 246, 0.2)';
+    ctx.stroke();
+    
+    // Background arc
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, Math.PI * 0.75, Math.PI * 2.25);
+    ctx.lineWidth = 28;
     ctx.strokeStyle = '#e5e7eb';
     ctx.lineCap = 'round';
     ctx.stroke();
     
-    // Draw gauge value
+    // Value arc with gradient
     const percentage = Math.min(value / max, 1);
-    const endAngle = Math.PI + (percentage * Math.PI);
+    const endAngle = Math.PI * 0.75 + (percentage * Math.PI * 1.5);
+    
+    const gradient = ctx.createLinearGradient(centerX - radius, centerY, centerX + radius, centerY);
+    gradient.addColorStop(0, '#ef4444');
+    gradient.addColorStop(0.5, '#f59e0b');
+    gradient.addColorStop(1, '#10b981');
     
     ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, Math.PI, endAngle);
-    ctx.lineWidth = 25;
+    ctx.arc(centerX, centerY, radius, Math.PI * 0.75, endAngle);
+    ctx.lineWidth = 28;
+    ctx.strokeStyle = gradient;
     ctx.lineCap = 'round';
-    
-    // Color based on value
-    const color = percentage > 0.7 ? '#10b981' : percentage > 0.4 ? '#f59e0b' : '#ef4444';
-    ctx.strokeStyle = color;
     ctx.stroke();
     
-    // Draw center circle
+    // Pointer
+    const pointerAngle = Math.PI * 0.75 + (percentage * Math.PI * 1.5);
+    const pointerLength = radius - 15;
+    const pointerX = centerX + Math.cos(pointerAngle) * pointerLength;
+    const pointerY = centerY + Math.sin(pointerAngle) * pointerLength;
+    
+    // Pointer shadow
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+    
+    // Pointer line
     ctx.beginPath();
-    ctx.arc(centerX, centerY, radius - 35, 0, 2 * Math.PI);
-    ctx.fillStyle = '#ffffff';
+    ctx.moveTo(centerX, centerY);
+    ctx.lineTo(pointerX, pointerY);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#1f2937';
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    
+    ctx.shadowColor = 'transparent';
+    
+    // Center hub
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 12, 0, 2 * Math.PI);
+    ctx.fillStyle = '#1f2937';
     ctx.fill();
     
-    // Draw center text
-    ctx.font = 'bold 36px Inter';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 6, 0, 2 * Math.PI);
+    ctx.fillStyle = '#3b82f6';
+    ctx.fill();
+    
+    // Display value
+    ctx.font = 'bold 42px Inter, system-ui';
     ctx.fillStyle = '#1f2937';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(Math.round(value), centerX, centerY - 10);
+    ctx.fillText(Math.round(value), centerX, centerY + radius + 40);
     
-    ctx.font = '16px Inter';
+    ctx.font = '16px Inter, system-ui';
     ctx.fillStyle = '#6b7280';
-    ctx.fillText(`of ${max}`, centerX, centerY + 25);
+    ctx.fillText(`/ ${max}`, centerX, centerY + radius + 70);
+    
+    // Scale markers
+    ctx.font = '11px Inter, system-ui';
+    ctx.fillStyle = '#9ca3af';
+    for (let i = 0; i <= 10; i++) {
+      const angle = Math.PI * 0.75 + (i / 10) * Math.PI * 1.5;
+      const markX = centerX + Math.cos(angle) * (radius + 35);
+      const markY = centerY + Math.sin(angle) * (radius + 35);
+      const val = Math.round((i / 10) * max);
+      ctx.fillText(val.toString(), markX, markY);
+    }
     
   }, [value, max]);
   
@@ -151,7 +196,7 @@ export const ColumnChart = ({ data, options }) => {
       data={data}
       options={{
         ...options,
-        indexAxis: 'x', // Vertical bars
+        indexAxis: 'y', // Horizontal bars
         plugins: {
           ...options?.plugins,
           legend: {
@@ -173,18 +218,18 @@ export const ComparisonChart = ({ data, options }) => {
         datasets: data.datasets.map((dataset, index) => ({
           ...dataset,
           backgroundColor: [
-            'rgba(59, 130, 246, 0.7)',
-            'rgba(16, 185, 129, 0.7)',
-            'rgba(249, 115, 22, 0.7)',
-            'rgba(168, 85, 247, 0.7)'
+            'rgba(59, 130, 246, 0.8)',
+            'rgba(16, 185, 129, 0.8)',
+            'rgba(249, 115, 22, 0.8)',
+            'rgba(168, 85, 247, 0.8)'
           ][index % 4],
-          barPercentage: 0.8,
-          categoryPercentage: 0.9
+          barPercentage: 0.7,
+          categoryPercentage: 0.8
         }))
       }}
       options={{
         ...options,
-        indexAxis: 'x', // Vertical bars
+        indexAxis: 'y', // Horizontal bars for comparison
         plugins: {
           ...options?.plugins,
           legend: {
@@ -205,7 +250,7 @@ export const StackedBarChart = ({ data, options }) => {
       data={data}
       options={{
         ...options,
-        indexAxis: 'x', // Vertical bars
+        indexAxis: 'y', // Horizontal stacked bars
         scales: {
           x: { 
             stacked: true,

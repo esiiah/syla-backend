@@ -204,7 +204,7 @@ export default function ChartView({
       const scatterData = safeVals.map((v, i) => ({
         x: i,
         y: v,
-        r: options.type === CHART_TYPES.BUBBLE ? Math.abs(v / 10) + 5 : undefined
+        r: options.type === CHART_TYPES.BUBBLE ? Math.abs(v / 10) + 8 : undefined
       }));
 
       return {
@@ -212,16 +212,25 @@ export default function ChartView({
         datasets: [{
           label: yAxis || "Value",
           data: scatterData,
-          backgroundColor: finalColors,
-          borderColor: borderColors,
-          pointBackgroundColor: finalColors,
-          pointBorderColor: borderColors,
-          pointBorderWidth: selectedBars.length > 0 ? 3 : 2,
+          // Bubble: semi-transparent with blur effect, Scatter: slightly bigger solid dots
+          backgroundColor: options.type === CHART_TYPES.BUBBLE 
+            ? finalColors.map(c => c.replace(')', ', 0.4)').replace('rgb', 'rgba'))
+            : finalColors,
+          borderColor: options.type === CHART_TYPES.BUBBLE 
+            ? finalColors.map(c => c.replace(')', ', 0.6)').replace('rgb', 'rgba'))
+            : borderColors,
+          pointBackgroundColor: options.type === CHART_TYPES.BUBBLE 
+            ? finalColors.map(c => c.replace(')', ', 0.4)').replace('rgb', 'rgba'))
+            : finalColors,
+          pointBorderColor: options.type === CHART_TYPES.BUBBLE 
+            ? finalColors.map(c => c.replace(')', ', 0.6)').replace('rgb', 'rgba'))
+            : borderColors,
+          pointBorderWidth: options.type === CHART_TYPES.BUBBLE ? 2 : (selectedBars.length > 0 ? 3 : 2),
           showLine: false,
-          pointRadius: options.type === CHART_TYPES.BUBBLE ? undefined : 6,
-          pointHoverRadius: 8,
+          pointRadius: options.type === CHART_TYPES.BUBBLE ? undefined : 8,
+          pointHoverRadius: options.type === CHART_TYPES.BUBBLE ? undefined : 10,
           pointStyle: 'circle',
-          borderWidth: 0
+          borderWidth: options.type === CHART_TYPES.BUBBLE ? 3 : 0
         }]
       };
     }
@@ -315,6 +324,19 @@ export default function ChartView({
         borderDash: [5, 5]
       });
     }
+    // Add rounded corners for horizontal bars
+    if (isHorizontal) {
+      opts.elements = {
+        bar: {
+          borderRadius: {
+            topLeft: 0,
+            topRight: 8,
+            bottomLeft: 0,
+            bottomRight: 8
+          }
+        }
+      };
+    }
 
     return { labels: lbls, datasets: ds };
   }, [options, lbls, vals, safeVals, perColor, yAxis, map, safeCmp, cmp, selectedBars]);
@@ -323,11 +345,13 @@ export default function ChartView({
     const tc = themeText();
     const ys = options.logScale ? "logarithmic" : "linear";
   
-    // Determine if chart should be horizontal (BAR) or vertical (COLUMN, COMPARISON, STACKED)
-    const isHorizontal = options.type === CHART_TYPES.BAR;
-  
+    // BAR = vertical bars, COLUMN/COMPARISON/STACKED = horizontal bars
+    const isHorizontal = options.type === CHART_TYPES.COLUMN || 
+                         options.type === CHART_TYPES.COMPARISON || 
+                         options.type === CHART_TYPES.STACKED_BAR;
+
     const opts = {
-      indexAxis: isHorizontal ? 'y' : 'x', // BAR = horizontal, others = vertical
+      indexAxis: isHorizontal ? 'y' : 'x', // Horizontal for COLUMN/COMPARISON/STACKED, vertical for BAR
       maintainAspectRatio: false,
       responsive: true,
       interaction: {
