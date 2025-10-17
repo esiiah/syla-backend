@@ -201,16 +201,17 @@ export default function ChartView({
 
     // SCATTER & BUBBLE
     if (options.type === CHART_TYPES.SCATTER || options.type === CHART_TYPES.BUBBLE) {
-      const maxVal = Math.max(...safeVals.map(v => Math.abs(v)));
-      const minVal = Math.min(...safeVals.map(v => Math.abs(v)));
-      const range = maxVal - minVal || 1;
-      
       const scatterData = safeVals.map((v, i) => {
         let bubbleSize = undefined;
         if (options.type === CHART_TYPES.BUBBLE) {
-          // Normalize value to 0-1 range, then scale to MUCH larger sizes: 25-60 pixels
-          const normalized = (Math.abs(v) - minVal) / range;
-          bubbleSize = 25 + (normalized * 35); // Range: 25-60px for visible bubbles
+          // Real bubble sizes: scale based on data magnitude
+          const maxValue = Math.max(...safeVals.filter(v => v > 0));
+          const minValue = Math.min(...safeVals.filter(v => v > 0));
+          const range = maxValue - minValue || maxValue || 1;
+          
+          // Scale bubble radius: 10-50 pixels for actual bubble appearance
+          const normalizedValue = Math.abs(v) / (maxValue || 1);
+          bubbleSize = 15 + (normalizedValue * 40); // 15-55 pixel radius
         }
         
         return {
@@ -227,27 +228,29 @@ export default function ChartView({
           data: scatterData,
           backgroundColor: options.type === CHART_TYPES.BUBBLE 
             ? finalColors.map(c => {
-                if (c.startsWith('#')) {
-                  const rgb = hexToRgb(c);
-                  return rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)` : c;
-                }
-                return c.replace(')', ', 0.4)').replace('rgb(', 'rgba(');
+                const rgb = hexToRgb(c);
+                return rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)` : c.replace(')', ', 0.5)').replace('rgb(', 'rgba(');
               })
             : finalColors,
           borderColor: options.type === CHART_TYPES.BUBBLE 
             ? finalColors.map(c => {
-                if (c.startsWith('#')) {
-                  const rgb = hexToRgb(c);
-                  return rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.7)` : c;
-                }
-                return c.replace(')', ', 0.7)').replace('rgb(', 'rgba(');
+                const rgb = hexToRgb(c);
+                return rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)` : c.replace(')', ', 0.8)').replace('rgb(', 'rgba(');
               })
             : borderColors,
           borderWidth: options.type === CHART_TYPES.BUBBLE ? 2 : (selectedBars.length > 0 ? 3 : 2),
           showLine: false,
-          pointRadius: options.type === CHART_TYPES.BUBBLE ? undefined : 8,
-          pointHoverRadius: options.type === CHART_TYPES.BUBBLE ? undefined : 10,
-          pointStyle: 'circle'
+          pointRadius: options.type === CHART_TYPES.BUBBLE ? undefined : 6,
+          pointHoverRadius: options.type === CHART_TYPES.BUBBLE ? undefined : 8,
+          pointStyle: 'circle',
+          // Bubble-specific settings
+          hoverBorderWidth: options.type === CHART_TYPES.BUBBLE ? 3 : undefined,
+          hoverBackgroundColor: options.type === CHART_TYPES.BUBBLE 
+            ? finalColors.map(c => {
+                const rgb = hexToRgb(c);
+                return rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.7)` : c;
+              })
+            : undefined
         }]
       };
     }
@@ -314,26 +317,22 @@ export default function ChartView({
 
     const ds = [core];
 
-    // Handle COMPARISON chart - add second dataset
+    // Handle COMPARISON chart - add second dataset for side-by-side comparison
     if (options.type === CHART_TYPES.COMPARISON && safeCmp) {
+      // Make bars grouped (side-by-side) instead of stacked
+      core.barPercentage = 0.8;
+      core.categoryPercentage = 0.7;
+      
       ds.push({
         label: options.compareField || 'Comparison',
         type: "bar",
         data: safeCmp,
         originalData: cmp,
-        backgroundColor: cmp.map((_, i) => {
-          const rgb = hexToRgb(finalColors[i]);
-          if (rgb) {
-            return rgbToHex({
-              r: Math.min(255, rgb.r + 60),
-              g: Math.max(0, rgb.g - 30),
-              b: Math.min(255, rgb.b + 60)
-            });
-          }
-          return finalColors[i];
-        }),
-        borderColor: "#10b981",
-        borderWidth: 1
+        backgroundColor: "#10b981",
+        borderColor: "#059669",
+        borderWidth: 1,
+        barPercentage: 0.8,
+        categoryPercentage: 0.7
       });
     }
 
@@ -478,7 +477,7 @@ export default function ChartView({
         }
       },
       
-scales:
+      scales:
         (options.type === CHART_TYPES.PIE || options.type === CHART_TYPES.DOUGHNUT)
           ? {}
           : options.type === CHART_TYPES.RADAR
@@ -505,6 +504,29 @@ scales:
                 grid: { color: "rgba(0,0,0,0.1)" }
               }
             }
+          : options.type === CHART_TYPES.COMPARISON
+          ? {
+              // For comparison: grouped bars side-by-side (NOT stacked)
+              x: {
+                stacked: false,
+                type: ys,
+                ticks: { 
+                  color: tc,
+                  callback: (value) => value.toLocaleString()
+                },
+                grid: { color: "rgba(0,0,0,0.1)" },
+                min: options.logScale ? minPos * 0.1 : undefined
+              },
+              y: {
+                stacked: false,
+                ticks: { 
+                  color: tc,
+                  maxRotation: 0
+                },
+                grid: { color: "rgba(0,0,0,0.1)" }
+              }
+            }
+
           : isHorizontal
           ? {
               // For horizontal bars (COLUMN, COMPARISON): x=values, y=labels
