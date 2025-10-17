@@ -199,12 +199,19 @@ export default function ChartView({
       };
     }
 
-    // SCATTER & BUBBLE
+// SCATTER & BUBBLE
     if (options.type === CHART_TYPES.SCATTER || options.type === CHART_TYPES.BUBBLE) {
+      const maxVal = Math.max(...safeVals.map(v => Math.abs(v)));
+      const minVal = Math.min(...safeVals.map(v => Math.abs(v)));
+      const range = maxVal - minVal || 1;
+      
       const scatterData = safeVals.map((v, i) => {
-        const bubbleSize = options.type === CHART_TYPES.BUBBLE 
-          ? Math.max(10, Math.abs(v) / (Math.max(...safeVals) / 30)) 
-          : undefined;
+        let bubbleSize = undefined;
+        if (options.type === CHART_TYPES.BUBBLE) {
+          // Normalize value to 0-1 range, then scale to 15-40 pixels
+          const normalized = (Math.abs(v) - minVal) / range;
+          bubbleSize = 15 + (normalized * 25); // Range: 15-40px
+        }
         
         return {
           x: i,
@@ -608,16 +615,13 @@ export default function ChartView({
     );
   }
 
-  const getChartComponent = () => {
+const getChartComponent = () => {
     switch (options.type) {
       case CHART_TYPES.BAR:
-        return Bar;
       case CHART_TYPES.COLUMN:
-        return ColumnChart;
       case CHART_TYPES.COMPARISON:
-        return ComparisonChart;
       case CHART_TYPES.STACKED_BAR:
-        return StackedBarChart;
+        return Bar;
       case CHART_TYPES.LINE:
       case CHART_TYPES.AREA:
         return Line;
