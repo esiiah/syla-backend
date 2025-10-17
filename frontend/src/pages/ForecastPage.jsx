@@ -1,10 +1,9 @@
 // frontend/src/pages/ForecastPage.jsx
 import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Brain, AlertTriangle } from 'lucide-react';
+import { Brain, AlertTriangle, ArrowUpDown } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import MiniChartPreview from '../components/forecast/MiniChartPreview';
-import ForecastChartGrid from '../components/forecast/ForecastChartGrid';
 import AIInputPanel from '../components/forecast/AIInputPanel';
 import ForecastSummary from '../components/forecast/ForecastSummary';
 import ExpandedChartModal from '../components/forecast/ExpandedChartModal';
@@ -25,6 +24,7 @@ export default function ForecastPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [targetColumn, setTargetColumn] = useState('');
+  const [sortOrder, setSortOrder] = useState('none');
 
   // Initialize target column
   useEffect(() => {
@@ -155,6 +155,28 @@ export default function ForecastPage() {
     return recommendations;
   };
 
+  const sortedForecastData = React.useMemo(() => {
+  if (!forecastResult?.forecast) return null;
+  
+  const forecast = forecastResult.forecast;
+  if (sortOrder === 'none') return forecast;
+  
+  const indices = forecast.forecast.map((_, i) => i);
+  const sorted = [...indices].sort((a, b) => {
+    if (sortOrder === 'asc') {
+      return forecast.forecast[a] - forecast.forecast[b];
+    }
+    return forecast.forecast[b] - forecast.forecast[a];
+  });
+  
+  return {
+    forecast: sorted.map(i => forecast.forecast[i]),
+    lower: forecast.lower ? sorted.map(i => forecast.lower[i]) : undefined,
+    upper: forecast.upper ? sorted.map(i => forecast.upper[i]) : undefined,
+    timestamps: sorted.map(i => forecast.timestamps[i])
+  };
+}, [forecastResult, sortOrder]);
+
   if (!user) {
     return (
       <div className="flex min-h-screen bg-gray-50 dark:bg-slate-950">
@@ -228,8 +250,53 @@ export default function ForecastPage() {
           {/* Charts Grid - Only show after forecast */}
           {forecastResult && (
             <div className="mb-6">
+              {/* Sorting Toggle */}
+                <div className="flex items-center justify-between mb-4">
+                <div className="text-sm text-gray-600 dark:text-slate-400">
+                  Showing {sortedForecastData?.forecast?.length || 0} forecast periods
+                </div>
+      
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600 dark:text-slate-400">Sort:</span>
+                  <div className="flex bg-white dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-slate-600 p-1">
+                    <button
+                      onClick={() => setSortOrder('none')}
+                      className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                        sortOrder === 'none'
+                          ? 'bg-blue-600 text-white'
+                          : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      Default
+                    </button>
+                    <button
+                      onClick={() => setSortOrder('asc')}
+                      className={`px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-1 ${
+                        sortOrder === 'asc'
+                          ? 'bg-blue-600 text-white'
+                          : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      <ArrowUpDown size={14} />
+                      Ascending
+                    </button>
+                    <button
+                      onClick={() => setSortOrder('desc')}
+                      className={`px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-1 ${
+                        sortOrder === 'desc'
+                          ? 'bg-blue-600 text-white'
+                          : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      <ArrowUpDown size={14} className="rotate-180" />
+                      Descending
+                    </button>
+                  </div>
+                </div>
+              </div>
+    
               <ForecastPagination
-                forecastData={forecastResult.forecast}
+                forecastData={sortedForecastData}
                 onChartClick={handleChartClick}
                 selectedChart={selectedChart}
               />
@@ -243,12 +310,15 @@ export default function ForecastPage() {
                 summary={forecastResult.explanation}
                 insights={extractInsights()}
                 recommendations={extractRecommendations()}
-                chartData={forecastResult.forecast}
+                forecastData={sortedForecastData}
+                targetColumn={targetColumn}
+                scenario={forecastResult.scenario_parsed?.target_change ? 
+                  `${forecastResult.scenario_parsed.target_change > 0 ? 'Increase' : 'Decrease'} by ${Math.abs(forecastResult.scenario_parsed.target_change)}%` : 
+                  'Custom scenario'}
                 onExportReport={handleExportReport}
               />
             </div>
           )}
-
           {/* AI Input Panel - Always visible at bottom */}
           <AIInputPanel
             onSubmit={handleForecastSubmit}
@@ -277,7 +347,7 @@ export default function ForecastPage() {
         {selectedChart && forecastResult && (
           <ExpandedChartModal
             chartType={selectedChart}
-            data={forecastResult.forecast}
+            data={sortedForecastData}
             onClose={() => setSelectedChart(null)}
             title={`${targetColumn} Forecast - ${selectedChart.charAt(0).toUpperCase() + selectedChart.slice(1)} Chart`}
           />

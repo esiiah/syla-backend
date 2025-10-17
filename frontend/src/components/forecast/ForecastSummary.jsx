@@ -21,40 +21,57 @@ export default function ForecastSummary({
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    
-    // ========== HEADER ==========
+  
+    // ========== HEADER WITH LOGO ==========
     doc.setFillColor(37, 99, 235);
     doc.rect(0, 0, pageWidth, 50, 'F');
-    
-    // Logo
-    doc.setFontSize(24);
+  
+    // Try to add logo
+    try {
+      const img = new Image();
+      img.src = '/favicon.png';
+      await new Promise((resolve) => {
+        img.onload = () => {
+          doc.addImage(img, 'PNG', 10, 10, 12, 12);
+          resolve();
+        };
+        img.onerror = resolve;
+        setTimeout(resolve, 1000);
+      });
+    } catch (e) {
+      console.warn('Logo not loaded');
+    }
+  
+    // SYLA ANALYTICS - positioned next to logo
+    doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(255, 255, 255);
-    doc.text('SYLA', 14, 20);
-    doc.setFontSize(10);
-    doc.text('ANALYTICS', 14, 27);
-    
-    // Title
-    doc.setFontSize(22);
-    doc.text('AI Forecast Report', pageWidth / 2, 25, { align: 'center' });
-    
-    // Username
-    doc.setFontSize(9);
-    doc.setTextColor(200, 200, 200);
-    doc.text(`Prepared for: ${user?.name || 'User'}`, pageWidth / 2, 35, { align: 'center' });
-    
-    // Date & Time
+    doc.text('SYLA', 26, 17);
     doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text('ANALYTICS', 26, 22);
+  
+    // Title - CENTERED and aligned with logo row
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('AI Forecast Report', pageWidth / 2, 20, { align: 'center' });
+  
+    // Username - CENTERED
+    doc.setFontSize(8);
+    doc.setTextColor(200, 200, 200);
+    doc.text(`Prepared for: ${user?.name || 'User'}`, pageWidth / 2, 32, { align: 'center' });
+  
+    // Date & Time - CENTERED
+    doc.setFontSize(7);
     const now = new Date();
     doc.text(
       `Generated: ${now.toLocaleDateString()} at ${now.toLocaleTimeString()}`,
       pageWidth / 2,
-      42,
+      38,
       { align: 'center' }
     );
-    
+  
     doc.setTextColor(40, 40, 40);
-    
     let yPos = 60;
 
     // ========== EXECUTIVE SUMMARY ==========
@@ -127,26 +144,31 @@ export default function ForecastSummary({
     doc.text('Visual Forecast Analysis', 14, yPos);
     yPos += 10;
 
-    // Prepare chart options with labels ENABLED for PDF
+    // BETTER chart options for PDF
     const pdfChartOptions = {
-      width: 500,
-      height: 300,
+      width: 700,
+      height: 400,
+      devicePixelRatio: 2,
       animation: false,
       plugins: {
         legend: {
           display: true,
           position: 'bottom',
           labels: {
-            font: { size: 10 },
+            font: { size: 10, weight: '500' },
             boxWidth: 12,
-            padding: 8
+            padding: 8,
+            usePointStyle: true
           }
         },
         datalabels: {
           display: true,
-          color: '#000',
+          color: '#1f2937',
           font: { size: 9, weight: 'bold' },
-          formatter: (value) => value.toFixed(0),
+          formatter: (value) => {
+            if (typeof value === 'number') return value.toFixed(0);
+            return value?.y ? value.y.toFixed(0) : '';
+          },
           anchor: 'end',
           align: 'top',
           offset: 4
@@ -154,124 +176,156 @@ export default function ForecastSummary({
       },
       scales: {
         y: { 
-          beginAtZero: true, 
-          title: { display: true, text: targetColumn || 'Value' },
-          ticks: { font: { size: 10 } }
+          beginAtZero: true,
+          title: { display: true, text: targetColumn || 'Value', font: { size: 11 } },
+          ticks: { font: { size: 10 }, padding: 6 },
+          grid: { color: 'rgba(0,0,0,0.08)' }
         },
         x: { 
-          title: { display: true, text: 'Period' },
-          ticks: { font: { size: 9 }, maxRotation: 45 }
+          title: { display: true, text: 'Period', font: { size: 11 } },
+          ticks: { font: { size: 9 }, maxRotation: 40 },
+          grid: { color: 'rgba(0,0,0,0.05)' }
         }
       }
     };
 
-    // Chart 1: BAR CHART
-    const barChartData = {
-      labels: forecastData?.timestamps?.slice(0, 12) || [],
-      datasets: [{
-        label: targetColumn || 'Forecast',
-        data: forecastData?.forecast?.slice(0, 12) || [],
-        backgroundColor: 'rgba(59, 130, 246, 0.7)',
-        borderColor: 'rgb(59, 130, 246)',
-        borderWidth: 2
-      }]
-    };
+    try {
+      // Chart 1: BAR
+      const barChartData = {
+        labels: forecastData?.timestamps?.slice(0, 12) || [],
+        datasets: [{
+          label: targetColumn || 'Forecast',
+          data: forecastData?.forecast?.slice(0, 12) || [],
+          backgroundColor: 'rgba(59, 130, 246, 0.7)',
+          borderColor: 'rgb(59, 130, 246)',
+          borderWidth: 2
+        }]
+      };
 
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('1. Bar Chart Forecast', 14, yPos);
-    yPos += 5;
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(37, 99, 235);
+      doc.text('1. Bar Chart Forecast', 14, yPos);
+      yPos += 5;
 
-    const barChartBase64 = await chartToBase64('bar', barChartData, pdfChartOptions);
-    doc.addImage(barChartBase64, 'PNG', 14, yPos, 180, 100);
-    yPos += 110;
+      const barImg = await chartToBase64('bar', barChartData, pdfChartOptions);
+      if (barImg) {
+        doc.addImage(barImg, 'PNG', 14, yPos, 180, 100);
+        yPos += 110;
+      }
 
-    // Chart 2: LINE CHART
-    const lineChartData = {
-      labels: forecastData?.timestamps?.slice(0, 12) || [],
-      datasets: [{
-        label: targetColumn || 'Forecast',
-        data: forecastData?.forecast?.slice(0, 12) || [],
-        borderColor: 'rgb(34, 197, 94)',
-        backgroundColor: 'rgba(34, 197, 94, 0.2)',
-        borderWidth: 3,
-        fill: true,
-        tension: 0.4
-      }]
-    };
+      // Chart 2: LINE
+      const lineChartData = {
+        labels: forecastData?.timestamps?.slice(0, 12) || [],
+        datasets: [{
+          label: targetColumn || 'Forecast',
+          data: forecastData?.forecast?.slice(0, 12) || [],
+          borderColor: 'rgb(34, 197, 94)',
+          backgroundColor: 'rgba(34, 197, 94, 0.2)',
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+          pointBackgroundColor: 'rgb(34, 197, 94)',
+          pointBorderColor: '#fff'
+        }]
+      };
 
-    if (yPos > pageHeight - 120) {
+      if (yPos > pageHeight - 120) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      doc.text('2. Line Chart Forecast', 14, yPos);
+      yPos += 5;
+
+      const lineImg = await chartToBase64('line', lineChartData, pdfChartOptions);
+      if (lineImg) {
+        doc.addImage(lineImg, 'PNG', 14, yPos, 180, 100);
+        yPos += 110;
+      }
+
+      // NEW PAGE
       doc.addPage();
       yPos = 20;
+
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Additional Visualizations', 14, yPos);
+      yPos += 10;
+
+      // Chart 3: AREA
+      const areaChartData = {
+        labels: forecastData?.timestamps?.slice(0, 12) || [],
+        datasets: [{
+          label: targetColumn || 'Forecast',
+          data: forecastData?.forecast?.slice(0, 12) || [],
+          borderColor: 'rgb(168, 85, 247)',
+          backgroundColor: 'rgba(168, 85, 247, 0.3)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3
+        }]
+      };
+
+      doc.setFontSize(12);
+      doc.text('3. Area Chart Forecast', 14, yPos);
+      yPos += 5;
+
+      const areaImg = await chartToBase64('line', areaChartData, pdfChartOptions);
+      if (areaImg) {
+        doc.addImage(areaImg, 'PNG', 14, yPos, 180, 100);
+        yPos += 110;
+      }
+
+      // Chart 4: PIE
+      const pieChartData = {
+        labels: forecastData?.timestamps?.slice(0, 6) || [],
+        datasets: [{
+          data: forecastData?.forecast?.slice(0, 6) || [],
+          backgroundColor: [
+            'rgba(59, 130, 246, 0.8)',
+            'rgba(34, 197, 94, 0.8)',
+            'rgba(168, 85, 247, 0.8)',
+            'rgba(249, 115, 22, 0.8)',
+            'rgba(239, 68, 68, 0.8)',
+            'rgba(236, 72, 153, 0.8)'
+          ],
+          borderColor: '#fff',
+          borderWidth: 2
+        }]
+      };
+
+      doc.text('4. Distribution Pie Chart', 14, yPos);
+      yPos += 5;
+
+      const pieImg = await chartToBase64('pie', pieChartData, {
+        ...pdfChartOptions,
+        scales: {},
+        plugins: {
+          ...pdfChartOptions.plugins,
+          legend: { display: true, position: 'right', labels: { font: { size: 9 } } },
+          datalabels: {
+            display: true,
+            color: '#fff',
+            font: { size: 10, weight: 'bold' },
+            formatter: (value, ctx) => {
+              const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+              return `${((value / total) * 100).toFixed(1)}%`;
+            }
+          }
+        }
+      });
+    
+      if (pieImg) {
+        doc.addImage(pieImg, 'PNG', 14, yPos, 180, 100);
+      }
+
+    } catch (error) {
+      console.error('Chart error:', error);
+      doc.text('Charts could not be rendered', 14, yPos);
     }
-
-    doc.text('2. Line Chart Forecast', 14, yPos);
-    yPos += 5;
-
-    const lineChartBase64 = await chartToBase64('line', lineChartData, pdfChartOptions);
-    doc.addImage(lineChartBase64, 'PNG', 14, yPos, 180, 100);
-    yPos += 110;
-
-    // ========== NEW PAGE FOR CHARTS 3 & 4 ==========
-    doc.addPage();
-    yPos = 20;
-
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(37, 99, 235);
-    doc.text('Additional Visualizations', 14, yPos);
-    yPos += 10;
-
-    // Chart 3: AREA CHART
-    const areaChartData = {
-      labels: forecastData?.timestamps?.slice(0, 12) || [],
-      datasets: [{
-        label: targetColumn || 'Forecast',
-        data: forecastData?.forecast?.slice(0, 12) || [],
-        borderColor: 'rgb(168, 85, 247)',
-        backgroundColor: 'rgba(168, 85, 247, 0.3)',
-        borderWidth: 2,
-        fill: true,
-        tension: 0.4
-      }]
-    };
-
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('3. Area Chart Forecast', 14, yPos);
-    yPos += 5;
-
-    const areaChartBase64 = await chartToBase64('line', areaChartData, pdfChartOptions);
-    doc.addImage(areaChartBase64, 'PNG', 14, yPos, 180, 100);
-    yPos += 110;
-
-    // Chart 4: PIE CHART
-    const pieChartData = {
-      labels: forecastData?.timestamps?.slice(0, 6) || [],
-      datasets: [{
-        label: targetColumn || 'Forecast',
-        data: forecastData?.forecast?.slice(0, 6) || [],
-        backgroundColor: [
-          'rgba(59, 130, 246, 0.8)',
-          'rgba(34, 197, 94, 0.8)',
-          'rgba(168, 85, 247, 0.8)',
-          'rgba(249, 115, 22, 0.8)',
-          'rgba(239, 68, 68, 0.8)',
-          'rgba(236, 72, 153, 0.8)'
-        ],
-        borderColor: '#ffffff',
-        borderWidth: 2
-      }]
-    };
-
-    doc.text('4. Distribution Pie Chart', 14, yPos);
-    yPos += 5;
-
-    const pieChartBase64 = await chartToBase64('pie', pieChartData, {
-      ...pdfChartOptions,
-      scales: {}
-    });
-    doc.addImage(pieChartBase64, 'PNG', 14, yPos, 180, 100);
     
     // ========== FORECAST DATA TABLE ==========
     if (forecastData && forecastData.forecast && forecastData.forecast.length > 0) {

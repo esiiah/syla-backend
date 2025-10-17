@@ -56,6 +56,30 @@ const ChartCard = ({ chart, data, onClick, isSelected }) => {
       borderWidth: 2
     };
 
+    // FIX: SCATTER & BUBBLE - proper data structure
+    if (chart.id === 'scatter' || chart.id === 'bubble') {
+      const scatterData = (data?.forecast || []).map((val, i) => {
+        const maxVal = Math.max(...(data?.forecast || [1]));
+        return {
+          x: i,
+          y: val,
+          r: chart.id === 'bubble' ? (Math.abs(val) / maxVal * 40 + 15) : undefined
+        };
+      });
+
+      return {
+        ...baseDataset,
+        data: scatterData,
+        showLine: false,
+        pointRadius: chart.id === 'bubble' ? undefined : 6,
+        pointHoverRadius: chart.id === 'bubble' ? undefined : 8,
+        backgroundColor: chart.id === 'bubble' 
+          ? `rgba(${chart.color}, 0.5)` 
+          : `rgba(${chart.color}, 0.6)`,
+        borderWidth: chart.id === 'bubble' ? 2 : 3
+      };
+    }
+
     if (chart.id === 'area') {
       return {
         ...baseDataset,
@@ -80,14 +104,6 @@ const ChartCard = ({ chart, data, onClick, isSelected }) => {
       };
     }
 
-    if (chart.id === 'scatter' || chart.id === 'bubble') {
-      return {
-        ...baseDataset,
-        pointRadius: chart.id === 'bubble' ? 8 : 6,
-        pointHoverRadius: chart.id === 'bubble' ? 10 : 8
-      };
-    }
-
     if (chart.id === 'radar') {
       return {
         ...baseDataset,
@@ -97,9 +113,9 @@ const ChartCard = ({ chart, data, onClick, isSelected }) => {
         pointHoverBackgroundColor: '#fff',
         pointHoverBorderColor: `rgb(${chart.color})`
       };
-    }
+   }
 
-    if (chart.id === 'column') {
+    if (chart.id === 'column' || chart.id === 'comparison') {
       return {
         ...baseDataset,
         barThickness: 20,
@@ -133,8 +149,10 @@ const ChartCard = ({ chart, data, onClick, isSelected }) => {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
+    // FIX: Horizontal bars for Column, Comparison, Stacked
+    indexAxis: (chart.id === 'column' || chart.id === 'comparison' || chart.id === 'stacked_bar') ? 'y' : 'x',
     plugins: {
-      legend: {
+        legend: {
         display: chart.id === 'pie' || chart.id === 'doughnut' || chart.id === 'stacked_bar' || chart.id === 'radar',
         position: 'bottom',
         labels: {
@@ -148,60 +166,72 @@ const ChartCard = ({ chart, data, onClick, isSelected }) => {
         padding: 12,
         borderColor: `rgb(${chart.color})`,
         borderWidth: 1,
-        displayColors: true
+        displayColors: true,
+        callbacks: {
+          title: (ctx) => {
+            // FIX: Scatter/Bubble tooltip
+            if ((chart.id === 'scatter' || chart.id === 'bubble') && ctx[0]) {
+              const xIndex = Math.round(ctx[0].parsed.x);
+              return data?.timestamps?.[xIndex] || `Point ${xIndex}`;
+            }
+            return ctx[0]?.label || "";
+          }
+        }
       },
       datalabels: {
         display: false
       }
     },
     scales: chart.id === 'pie' || chart.id === 'doughnut' ? {} : 
-           chart.id === 'radar' ? {
-             r: {
-               beginAtZero: true,
-               ticks: {
-                 font: { size: 8 },
-                 backdropColor: 'transparent'
-               },
-               pointLabels: {
-                 font: { size: 9 }
-               }
-             }
-           } : 
-           chart.id === 'stacked_bar' ? {
-             x: { stacked: true, ticks: { font: { size: 9 } } },
-             y: { stacked: true, beginAtZero: true, ticks: { font: { size: 9 } } }
-           } : {
-             y: {
-               beginAtZero: true,
-               grid: {
-                 color: 'rgba(0, 0, 0, 0.05)',
-                 drawBorder: false
-               },
-               ticks: {
-                 font: { size: 9 },
-                 color: 'rgba(100, 116, 139, 0.8)'
-               }
-             },
-             x: {
-               grid: {
-                 display: false
-               },
-               ticks: {
-                 font: { size: 9 },
-                 color: 'rgba(100, 116, 139, 0.8)',
-                 maxRotation: 45,
-                 minRotation: 0
-               }
-             }
-           },
-    animation: {
-      duration: 1000,
-      easing: 'easeInOutQuart'
-    },
-    interaction: {
-      intersect: false,
-      mode: 'index'
-    }
+          chart.id === 'radar' ? {
+            r: {
+              beginAtZero: true,
+              ticks: { font: { size: 8 }, backdropColor: 'transparent' },
+              pointLabels: { font: { size: 9 } }
+            }
+          } : 
+          chart.id === 'stacked_bar' ? {
+            x: { stacked: true, ticks: { font: { size: 9 } } },
+            y: { stacked: true, beginAtZero: true, ticks: { font: { size: 9 } } }
+          } :
+          // FIX: Scatter/Bubble scales
+          chart.id === 'scatter' || chart.id === 'bubble' ? {
+            x: {
+              type: 'linear',
+              position: 'bottom',
+              ticks: { font: { size: 9 } },
+              grid: { color: 'rgba(0, 0, 0, 0.05)' }
+            },
+            y: {
+              beginAtZero: true,
+              ticks: { font: { size: 9 } },
+              grid: { color: 'rgba(0, 0, 0, 0.05)' }
+            }
+          } :
+          // FIX: Horizontal bars (Column, Comparison)
+          (chart.id === 'column' || chart.id === 'comparison') ? {
+            x: {
+              beginAtZero: true,
+              ticks: { font: { size: 9 } },
+              grid: { color: 'rgba(0, 0, 0, 0.05)' }
+            },
+            y: {
+              ticks: { font: { size: 9 } },
+              grid: { display: false }
+            }
+          } : {
+            y: {
+              beginAtZero: true,
+              grid: { color: 'rgba(0, 0, 0, 0.05)', drawBorder: false },
+              ticks: { font: { size: 9 }, color: 'rgba(100, 116, 139, 0.8)' }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 9 }, color: 'rgba(100, 116, 139, 0.8)', maxRotation: 45, minRotation: 0 }
+            }
+          },
+    animation: { duration: 1000, easing: 'easeInOutQuart' },
+    interaction: { intersect: false, mode: 'index' }
   };
 
   return (
