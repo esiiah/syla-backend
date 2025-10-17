@@ -324,32 +324,19 @@ export default function ChartView({
         borderDash: [5, 5]
       });
     }
-    // Add rounded corners for horizontal bars
-    if (isHorizontal) {
-      opts.elements = {
-        bar: {
-          borderRadius: {
-            topLeft: 0,
-            topRight: 8,
-            bottomLeft: 0,
-            bottomRight: 8
-          }
-        }
-      };
-    }
 
     return { labels: lbls, datasets: ds };
   }, [options, lbls, vals, safeVals, perColor, yAxis, map, safeCmp, cmp, selectedBars]);
 
-  const chartOptions = useMemo(() => {
-    const tc = themeText();
-    const ys = options.logScale ? "logarithmic" : "linear";
-  
-    // BAR = vertical bars, COLUMN/COMPARISON/STACKED = horizontal bars
+    // MUST define isHorizontal BEFORE chartOptions
     const isHorizontal = options.type === CHART_TYPES.COLUMN || 
                          options.type === CHART_TYPES.COMPARISON || 
                          options.type === CHART_TYPES.STACKED_BAR;
 
+    const chartOptions = useMemo(() => {
+    const tc = themeText();
+    const ys = options.logScale ? "logarithmic" : "linear";
+  
     const opts = {
       indexAxis: isHorizontal ? 'y' : 'x', // Horizontal for COLUMN/COMPARISON/STACKED, vertical for BAR
       maintainAspectRatio: false,
@@ -464,6 +451,19 @@ export default function ChartView({
         }
       }
     };
+    // Add rounded corners for horizontal bars
+    if (isHorizontal) {
+      opts.elements = {
+        bar: {
+          borderRadius: {
+            topLeft: 0,
+            topRight: 8,
+            bottomLeft: 0,
+            bottomRight: 8
+          }
+        }
+      };
+    }
 
     if (options.compareField && options.type !== CHART_TYPES.PIE && options.type !== CHART_TYPES.SCATTER) {
       opts.scales.y1 = {
