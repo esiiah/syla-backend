@@ -40,6 +40,8 @@ export default function ExpandedChartModal({
 }) {
   const chartRef = useRef(null);
 
+  const [showLabels, setShowLabels] = useState(false);
+
   if (!data) return null;
 
   const getChartComponent = () => {
@@ -174,7 +176,7 @@ export default function ExpandedChartModal({
     plugins: {
       legend: {
         display: true,
-        position: 'top',
+          position: 'top',
         labels: {
           usePointStyle: true,
           padding: 20,
@@ -183,6 +185,24 @@ export default function ExpandedChartModal({
         }
       },
       title: { display: false },
+      // FIX: Control datalabels with state
+      datalabels: {
+        display: showLabels,
+        color: document.body.classList.contains('dark') ? '#e2e8f0' : '#334155',
+        font: { size: 11, weight: 'bold' },
+        formatter: (value) => {
+          if (typeof value === 'number') {
+            return value.toFixed(0);
+          }
+          if (value?.y !== undefined) {
+            return value.y.toFixed(0);
+          }
+          return '';
+        },
+        anchor: 'end',
+        align: 'top',
+        offset: 4
+      },
       tooltip: {
         enabled: true,
         backgroundColor: 'rgba(0, 0, 0, 0.9)',
@@ -196,12 +216,17 @@ export default function ExpandedChartModal({
           label: function(context) {
             let label = context.dataset.label || '';
             if (label) label += ': ';
-            if (context.parsed.y !== null) {
-              label += context.parsed.y.toLocaleString(undefined, {
+        
+            if (context.parsed.y !== null && context.parsed.y !== undefined) {
+              const value = context.parsed.y;
+              label += value.toLocaleString(undefined, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
               });
+            } else if (context.parsed !== null && context.parsed !== undefined) {
+              label += context.parsed.toString();
             }
+        
             return label;
           }
         }
@@ -296,13 +321,40 @@ export default function ExpandedChartModal({
 
   const handleExportImage = () => {
     const chart = chartRef.current;
-    if (!chart) return;
+    if (!chart?.canvas) {
+      alert('Chart not ready for export');
+      return;
+    }
 
-    const url = chart.toBase64Image('image/png', 1);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${chartType}-forecast-${new Date().toISOString().split('T')[0]}.png`;
-    a.click();
+    try {
+      // Create temporary canvas with white background
+      const originalCanvas = chart.canvas;
+      const exportCanvas = document.createElement('canvas');
+      exportCanvas.width = originalCanvas.width;
+      exportCanvas.height = originalCanvas.height;
+    
+      const ctx = exportCanvas.getContext('2d');
+    
+      // FIX: Paint white background first
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+    
+      // Draw chart on top of white background
+      ctx.drawImage(originalCanvas, 0, 0);
+    
+      // Convert to PNG with white background
+      const dataURL = exportCanvas.toDataURL('image/png', 1.0);
+    
+      const a = document.createElement('a');
+      a.href = dataURL;
+      a.download = `${chartType}-forecast-${new Date().toISOString().split('T')[0]}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export chart: ' + error.message);
+    }
   };
 
   const handleExportCSV = () => {
@@ -368,6 +420,21 @@ export default function ExpandedChartModal({
           </div>
           
           <div className="flex items-center gap-2">
+            {/* Labels Toggle */}
+            <button
+              onClick={() => setShowLabels(!showLabels)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
+                showLabels
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300'
+              }`}
+              title={showLabels ? 'Hide data labels' : 'Show data labels'}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <text x="12" y="18" fontSize="16" textAnchor="middle" fill="currentColor">123</text>
+              </svg>
+              Labels
+            </button>
             <button
               onClick={handleExportCSV}
               className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg font-medium transition-colors text-sm"

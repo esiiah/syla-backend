@@ -2,7 +2,7 @@
 import React, { useContext } from 'react';
 import { FileText, TrendingUp, AlertCircle, CheckCircle, Download, Sparkles } from 'lucide-react';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable'; // FIX: Correct import
 import { chartToBase64, analyzeForecastTrend } from '../../utils/pdfChartGenerator';
 import { UserContext } from '../../context/UserContext';
 
@@ -391,7 +391,7 @@ export default function ForecastSummary({
         ((forecastData.upper?.[i] || val * 1.2) - (forecastData.lower?.[i] || val * 0.8)).toFixed(2)
       ]);
       
-      doc.autoTable({
+      autoTable(doc, {
         startY: 30,
         head: [['Period', 'Forecast', 'Lower Bound', 'Upper Bound', 'Range']],
         body: tableData,
@@ -412,6 +412,7 @@ export default function ForecastSummary({
         },
         margin: { top: 30 }
       });
+
       
       // Statistical Summary
       const finalY = doc.lastAutoTable.finalY + 15;
@@ -429,7 +430,7 @@ export default function ForecastSummary({
         const trend = forecast[forecast.length - 1] - forecast[0];
         const trendPct = (trend / forecast[0] * 100).toFixed(2);
         
-        doc.autoTable({
+        autoTable(doc, {
           startY: finalY + 5,
           head: [['Metric', 'Value']],
           body: [
