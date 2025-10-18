@@ -41,7 +41,8 @@ export default function ChartSummaryReport({ summary = {}, data = [], chartTitle
     return cleaned;
   }, [summary]);
   
-  const formatNumber = (value) => {
+  const formatNumber = React.useCallback((value) => { 
+
     // Handle null/undefined
     if (value === null || value === undefined) {
       return 'N/A';
@@ -69,7 +70,7 @@ export default function ChartSummaryReport({ summary = {}, data = [], chartTitle
     
     // Handle everything else as string
     return String(value);
-  };
+  }, []);
   
   const exportPDF = () => {
     const doc = new jsPDF();
@@ -307,8 +308,8 @@ export default function ChartSummaryReport({ summary = {}, data = [], chartTitle
           <strong>💡 Tip:</strong> Click "Export PDF" to download a comprehensive report with statistical analysis and recommendations for forecasting.
         </p>
       </div>
-      </>
-      )}
-    </div>
-  );
+    </>
+  )}
+</div>
+);
 }

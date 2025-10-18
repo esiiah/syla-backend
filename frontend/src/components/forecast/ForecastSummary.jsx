@@ -1,5 +1,5 @@
 // frontend/src/components/forecast/ForecastSummary.jsx
-import React, { useContext } from 'react';
+import React, { useState, useContext } from 'react';
 import { FileText, TrendingUp, AlertCircle, CheckCircle, Download, Sparkles } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable'; // FIX: Correct import
