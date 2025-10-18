@@ -22,53 +22,67 @@ export default function ForecastSummary({
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
   
-    // ========== HEADER WITH LOGO ==========
-    doc.setFillColor(37, 99, 235);
-    doc.rect(0, 0, pageWidth, 50, 'F');
-  
-    // Try to add logo
+  // ========== PROFESSIONAL HEADER WITH LOGO ==========
+  doc.setFillColor(37, 99, 235);
+  doc.rect(0, 0, pageWidth, 50, 'F');
+
+  // Load and add logo
     try {
-      const img = new Image();
-      img.src = '/favicon.png';
-      await new Promise((resolve) => {
-        img.onload = () => {
-          doc.addImage(img, 'PNG', 10, 10, 12, 12);
+      const response = await fetch('/favicon.png');
+      const blob = await response.blob();
+      const reader = new FileReader();
+  
+      await new Promise((resolve, reject) => {
+        reader.onloadend = () => {
+          try {
+            const base64data = reader.result;
+            doc.addImage(base64data, 'PNG', 14, 12, 16, 16);
+            resolve();
+          } catch (err) {
+            console.warn('Failed to add logo:', err);
+            resolve();
+          }
+        };
+        reader.onerror = () => {
+          console.warn('Failed to read logo file');
           resolve();
         };
-        img.onerror = resolve;
-        setTimeout(resolve, 1000);
+        reader.readAsDataURL(blob);
+        setTimeout(resolve, 2000);
       });
     } catch (e) {
-      console.warn('Logo not loaded');
+      console.warn('Logo not loaded:', e);
     }
-  
-    // SYLA ANALYTICS - positioned next to logo
+
+    // SYLA ANALYTICS - aligned horizontally with logo
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(255, 255, 255);
-    doc.text('SYLA', 26, 17);
+    doc.text('SYLA', 34, 18);
+
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text('ANALYTICS', 26, 22);
-  
-    // Title - CENTERED and aligned with logo row
+    doc.text('ANALYTICS', 34, 24);
+
+    // Title - CENTERED and vertically aligned
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
     doc.text('AI Forecast Report', pageWidth / 2, 20, { align: 'center' });
-  
-    // Username - CENTERED
+
+    // Username - RIGHT ALIGNED
     doc.setFontSize(8);
-    doc.setTextColor(200, 200, 200);
-    doc.text(`Prepared for: ${user?.name || 'User'}`, pageWidth / 2, 32, { align: 'center' });
-  
-    // Date & Time - CENTERED
+    doc.setTextColor(220, 220, 220);
+    doc.text(`Prepared for: ${user?.name || 'User'}`, pageWidth - 14, 18, { align: 'right' });
+
+    // Date & Time - RIGHT ALIGNED below username
     doc.setFontSize(7);
+    doc.setTextColor(200, 200, 200);
     const now = new Date();
     doc.text(
       `Generated: ${now.toLocaleDateString()} at ${now.toLocaleTimeString()}`,
-      pageWidth / 2,
-      38,
-      { align: 'center' }
+      pageWidth - 14,
+      24,
+      { align: 'right' }
     );
   
     doc.setTextColor(40, 40, 40);
@@ -555,23 +569,32 @@ export default function ForecastSummary({
   const displayInsights = insights && insights.length > 0 ? insights : defaultInsights;
   const displayRecommendations = recommendations && recommendations.length > 0 ? recommendations : defaultRecommendations;
 
+  const [isMinimized, setIsMinimized] = useState(false);
   return (
-  <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 rounded-2xl border border-blue-200 dark:border-slate-700 overflow-hidden shadow-lg">
+    <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 rounded-2xl border border-blue-200 dark:border-slate-700 overflow-hidden shadow-lg">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
         <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <h3 className="text-2xl font-bold mb-2 flex items-center gap-2">
-              <Sparkles size={28} />
-              Forecast Analysis
-            </h3>
-            <p className="text-blue-100 text-sm">
-              AI-generated insights and actionable recommendations
-            </p>
-          </div>
+          <button
+            onClick={() => setIsMinimized(!isMinimized)}
+            className="flex-1 flex items-center gap-3 text-left hover:opacity-90 transition-opacity"
+          >
+            <Sparkles size={28} className="flex-shrink-0" />
+            <div>
+              <h3 className="text-2xl font-bold flex items-center gap-2">
+                Forecast Analysis
+                <span className="text-sm font-normal text-blue-100">
+                  {isMinimized ? '(Click to expand)' : '(Click to minimize)'}
+                </span>
+              </h3>
+              <p className="text-blue-100 text-sm">
+                {isMinimized ? 'AI-generated insights hidden' : 'AI-generated insights and actionable recommendations'}
+              </p>
+            </div>
+          </button>
           <button
             onClick={handleExportPDF}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg font-medium transition-all shadow-lg hover:shadow-xl hover:scale-105"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg font-medium transition-all shadow-lg hover:shadow-xl hover:scale-105 flex-shrink-0"
           >
             <Download size={18} />
             <span className="hidden sm:inline">Export PDF</span>
@@ -579,6 +602,7 @@ export default function ForecastSummary({
         </div>
       </div>
 
+      {!isMinimized && (
       <div className="p-6 space-y-6">
         {/* Summary */}
         <div className="bg-white dark:bg-slate-800/50 rounded-xl p-5 border border-gray-200 dark:border-slate-700">
@@ -636,6 +660,7 @@ export default function ForecastSummary({
           </p>
         </div>
       </div>
-    </div>
-  );
+    )}
+  </div>
+);
 }

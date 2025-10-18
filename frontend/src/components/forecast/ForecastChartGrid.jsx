@@ -58,12 +58,14 @@ const ChartCard = ({ chart, data, onClick, isSelected }) => {
 
     // FIX: SCATTER & BUBBLE - proper data structure
     if (chart.id === 'scatter' || chart.id === 'bubble') {
+      const validValues = (data?.forecast || []).filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
+      const maxVal = validValues.length > 0 ? Math.max(...validValues) : 1;
+  
       const scatterData = (data?.forecast || []).map((val, i) => {
-        const maxVal = Math.max(...(data?.forecast || [1]));
         return {
           x: i,
-          y: val,
-          r: chart.id === 'bubble' ? (Math.abs(val) / maxVal * 40 + 15) : undefined
+          y: val || 0,
+          r: chart.id === 'bubble' ? (Math.abs(val || 0) / maxVal * 30 + 8) : undefined
         };
       });
 
@@ -71,12 +73,15 @@ const ChartCard = ({ chart, data, onClick, isSelected }) => {
         ...baseDataset,
         data: scatterData,
         showLine: false,
-        pointRadius: chart.id === 'bubble' ? undefined : 6,
-        pointHoverRadius: chart.id === 'bubble' ? undefined : 8,
+        pointRadius: chart.id === 'bubble' ? undefined : 5,
+        pointHoverRadius: chart.id === 'bubble' ? undefined : 7,
         backgroundColor: chart.id === 'bubble' 
-          ? `rgba(${chart.color}, 0.5)` 
-          : `rgba(${chart.color}, 0.6)`,
-        borderWidth: chart.id === 'bubble' ? 2 : 3
+          ? `rgba(${chart.color}, 0.6)` 
+          : `rgba(${chart.color}, 0.7)`,
+        borderColor: `rgb(${chart.color})`,
+        borderWidth: chart.id === 'bubble' ? 2 : 2,
+        pointStyle: 'circle',
+        hoverBorderWidth: 2
       };
     }
 

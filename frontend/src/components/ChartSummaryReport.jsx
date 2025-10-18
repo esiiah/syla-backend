@@ -1,11 +1,13 @@
 // frontend/src/components/ChartSummaryReport.jsx
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Download, FileText } from 'lucide-react';
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 export default function ChartSummaryReport({ summary = {}, data = [], chartTitle = "" }) {
+
+  const [isMinimized, setIsMinimized] = useState(false);
   
   // Safety check: ensure summary is a valid object
   const safeSummary = React.useMemo(() => {
@@ -199,22 +201,34 @@ export default function ChartSummaryReport({ summary = {}, data = [], chartTitle
     <div className="mt-6 rounded-2xl bg-white border border-gray-200 shadow-lg dark:bg-slate-900 dark:border-slate-700 overflow-hidden">
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 text-white flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <FileText size={24} />
+        <button
+          onClick={() => setIsMinimized(!isMinimized)}
+          className="flex items-center gap-3 text-left hover:opacity-90 transition-opacity flex-1"
+        >
+          <FileText size={24} className="flex-shrink-0" />
           <div>
-            <h2 className="text-xl font-bold">Data Summary</h2>
-            <p className="text-sm text-blue-100">Statistical overview of your data</p>
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              Data Summary
+              <span className="text-sm font-normal text-blue-100">
+                {isMinimized ? '(Click to expand)' : '(Click to minimize)'}
+              </span>
+            </h2>
+            <p className="text-sm text-blue-100">
+              {isMinimized ? 'Statistical overview hidden' : 'Statistical overview of your data'}
+            </p>
           </div>
-        </div>
+        </button>
         <button
           onClick={exportPDF}
-          className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg font-medium transition-all shadow-lg hover:shadow-xl"
+          className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg font-medium transition-all shadow-lg hover:shadow-xl flex-shrink-0"
         >
           <Download size={18} />
           Export PDF
         </button>
       </div>
       
+      {!isMinimized && (
+        <>
       {/* Table */}
       <div className="p-5 overflow-x-auto">
         <table className="min-w-full border-collapse">
@@ -293,6 +307,8 @@ export default function ChartSummaryReport({ summary = {}, data = [], chartTitle
           <strong>💡 Tip:</strong> Click "Export PDF" to download a comprehensive report with statistical analysis and recommendations for forecasting.
         </p>
       </div>
+      </>
+      )}
     </div>
   );
 }

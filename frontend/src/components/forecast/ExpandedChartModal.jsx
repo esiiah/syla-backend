@@ -1,5 +1,5 @@
 // frontend/src/components/forecast/ExpandedChartModal.jsx
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { X, Download, Maximize2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Bar, Line, Pie, Scatter, Doughnut, Radar } from 'react-chartjs-2';
 import {
@@ -95,25 +95,30 @@ export default function ExpandedChartModal({
       label: title || 'Forecast Data',
       // FIX: Scatter/Bubble need proper data structure
       data: (chartType === 'scatter' || chartType === 'bubble') 
-        ? (data?.forecast || []).map((val, i) => ({
-            x: i,
-            y: val,
-            r: chartType === 'bubble' ? (Math.abs(val) / Math.max(...(data?.forecast || [1])) * 40 + 15) : undefined
-          }))
-        : data?.forecast || [],
+      ? (data?.forecast || []).map((val, i) => {
+        const validValues = (data?.forecast || []).filter(v => typeof v === 'number' && !isNaN(v) && v > 0);
+        const maxVal = validValues.length > 0 ? Math.max(...validValues) : 1;
+        return {
+          x: i,
+          y: val || 0,
+          r: chartType === 'bubble' ? (Math.abs(val || 0) / maxVal * 35 + 10) : undefined
+        };
+      })
+      : data?.forecast || [],
       backgroundColor: chartType === 'pie' || chartType === 'doughnut'
         ? config.colors 
         : config.bgColor,
       borderColor: chartType === 'pie' || chartType === 'doughnut' ? '#ffffff' : config.borderColor,
       borderWidth: chartType === 'pie' || chartType === 'doughnut' ? 2 : 3,
       tension: chartType === 'line' || chartType === 'area' ? 0.4 : 0,
-      pointRadius: chartType === 'line' || chartType === 'scatter' || chartType === 'bubble' ? 6 : 0,
-      pointHoverRadius: chartType === 'line' || chartType === 'scatter' || chartType === 'bubble' ? 8 : 0,
+      pointRadius: chartType === 'bubble' ? undefined : (chartType === 'scatter' ? 8 : (chartType === 'line' ? 6 : 0)),
+      pointHoverRadius: chartType === 'bubble' ? undefined : (chartType === 'scatter' ? 10 : (chartType === 'line' ? 8 : 0)),
       fill: chartType === 'line' || chartType === 'area',
-      pointBackgroundColor: config.borderColor,
-      pointBorderColor: '#fff',
-      pointBorderWidth: 2,
-      showLine: (chartType === 'scatter' || chartType === 'bubble') ? false : undefined
+      pointBackgroundColor: (chartType === 'scatter' || chartType === 'bubble') ? config.borderColor : undefined,
+      pointBorderColor: (chartType === 'scatter' || chartType === 'bubble') ? '#fff' : undefined,
+      pointBorderWidth: (chartType === 'scatter' || chartType === 'bubble') ? 2 : undefined,
+      showLine: (chartType === 'scatter' || chartType === 'bubble') ? false : undefined,
+      pointStyle: (chartType === 'scatter' || chartType === 'bubble') ? 'circle' : undefined
     }]
   };
 
