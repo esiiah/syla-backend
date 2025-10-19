@@ -53,12 +53,21 @@ export default function LoginPage() {
 
 const setupRecaptcha = () => {
     if (!window.recaptchaVerifier) {
-      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        size: 'invisible',
-        callback: () => {
-          console.log("reCAPTCHA solved");
-        }
-      });
+      try {
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible',
+          callback: () => {
+            console.log("reCAPTCHA solved");
+          },
+          'error-callback': (error) => {
+            console.error("reCAPTCHA error:", error);
+            setError("reCAPTCHA failed. Please try again.");
+          }
+        });
+      } catch (error) {
+        console.error("Failed to setup reCAPTCHA:", error);
+        setError("Failed to initialize verification. Please refresh the page.");
+      }
     }
   };
 
@@ -147,17 +156,38 @@ const handleLogin = async (e) => {
       try {
         setupRecaptcha();
         const phoneNumber = selectedCode + contact;
+        console.log("Sending OTP to:", phoneNumber);
+        
         const appVerifier = window.recaptchaVerifier;
         
         const result = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
         setConfirmationResult(result);
         setShowOtpInput(true);
         setError("");
+        console.log("OTP sent successfully");
       } catch (err) {
         console.error("OTP Error:", err);
-        setError(err.message || "Failed to send OTP. Please try again.");
+        
+        // Better error messages
+        let errorMessage = "Failed to send OTP. ";
+        if (err.code === 'auth/operation-not-allowed') {
+          errorMessage = "Phone authentication is not enabled. Please contact support.";
+        } else if (err.code === 'auth/invalid-phone-number') {
+          errorMessage = "Invalid phone number format. Please check and try again.";
+        } else if (err.code === 'auth/too-many-requests') {
+          errorMessage = "Too many requests. Please try again later.";
+        } else {
+          errorMessage += err.message || "Please try again.";
+        }
+        
+        setError(errorMessage);
+        
         if (window.recaptchaVerifier) {
-          window.recaptchaVerifier.clear();
+          try {
+            window.recaptchaVerifier.clear();
+          } catch (clearError) {
+            console.error("Error clearing reCAPTCHA:", clearError);
+          }
           window.recaptchaVerifier = null;
         }
       } finally {

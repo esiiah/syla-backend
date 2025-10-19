@@ -18,7 +18,8 @@ import {
   StackedBarChart
 } from './charts/AdvancedChartRenderer';
 
-import { CHART_TYPES, getChartConfig } from '../utils/chartConfigs';
+import { CHART_TYPES, get3DShadowOffset } from '../utils/chartConfigs';
+
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import { TrendingUp, Download, Edit3 } from "lucide-react";
 import ChartExportTool from "./export/ChartExportTool";

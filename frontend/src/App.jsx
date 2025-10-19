@@ -66,7 +66,7 @@ function App() {
         setHeroGreeting("");
         return;
       }
-      setHeroGreeting(createHeroGreeting());
+      setHeroGreeting(createHeroGreeting(user.name));
     };
 
     updateGreeting();
