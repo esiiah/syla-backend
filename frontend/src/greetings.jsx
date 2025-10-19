@@ -1,5 +1,11 @@
 // frontend/src/greetings.jsx
 
+// Extract first name from full name
+export const getFirstName = (fullName) => {
+  if (!fullName) return "";
+  return fullName.trim().split(" ")[0];
+};
+
 // returns 'morning' | 'afternoon' | 'evening' | 'night'
 export const getTimePeriod = () => {
   const hour = new Date().getHours();
@@ -9,67 +15,59 @@ export const getTimePeriod = () => {
   return "night";
 };
 
-export const getTimeGreeting = (period) => {
-  if (period === "morning") return "Good morning";
-  if (period === "afternoon") return "Good afternoon";
-  if (period === "evening") return "Good evening";
-  return "Hello";
+export const getTimeGreeting = (period, firstName) => {
+  if (period === "morning") return `Good morning, ${firstName}`;
+  if (period === "afternoon") return `Good afternoon, ${firstName}`;
+  if (period === "evening") return `Good evening, ${firstName}`;
+  return `Hello, ${firstName}`;
 };
 
-export const getDayGreeting = () => {
+export const getDayGreeting = (firstName) => {
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  return `Happy ${days[new Date().getDay()]}`; // e.g. "Happy Friday"
+  return `Happy ${days[new Date().getDay()]}, ${firstName}`;
 };
 
-// Casual greetings should NOT include trailing punctuation or username
-export const getCasualGreeting = () => {
+// Casual greetings with proper punctuation based on context
+export const getCasualGreeting = (firstName) => {
   const phrases = [
-    "Welcome back",
-    "Good to see you",
-    "What's new",
-    "Nice to have you",
-    "How's it going",
-    "Hope you're well",
-    "Ready to get started",
-    "Let's make it a good one"
+    `Welcome back, ${firstName}`,
+    `Good to see you, ${firstName}`,
+    `What's new? ${firstName}`,
+    `Nice to have you, ${firstName}`,
+    `How's it going? ${firstName}`,
+    `Hope you're well, ${firstName}`,
+    `Ready to get started? ${firstName}`,
+    `Let's go again, ${firstName}`
   ];
   return phrases[Math.floor(Math.random() * phrases.length)];
 };
 
-/**
- * createHeroGreeting()
- * - returns greeting text WITHOUT the username (App will append the username and style it)
- * - priority:
- *    1) If we haven't shown a day greeting today -> show day greeting (once per day)
- *    2) Else if we haven't shown the period greeting this period -> show time greeting (once per period)
- *    3) Else -> casual greeting
- */
-export const createHeroGreeting = () => {
+export const createHeroGreeting = (fullName) => {
+  const firstName = getFirstName(fullName);
   const todayISO = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
   const period = getTimePeriod();
 
-  const lastGreetingDay = localStorage.getItem("lastGreetingDay"); // e.g. "2025-09-26"
-  const lastGreetingPeriod = localStorage.getItem("lastGreetingPeriod"); // e.g. "morning"
+  const lastGreetingDay = localStorage.getItem("lastGreetingDay");
+  const lastGreetingPeriod = localStorage.getItem("lastGreetingPeriod");
 
   let greeting;
 
   // 1) Day greeting (once per calendar day)
   if (lastGreetingDay !== todayISO) {
-    greeting = getDayGreeting(); // "Happy Friday"
+    greeting = getDayGreeting(firstName);
     localStorage.setItem("lastGreetingDay", todayISO);
-    // also mark that we've greeted for the current period, so afternoon/morning won't also fire immediately
     localStorage.setItem("lastGreetingPeriod", period);
     return greeting;
   }
 
   // 2) Time-of-day greeting (once per period)
   if (lastGreetingPeriod !== period) {
-    greeting = getTimeGreeting(period); // "Good morning" / "Good afternoon" etc.
+    greeting = getTimeGreeting(period, firstName);
     localStorage.setItem("lastGreetingPeriod", period);
     return greeting;
   }
 
   // 3) Fallback: casual greeting
-  greeting = getCasualGreeting(); // e.g. "Welcome back"
+  greeting = getCasualGreeting(firstName);
   return greeting;
 };
