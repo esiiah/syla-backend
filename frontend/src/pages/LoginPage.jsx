@@ -51,24 +51,26 @@ export default function LoginPage() {
     country.code.includes(searchTerm)
   );
 
-const setupRecaptcha = () => {
-    if (!window.recaptchaVerifier) {
+  const setupRecaptcha = () => {
+    // Clear existing verifier first
+    if (window.recaptchaVerifier) {
       try {
-        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible',
-          callback: () => {
-            console.log("reCAPTCHA solved");
-          },
-          'error-callback': (error) => {
-            console.error("reCAPTCHA error:", error);
-            setError("reCAPTCHA failed. Please try again.");
-          }
-        });
-      } catch (error) {
-        console.error("Failed to setup reCAPTCHA:", error);
-        setError("Failed to initialize verification. Please refresh the page.");
-      }
+        window.recaptchaVerifier.clear();
+      } catch (e) {}
+      window.recaptchaVerifier = null;
     }
+    
+    // Clear the container
+    const container = document.getElementById('recaptcha-container');
+    if (container) {
+      container.innerHTML = '';
+    }
+    
+    // Create new verifier
+    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+      size: 'invisible',
+      callback: () => console.log("reCAPTCHA solved")
+    });
   };
 
   window.handleCredentialResponse = async (response) => {
@@ -133,7 +135,7 @@ const setupRecaptcha = () => {
     return null;
   };
 
-const handleLogin = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
