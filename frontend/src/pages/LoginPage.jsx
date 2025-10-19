@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { auth } from '../config/firebase';
 
-const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || "618939207673-gbevo0aok0bqufjch9mmr4sc9ma86qtm.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "618939207673-gbevo0aok0bqufjch9mmr4sc9ma86qtm.apps.googleusercontent.com";
 
 const countryCodes = [
   { code: "+1", name: "USA" }, { code: "+1", name: "Canada" }, { code: "+44", name: "UK" },  { code: "+91", name: "India" }, { code: "+61", name: "Australia" }, { code: "+81", name: "Japan" }, 
