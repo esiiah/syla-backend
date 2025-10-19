@@ -730,7 +730,7 @@ function ChartOptions({
               </div>
             </div>
 
-            {/* Compare Mode Section - NEW */}
+{/* Compare Mode Section */}
             <div className="pt-4 border-t border-gray-200 dark:border-white/10">
               <h4 className="font-medium text-gray-700 dark:text-slate-300 mb-3">Compare Parameters</h4>
               <div className="space-y-3">
@@ -741,67 +741,86 @@ function ChartOptions({
                     onChange={e => commit({ compareMode: e.target.checked })}
                     className="rounded"
                   />
-                  <span className="text-sm">Enable Compare Mode</span>
+                  <span className="text-sm">Enable Compare Mode (Simultaneous)</span>
                 </label>
 
                 {local.compareMode && (
-                  <div className="ml-6 space-y-3">
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-2">X-Axis Parameter 1</label>
+                  <div className="ml-6 space-y-4">
+                    {/* Parameter 1 */}
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg">
+                      <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-2">
+                        Parameter 1
+                      </label>
                       <select
                         value={local.compareParam1 || ''}
                         onChange={e => commit({ compareParam1: e.target.value })}
-                        className="w-full rounded border px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
+                        className="w-full rounded border px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800 mb-2"
                       >
                         <option value="">Select parameter...</option>
                         {numericColumns.map(col => (
                           <option key={col} value={col}>{col}</option>
                         ))}
                       </select>
+                      
+                      {local.compareParam1 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs">Color:</span>
+                          <input
+                            type="color"
+                            value={local.compareParam1Color || '#2563eb'}
+                            onChange={e => commit({ compareParam1Color: e.target.value })}
+                            className="w-10 h-8 rounded border cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={local.compareParam1Color || '#2563eb'}
+                            onChange={e => commit({ compareParam1Color: e.target.value })}
+                            className="flex-1 rounded border px-2 py-1 text-xs font-mono dark:border-slate-600 dark:bg-slate-800"
+                          />
+                        </div>
+                      )}
                     </div>
 
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-2">X-Axis Parameter 2</label>
+                    {/* Parameter 2 */}
+                    <div className="p-3 bg-green-50 dark:bg-green-900/10 rounded-lg">
+                      <label className="block text-xs font-medium text-gray-700 dark:text-slate-300 mb-2">
+                        Parameter 2
+                      </label>
                       <select
                         value={local.compareParam2 || ''}
                         onChange={e => commit({ compareParam2: e.target.value })}
-                        className="w-full rounded border px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
+                        className="w-full rounded border px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800 mb-2"
                       >
                         <option value="">Select parameter...</option>
                         {numericColumns.map(col => (
                           <option key={col} value={col}>{col}</option>
                         ))}
                       </select>
-                    </div>
-
-                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                      <p className="text-xs text-gray-600 dark:text-slate-400">
-                        Toggle between parameters using the buttons below the chart to compare different metrics on the same axis.
-                      </p>
+                      
+                      {local.compareParam2 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs">Color:</span>
+                          <input
+                            type="color"
+                            value={local.compareParam2Color || '#10b981'}
+                            onChange={e => commit({ compareParam2Color: e.target.value })}
+                            className="w-10 h-8 rounded border cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={local.compareParam2Color || '#10b981'}
+                            onChange={e => commit({ compareParam2Color: e.target.value })}
+                            className="flex-1 rounded border px-2 py-1 text-xs font-mono dark:border-slate-600 dark:bg-slate-800"
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {local.compareParam1 && local.compareParam2 && (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setOptions({ ...local, activeCompareParam: local.compareParam1 })}
-                          className={`flex-1 px-3 py-2 text-xs rounded-lg font-medium transition-colors ${
-                            local.activeCompareParam === local.compareParam1 || !local.activeCompareParam
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-slate-700 dark:text-slate-300'
-                          }`}
-                        >
-                          {local.compareParam1}
-                        </button>
-                        <button
-                          onClick={() => setOptions({ ...local, activeCompareParam: local.compareParam2 })}
-                          className={`flex-1 px-3 py-2 text-xs rounded-lg font-medium transition-colors ${
-                            local.activeCompareParam === local.compareParam2
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-slate-700 dark:text-slate-300'
-                          }`}
-                        >
-                          {local.compareParam2}
-                        </button>
+                      <div className="p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+                        <p className="text-xs text-gray-600 dark:text-slate-400">
+                          ✓ Both parameters will be displayed side-by-side on the same chart for direct comparison.
+                        </p>
                       </div>
                     )}
                   </div>

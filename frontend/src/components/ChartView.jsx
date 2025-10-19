@@ -150,6 +150,11 @@ export default function ChartView({
   const safeVals = options.logScale ? vals.map(v => v > 0 ? v : minPos * 0.01) : vals;
   const safeCmp = cmp ? (options.logScale ? cmp.map(v => v > 0 ? v : minPos * 0.01) : cmp) : null;
 
+  // MUST define isHorizontal BEFORE chartData useMemo (used in 3D shadow logic)
+  const isHorizontal = options.type === CHART_TYPES.COLUMN || 
+                       options.type === CHART_TYPES.COMPARISON || 
+                       options.type === CHART_TYPES.STACKED_BAR;
+
   const chartData = useMemo(() => {
     const base = options.color || "#2563eb";
     const N = lbls.length || 1;
@@ -318,7 +323,7 @@ export default function ChartView({
 
     const ds = [core];
 
-    // Handle COMPARISON chart - add second dataset for side-by-side comparison
+// Handle COMPARISON chart - add second dataset for side-by-side comparison
     if (options.type === CHART_TYPES.COMPARISON && safeCmp) {
       // Make bars grouped (side-by-side) instead of stacked
       core.barPercentage = 0.8;
@@ -331,6 +336,41 @@ export default function ChartView({
         originalData: cmp,
         backgroundColor: "#10b981",
         borderColor: "#059669",
+        borderWidth: 1,
+        barPercentage: 0.8,
+        categoryPercentage: 0.7
+      });
+    }
+
+    // Handle Compare Mode - show both parameters simultaneously
+    if (options.compareMode && options.compareParam1 && options.compareParam2) {
+      const param1Values = data.map(r => parseNum(r?.[options.compareParam1]));
+      const param2Values = data.map(r => parseNum(r?.[options.compareParam2]));
+      
+      // Clear existing datasets
+      ds.length = 0;
+      
+      // Add first parameter
+      ds.push({
+        label: options.compareParam1,
+        type: "bar",
+        data: param1Values,
+        originalData: param1Values,
+        backgroundColor: options.compareParam1Color || "#2563eb",
+        borderColor: options.compareParam1Color || "#1d4ed8",
+        borderWidth: 1,
+        barPercentage: 0.8,
+        categoryPercentage: 0.7
+      });
+      
+      // Add second parameter
+      ds.push({
+        label: options.compareParam2,
+        type: "bar",
+        data: param2Values,
+        originalData: param2Values,
+        backgroundColor: options.compareParam2Color || "#10b981",
+        borderColor: options.compareParam2Color || "#059669",
         borderWidth: 1,
         barPercentage: 0.8,
         categoryPercentage: 0.7
@@ -427,11 +467,6 @@ export default function ChartView({
 
     return { labels: lbls, datasets: ds };
   }, [options, lbls, vals, safeVals, perColor, yAxis, map, safeCmp, cmp, selectedBars]);
-
-    // MUST define isHorizontal BEFORE chartOptions
-    const isHorizontal = options.type === CHART_TYPES.COLUMN || 
-                         options.type === CHART_TYPES.COMPARISON || 
-                         options.type === CHART_TYPES.STACKED_BAR;
 
     const chartOptions = useMemo(() => {
     const tc = themeText();
@@ -948,50 +983,26 @@ const getChartComponent = () => {
         </div>
       </div>
 
-      {/* Compare Mode Toggle - NEW */}
+      {/* Compare Mode Display - Shows both parameters */}
       {options.compareMode && options.compareParam1 && options.compareParam2 && (
         <div className="mt-4 p-4 border rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-700">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
-              Compare Parameters
+              Comparing Parameters
             </span>
-            <span className="text-xs text-gray-500">
-              Viewing: {options.activeCompareParam || options.compareParam1}
-            </span>
+            <div className="flex items-center gap-3 text-xs">
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                <span>{options.compareParam1}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                <span>{options.compareParam2}</span>
+              </div>
+            </div>
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => {
-                setYAxis(options.compareParam1);
-                setOptions({ ...options, activeCompareParam: options.compareParam1 });
-              }}
-              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
-                (!options.activeCompareParam || options.activeCompareParam === options.compareParam1)
-                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg scale-105'
-                  : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700'
-              }`}
-            >
-              <div className="text-xs opacity-75 mb-1">Parameter 1</div>
-              <div className="text-sm font-semibold">{options.compareParam1}</div>
-            </button>
-            
-            <button
-              onClick={() => {
-                setYAxis(options.compareParam2);
-                setOptions({ ...options, activeCompareParam: options.compareParam2 });
-              }}
-              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
-                options.activeCompareParam === options.compareParam2
-                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg scale-105'
-                  : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700'
-              }`}
-            >
-              <div className="text-xs opacity-75 mb-1">Parameter 2</div>
-              <div className="text-sm font-semibold">{options.compareParam2}</div>
-            </button>
-          </div>
-          <div className="mt-3 text-xs text-center text-gray-600 dark:text-slate-400">
-            Click to switch between parameters and compare their flow on the X-axis
+          <div className="text-xs text-center text-gray-600 dark:text-slate-400">
+            Both parameters are displayed simultaneously for comparison
           </div>
         </div>
       )}
