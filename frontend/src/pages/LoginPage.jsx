@@ -43,6 +43,8 @@ export default function LoginPage() {
   const [otp, setOtp] = useState("");
   const [confirmationResult, setConfirmationResult] = useState(null);
   const [otpError, setOtpError] = useState("");
+  const [otpTimer, setOtpTimer] = useState(60);
+  const [canResendOtp, setCanResendOtp] = useState(false);
 
   const filteredCountries = countryCodes.filter(country => 
     country.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -122,7 +124,7 @@ const setupRecaptcha = () => {
     return null;
   };
 
-  const handleLogin = async (e) => {
+const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -134,13 +136,43 @@ const setupRecaptcha = () => {
       return;
     }
 
+    // If phone, send OTP first
+    if (contactType === "phone") {
+      if (!contact || contact.length < 7) {
+        setError("Please enter a valid phone number");
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setupRecaptcha();
+        const phoneNumber = selectedCode + contact;
+        const appVerifier = window.recaptchaVerifier;
+        
+        const result = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+        setConfirmationResult(result);
+        setShowOtpInput(true);
+        setError("");
+      } catch (err) {
+        console.error("OTP Error:", err);
+        setError(err.message || "Failed to send OTP. Please try again.");
+        if (window.recaptchaVerifier) {
+          window.recaptchaVerifier.clear();
+          window.recaptchaVerifier = null;
+        }
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // Email login
     try {
-      const loginContact = contactType === "phone" ? selectedCode + contact : contact;
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ contact: loginContact, password }),
+        body: JSON.stringify({ contact, password }),
       });
       
       if (!res.ok) {
@@ -154,37 +186,6 @@ const setupRecaptcha = () => {
       navigate("/");
     } catch (err) {
       setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSendOtp = async () => {
-    if (!contact || contact.length < 7) {
-      setError("Please enter a valid phone number");
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-    setOtpError("");
-
-    try {
-      setupRecaptcha();
-      const phoneNumber = selectedCode + contact;
-      const appVerifier = window.recaptchaVerifier;
-      
-      const result = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
-      setConfirmationResult(result);
-      setShowOtpInput(true);
-      setError("");
-    } catch (err) {
-      console.error("OTP Error:", err);
-      setError(err.message || "Failed to send OTP. Please try again.");
-      if (window.recaptchaVerifier) {
-        window.recaptchaVerifier.clear();
-        window.recaptchaVerifier = null;
-      }
     } finally {
       setLoading(false);
     }
@@ -289,6 +290,22 @@ const setupRecaptcha = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let interval;
+    if (showOtpInput && otpTimer > 0) {
+      interval = setInterval(() => {
+        setOtpTimer((prev) => {
+          if (prev <= 1) {
+            setCanResendOtp(true);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [showOtpInput, otpTimer]);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-950 dark:to-slate-900 p-4 relative">
       <div className="absolute top-6 left-6 flex items-center space-x-2 z-10">
@@ -364,7 +381,7 @@ const setupRecaptcha = () => {
                 ← Back to options
               </button>
 
-              <form onSubmit={handleLogin} className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4">                
                 {contactType === "phone" && !showOtpInput && (
                   <div className="space-y-4">
                     <div className="flex space-x-2 relative" ref={dropdownRef}>
@@ -436,8 +453,7 @@ const setupRecaptcha = () => {
                     />
 
                     <button
-                      type="button"
-                      onClick={handleSendOtp}
+                      type="submit"
                       disabled={loading}
                       className={`w-full py-3 rounded-lg font-semibold text-white transition-all duration-200 transform ${
                         loading 
@@ -445,26 +461,37 @@ const setupRecaptcha = () => {
                           : "bg-blue-500 dark:bg-yellow-400 dark:text-gray-900 hover:bg-blue-600 dark:hover:bg-yellow-300 hover:shadow-lg hover:scale-[1.02] shadow-md"
                       }`}
                     >
-                      {loading ? "Sending OTP..." : "Send OTP"}
+                      {loading ? "Signing In..." : "Sign In"}
                     </button>
                     
-                    <div id="recaptcha-container"></div>
+                    <div id="recaptcha-container" className="flex justify-center"></div>
                   </div>
                 )}
 
                 {contactType === "phone" && showOtpInput && (
                   <div className="space-y-4">
-                    <div className="text-sm text-gray-600 dark:text-slate-400 mb-2">
-                      Enter the 6-digit code sent to {selectedCode}{contact}
+                    <div className="text-center p-4 bg-blue-50 dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-600">
+                      <p className="text-sm text-gray-700 dark:text-slate-300 mb-1">
+                        We've sent a 6-digit code to
+                      </p>
+                      <p className="font-semibold text-gray-900 dark:text-slate-100">
+                        {selectedCode} {contact}
+                      </p>
+                      {otpTimer > 0 && (
+                        <p className="text-xs text-gray-500 dark:text-slate-400 mt-2">
+                          Code expires in {otpTimer}s
+                        </p>
+                      )}
                     </div>
                     
                     <input
                       type="text"
                       value={otp}
                       onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      placeholder="Enter 6-digit OTP"
+                      placeholder="000000"
                       maxLength="6"
-                      className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-center text-2xl tracking-widest"
+                      className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-center text-2xl tracking-widest font-mono"
+                      autoFocus
                     />
 
                     {otpError && (
@@ -483,8 +510,24 @@ const setupRecaptcha = () => {
                           : "bg-blue-500 dark:bg-yellow-400 dark:text-gray-900 hover:bg-blue-600 dark:hover:bg-yellow-300 hover:shadow-lg hover:scale-[1.02] shadow-md"
                       }`}
                     >
-                      {loading ? "Verifying..." : "Verify OTP"}
+                      {loading ? "Verifying..." : "Verify & Sign In"}
                     </button>
+
+                    {canResendOtp && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowOtpInput(false);
+                          setOtp("");
+                          setOtpError("");
+                          setOtpTimer(60);
+                          setCanResendOtp(false);
+                        }}
+                        className="w-full text-sm text-blue-500 dark:text-yellow-400 hover:underline font-medium"
+                      >
+                        Resend OTP
+                      </button>
+                    )}
 
                     <button
                       type="button"
@@ -492,54 +535,62 @@ const setupRecaptcha = () => {
                         setShowOtpInput(false);
                         setOtp("");
                         setOtpError("");
+                        setOtpTimer(60);
+                        setCanResendOtp(false);
+                        if (window.recaptchaVerifier) {
+                          window.recaptchaVerifier.clear();
+                          window.recaptchaVerifier = null;
+                        }
                       }}
-                      className="w-full text-sm text-blue-500 dark:text-yellow-400 hover:underline"
+                      className="w-full text-sm text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
                     >
-                      Resend OTP
+                      ← Change phone number
                     </button>
                   </div>
                 )}
 
                 {contactType === "email" && (
-                  <input
-                    type="email"
-                    value={contact}
-                    onChange={(e) => setContact(e.target.value)}
-                    placeholder="Email"
-                    required
-                    className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                  />
+                  <>
+                    <input
+                      type="email"
+                      value={contact}
+                      onChange={(e) => setContact(e.target.value)}
+                      placeholder="Email"
+                      required
+                      className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    />
+
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Password"
+                      required
+                      className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    />
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className={`w-full py-3 rounded-lg font-semibold text-white transition-all duration-200 transform ${
+                        loading 
+                          ? "bg-gray-400 cursor-not-allowed" 
+                          : "bg-blue-500 dark:bg-yellow-400 dark:text-gray-900 hover:bg-blue-600 dark:hover:bg-yellow-300 hover:shadow-lg hover:scale-[1.02] shadow-md"
+                      }`}
+                    >
+                      {loading ? "Signing In..." : "Sign In"}
+                    </button>
+
+                    <div className="text-center">
+                      <Link 
+                        to="/forgot-password" 
+                        className="text-sm text-blue-500 dark:text-yellow-400 hover:underline transition-colors duration-200"
+                      >
+                        Forgot your password?
+                      </Link>
+                    </div>
+                  </>
                 )}
-
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
-                  required
-                  className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                />
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className={`w-full py-3 rounded-lg font-semibold text-white transition-all duration-200 transform ${
-                    loading 
-                      ? "bg-gray-400 cursor-not-allowed" 
-                      : "bg-blue-500 dark:bg-yellow-400 dark:text-gray-900 hover:bg-blue-600 dark:hover:bg-yellow-300 hover:shadow-lg hover:scale-[1.02] shadow-md"
-                  }`}
-                >
-                  {loading ? "Signing In..." : "Sign In"}
-                </button>
-
-                <div className="text-center">
-                  <Link 
-                    to="/forgot-password" 
-                    className="text-sm text-blue-500 dark:text-yellow-400 hover:underline transition-colors duration-200"
-                  >
-                    Forgot your password?
-                  </Link>
-                </div>
               </form>
             </div>
           )}
