@@ -372,4 +372,107 @@ async def refresh_token(request: Request):
         samesite="lax"
     )
     
+class FirebasePhoneLoginRequest(BaseModel):
+    firebase_token: str
+    phone: str
+    password: str
+
+class FirebasePhoneSignupRequest(BaseModel):
+    firebase_token: str
+    name: str
+    phone: str
+    password: str
+    confirm_password: str
+
+@router.post("/firebase-phone-login")
+async def firebase_phone_login(payload: FirebasePhoneLoginRequest):
+    """Login with Firebase-verified phone number"""
+    # In production, verify the Firebase token here
+    # For now, we trust the frontend verification
+    
+    user = get_user_with_hash_by_contact(payload.phone)
+    if not user or not user.get("_password_hash"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
+    
+    if not verify_password(payload.password, user["_password_hash"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
+    
+    user_data = {k: v for k, v in user.items() if k != "_password_hash"}
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(user_data["id"])}, 
+        expires_delta=access_token_expires
+    )
+    
+    response = JSONResponse(content={
+        "message": "Login successful",
+        "user": user_data,
+        "access_token": access_token,
+        "token_type": "bearer"
+    })
+    
+    response.set_cookie(
+        key="auth_token",
+        value=access_token,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        secure=False,
+        samesite="lax"
+    )
+    
+    return response
+
+@router.post("/firebase-phone-signup")
+async def firebase_phone_signup(payload: FirebasePhoneSignupRequest):
+    """Signup with Firebase-verified phone number"""
+    if payload.password != payload.confirm_password:
+        raise HTTPException(status_code=400, detail="Passwords do not match")
+    
+    existing_user = get_user_by_contact(payload.phone)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User with this phone already exists"
+        )
+    
+    password_hash = hash_password(payload.password)
+    
+    user_id = create_local_user(
+        name=payload.name,
+        phone=payload.phone,
+        password_hash=password_hash
+    )
+    
+    user = get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=500, detail="Failed to create user")
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(user["id"])}, 
+        expires_delta=access_token_expires
+    )
+    
+    response = JSONResponse(content={
+        "user": user,
+        "access_token": access_token,
+        "token_type": "bearer"
+    })
+    
+    response.set_cookie(
+        key="auth_token",
+        value=access_token,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        secure=False,
+        samesite="lax"
+    )
+    
     return response

@@ -1,6 +1,8 @@
 // frontend/src/pages/SignupPage.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
+import { auth } from '../config/firebase';
 
 const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || "618939207673-gbevo0aok0bqufjch9mmr4sc9ma86qtm.apps.googleusercontent.com";
 
@@ -39,11 +41,26 @@ export default function SignupPage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const dropdownRef = useRef(null);
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [confirmationResult, setConfirmationResult] = useState(null);
+  const [otpError, setOtpError] = useState("");
 
   const filteredCountries = countryCodes.filter(country => 
     country.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     country.code.includes(searchTerm)
   );
+
+  const setupRecaptcha = () => {
+    if (!window.recaptchaVerifier) {
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        size: 'invisible',
+        callback: () => {
+          console.log("reCAPTCHA solved");
+        }
+      });
+    }
+  };
 
   window.handleCredentialResponse = async (response) => {
     setLoading(true);
@@ -152,6 +169,95 @@ export default function SignupPage() {
       navigate("/");
     } catch (err) {
       setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSendOtp = async () => {
+    if (!contact || contact.length < 7) {
+      setError("Please enter a valid phone number");
+      return;
+    }
+
+    if (!name.trim()) {
+      setError("Please enter your name");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      setError(passwordError);
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setOtpError("");
+
+    try {
+      setupRecaptcha();
+      const phoneNumber = countryCode + contact;
+      const appVerifier = window.recaptchaVerifier;
+      
+      const result = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+      setConfirmationResult(result);
+      setShowOtpInput(true);
+      setError("");
+    } catch (err) {
+      console.error("OTP Error:", err);
+      setError(err.message || "Failed to send OTP. Please try again.");
+      if (window.recaptchaVerifier) {
+        window.recaptchaVerifier.clear();
+        window.recaptchaVerifier = null;
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otp || otp.length !== 6) {
+      setOtpError("Please enter a valid 6-digit OTP");
+      return;
+    }
+
+    setLoading(true);
+    setOtpError("");
+
+    try {
+      const result = await confirmationResult.confirm(otp);
+      const firebaseToken = await result.user.getIdToken();
+
+      const res = await fetch("/api/auth/firebase-phone-signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          firebase_token: firebaseToken,
+          name: name,
+          phone: countryCode + contact,
+          password: password,
+          confirm_password: confirmPassword
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.detail || "Signup failed");
+      }
+
+      const data = await res.json();
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      navigate("/");
+    } catch (err) {
+      setOtpError(err.message || "Invalid OTP. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -296,64 +402,138 @@ export default function SignupPage() {
                   className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                 />
 
-                {contactType === "phone" && (
-                  <div className="flex space-x-2 relative" ref={dropdownRef}>
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        className="border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-blue-400 min-w-[100px] flex items-center justify-between"
-                      >
-                        <span className="text-sm">{countryCode}</span>
-                        <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </button>
+                {contactType === "phone" && !showOtpInput && (
+                  <div className="space-y-4">
+                    <div className="flex space-x-2 relative" ref={dropdownRef}>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                          className="border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-blue-400 min-w-[100px] flex items-center justify-between"
+                        >
+                          <span className="text-sm">{selectedCode}</span>
+                          <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
 
-                      {isDropdownOpen && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg z-20 max-h-60 overflow-hidden">
-                          <div className="p-2 border-b border-gray-200 dark:border-slate-600">
-                            <input
-                              type="text"
-                              value={searchTerm}
-                              onChange={(e) => setSearchTerm(e.target.value)}
-                              onKeyDown={handleDropdownKeyDown}
-                              placeholder="Search country..."
-                              className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              autoFocus
-                            />
+                        {isDropdownOpen && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg z-20 max-h-60 overflow-hidden">
+                            <div className="p-2 border-b border-gray-200 dark:border-slate-600">
+                              <input
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                onKeyDown={handleDropdownKeyDown}
+                                placeholder="Search country..."
+                                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                autoFocus
+                              />
+                            </div>
+                            
+                            <div className="max-h-40 overflow-y-auto">
+                              {filteredCountries.map((country, idx) => (
+                                <button
+                                  key={`${country.code}-${idx}`}
+                                  type="button"
+                                  onClick={() => handleCountrySelect(country)}
+                                  className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors duration-150 flex justify-between items-center"
+                                >
+                                  <span className="text-gray-900 dark:text-slate-100">{country.name}</span>
+                                  <span className="text-gray-500 dark:text-slate-400">{country.code}</span>
+                                </button>
+                              ))}
+                              {filteredCountries.length === 0 && (
+                                <div className="px-3 py-2 text-sm text-gray-500 dark:text-slate-400">
+                                  No countries found
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          
-                          <div className="max-h-40 overflow-y-auto">
-                            {filteredCountries.map((country, idx) => (
-                              <button
-                                key={`${country.code}-${idx}`}
-                                type="button"
-                                onClick={() => handleCountrySelect(country)}
-                                className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors duration-150 flex justify-between items-center"
-                              >
-                                <span className="text-gray-900 dark:text-slate-100">{country.name}</span>
-                                <span className="text-gray-500 dark:text-slate-400">{country.code}</span>
-                              </button>
-                            ))}
-                            {filteredCountries.length === 0 && (
-                              <div className="px-3 py-2 text-sm text-gray-500 dark:text-slate-400">
-                                No countries found
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
+
+                      <input
+                        type="tel"
+                        value={contact}
+                        onChange={handlePhoneInput}
+                        placeholder="Phone Number"
+                        required
+                        className="flex-1 border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      />
                     </div>
 
                     <input
-                      type="tel"
-                      value={contact}
-                      onChange={handlePhoneInput}
-                      placeholder="Phone Number"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Password"
                       required
-                      className="flex-1 border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                      className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                     />
+
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      disabled={loading}
+                      className={`w-full py-3 rounded-lg font-semibold text-white transition-all duration-200 transform ${
+                        loading 
+                          ? "bg-gray-400 cursor-not-allowed" 
+                          : "bg-blue-500 dark:bg-yellow-400 dark:text-gray-900 hover:bg-blue-600 dark:hover:bg-yellow-300 hover:shadow-lg hover:scale-[1.02] shadow-md"
+                      }`}
+                    >
+                      {loading ? "Sending OTP..." : "Send OTP"}
+                    </button>
+                    
+                    <div id="recaptcha-container"></div>
+                  </div>
+                )}
+
+                {contactType === "phone" && showOtpInput && (
+                  <div className="space-y-4">
+                    <div className="text-sm text-gray-600 dark:text-slate-400 mb-2">
+                      Enter the 6-digit code sent to {selectedCode}{contact}
+                    </div>
+                    
+                    <input
+                      type="text"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="Enter 6-digit OTP"
+                      maxLength="6"
+                      className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-center text-2xl tracking-widest"
+                    />
+
+                    {otpError && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 text-sm">
+                        {otpError}
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleVerifyOtp}
+                      disabled={loading || otp.length !== 6}
+                      className={`w-full py-3 rounded-lg font-semibold text-white transition-all duration-200 transform ${
+                        loading || otp.length !== 6
+                          ? "bg-gray-400 cursor-not-allowed" 
+                          : "bg-blue-500 dark:bg-yellow-400 dark:text-gray-900 hover:bg-blue-600 dark:hover:bg-yellow-300 hover:shadow-lg hover:scale-[1.02] shadow-md"
+                      }`}
+                    >
+                      {loading ? "Verifying..." : "Verify OTP"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowOtpInput(false);
+                        setOtp("");
+                        setOtpError("");
+                      }}
+                      className="w-full text-sm text-blue-500 dark:text-yellow-400 hover:underline"
+                    >
+                      Resend OTP
+                    </button>
                   </div>
                 )}
 

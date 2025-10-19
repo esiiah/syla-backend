@@ -630,7 +630,7 @@ function ChartOptions({
         {/* Advanced Tab */}
         {activeTab === "advanced" && (
           <div className="space-y-4">
-            {/* Interactive features */}
+          {/* Interactive features */}
             <div>
               <h4 className="font-medium text-gray-700 dark:text-slate-300 mb-3">Interactivity</h4>
               <div className="space-y-3">
@@ -644,7 +644,6 @@ function ChartOptions({
                   <span className="text-sm">Show Data Labels</span>
                 </label>
 
-                {/* Only show trendline if chart type supports it */}
                 {(local.type === 'line' || local.type === 'bar' || local.type === 'area') && (
                   <label className="flex items-center gap-3">
                     <input
@@ -657,7 +656,6 @@ function ChartOptions({
                   </label>
                 )}
 
-                {/* Only show log scale for appropriate chart types */}
                 {(local.type === 'bar' || local.type === 'line' || local.type === 'scatter') && (
                   <div>
                     <label className="flex items-center gap-3 mb-2">
@@ -683,17 +681,130 @@ function ChartOptions({
                   </div>
                 )}
 
-                {/* 3D toggle for pie/doughnut */}
-                {(local.type === CHART_TYPES.PIE || local.type === CHART_TYPES.DOUGHNUT) && (
-                  <label className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={local.enable3D || false}
-                      onChange={e => commit({ enable3D: e.target.checked })}
-                      className="rounded"
-                    />
-                    <span className="text-sm">3D Effect</span>
-                  </label>
+                {/* 3D Effect with Shadow Position */}
+                {(local.type === CHART_TYPES.BAR || local.type === CHART_TYPES.COLUMN) && (
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={local.enable3D || false}
+                        onChange={e => commit({ enable3D: e.target.checked })}
+                        className="rounded"
+                      />
+                      <span className="text-sm">3D Effect</span>
+                    </label>
+                    
+                    {local.enable3D && (
+                      <div className="ml-6 space-y-2">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Shadow Position</label>
+                          <select
+                            value={local.shadow3DPosition || 'bottom-right'}
+                            onChange={e => commit({ shadow3DPosition: e.target.value })}
+                            className="w-full rounded border px-2 py-1 text-xs dark:border-slate-600 dark:bg-slate-800"
+                          >
+                            <option value="bottom-right">Bottom Right ↘</option>
+                            <option value="bottom-left">Bottom Left ↙</option>
+                            <option value="top-right">Top Right ↗</option>
+                            <option value="top-left">Top Left ↖</option>
+                            <option value="bottom">Bottom ↓</option>
+                            <option value="right">Right →</option>
+                          </select>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Shadow Depth: {local.shadow3DDepth || 5}px</label>
+                          <input
+                            type="range"
+                            min="2"
+                            max="15"
+                            value={local.shadow3DDepth || 5}
+                            onChange={e => commit({ shadow3DDepth: parseInt(e.target.value) })}
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Compare Mode Section - NEW */}
+            <div className="pt-4 border-t border-gray-200 dark:border-white/10">
+              <h4 className="font-medium text-gray-700 dark:text-slate-300 mb-3">Compare Parameters</h4>
+              <div className="space-y-3">
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={local.compareMode || false}
+                    onChange={e => commit({ compareMode: e.target.checked })}
+                    className="rounded"
+                  />
+                  <span className="text-sm">Enable Compare Mode</span>
+                </label>
+
+                {local.compareMode && (
+                  <div className="ml-6 space-y-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-2">X-Axis Parameter 1</label>
+                      <select
+                        value={local.compareParam1 || ''}
+                        onChange={e => commit({ compareParam1: e.target.value })}
+                        className="w-full rounded border px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
+                      >
+                        <option value="">Select parameter...</option>
+                        {numericColumns.map(col => (
+                          <option key={col} value={col}>{col}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-2">X-Axis Parameter 2</label>
+                      <select
+                        value={local.compareParam2 || ''}
+                        onChange={e => commit({ compareParam2: e.target.value })}
+                        className="w-full rounded border px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800"
+                      >
+                        <option value="">Select parameter...</option>
+                        {numericColumns.map(col => (
+                          <option key={col} value={col}>{col}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <p className="text-xs text-gray-600 dark:text-slate-400">
+                        Toggle between parameters using the buttons below the chart to compare different metrics on the same axis.
+                      </p>
+                    </div>
+
+                    {local.compareParam1 && local.compareParam2 && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setOptions({ ...local, activeCompareParam: local.compareParam1 })}
+                          className={`flex-1 px-3 py-2 text-xs rounded-lg font-medium transition-colors ${
+                            local.activeCompareParam === local.compareParam1 || !local.activeCompareParam
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          {local.compareParam1}
+                        </button>
+                        <button
+                          onClick={() => setOptions({ ...local, activeCompareParam: local.compareParam2 })}
+                          className={`flex-1 px-3 py-2 text-xs rounded-lg font-medium transition-colors ${
+                            local.activeCompareParam === local.compareParam2
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          {local.compareParam2}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

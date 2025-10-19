@@ -289,26 +289,33 @@ export const generateAreaGradient = (ctx, color1, color2) => {
   return gradient;
 };
 
-// 3D effect simulation (for bar, column, pie)
-export const apply3DEffect = (dataset, chartType) => {
-  if (chartType === CHART_TYPES.BAR || chartType === CHART_TYPES.COLUMN) {
-    return {
-      ...dataset,
-      borderWidth: 3,
-      borderColor: 'rgba(0, 0, 0, 0.2)',
-      shadowOffsetX: 3,
-      shadowOffsetY: 3,
-      shadowBlur: 10,
-      shadowColor: 'rgba(0, 0, 0, 0.3)'
-    };
-  }
-  return dataset;
+// Add to CHART_FEATURES or create if doesn't exist
+export const CHART_3D_SHADOW_POSITIONS = {
+  BOTTOM_RIGHT: 'bottom-right',
+  BOTTOM_LEFT: 'bottom-left',
+  TOP_RIGHT: 'top-right',
+  TOP_LEFT: 'top-left',
+  BOTTOM: 'bottom',
+  RIGHT: 'right'
+};
+
+export const get3DShadowOffset = (position, depth = 5) => {
+  const offsets = {
+    'bottom-right': { x: depth, y: depth },
+    'bottom-left': { x: -depth, y: depth },
+    'top-right': { x: depth, y: -depth },
+    'top-left': { x: -depth, y: -depth },
+    'bottom': { x: 0, y: depth },
+    'right': { x: depth, y: 0 }
+  };
+  return offsets[position] || offsets['bottom-right'];
 };
 
 export default {
   CHART_TYPES,
   CHART_FEATURES,
+  CHART_3D_SHADOW_POSITIONS,
   getChartConfig,
   generateAreaGradient,
-  apply3DEffect
+  get3DShadowOffset
 };

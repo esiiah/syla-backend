@@ -386,6 +386,44 @@ export default function ChartView({
       });
     }
 
+    // Add 3D shadow dataset if enabled
+    if (options.enable3D && (options.type === CHART_TYPES.BAR || options.type === CHART_TYPES.COLUMN)) {
+      const shadowPosition = options.shadow3DPosition || 'bottom-right';
+      const shadowDepth = options.shadow3DDepth || 5;
+      const shadowOffset = get3DShadowOffset(shadowPosition, shadowDepth);
+      
+      const shadowColors = finalColors.map(color => {
+        const rgb = hexToRgb(color);
+        if (rgb) {
+          return rgbToHex({
+            r: Math.max(0, rgb.r - 60),
+            g: Math.max(0, rgb.g - 60),
+            b: Math.max(0, rgb.b - 60)
+          });
+        }
+        return color;
+      });
+
+      // Create shadow dataset
+      const shadowDataset = {
+        label: '3D Shadow',
+        type: "bar",
+        data: safeVals,
+        backgroundColor: shadowColors.map(c => c + '80'), // Add transparency
+        borderColor: 'transparent',
+        borderWidth: 0,
+        barPercentage: core.barPercentage || 0.8,
+        categoryPercentage: core.categoryPercentage || 0.9,
+        xAxisID: isHorizontal ? 'x-shadow' : 'x',
+        yAxisID: isHorizontal ? 'y' : 'y-shadow',
+        order: 2, // Render behind main bars
+        datalabels: { display: false }
+      };
+
+      // Insert shadow before main dataset
+      ds.unshift(shadowDataset);
+    }
+
     return { labels: lbls, datasets: ds };
   }, [options, lbls, vals, safeVals, perColor, yAxis, map, safeCmp, cmp, selectedBars]);
 
@@ -506,7 +544,6 @@ export default function ChartView({
             }
           : options.type === CHART_TYPES.COMPARISON
           ? {
-              // For comparison: grouped bars side-by-side (NOT stacked)
               x: {
                 stacked: false,
                 type: ys,
@@ -526,10 +563,8 @@ export default function ChartView({
                 grid: { color: "rgba(0,0,0,0.1)" }
               }
             }
-
           : isHorizontal
           ? {
-              // For horizontal bars (COLUMN, COMPARISON): x=values, y=labels
               x: {
                 type: ys,
                 ticks: { 
@@ -545,10 +580,25 @@ export default function ChartView({
                   maxRotation: 0
                 },
                 grid: { color: "rgba(0,0,0,0.1)" }
-              }
+              },
+              // 3D shadow scales for horizontal
+              ...(options.enable3D && {
+                'x-shadow': {
+                  type: ys,
+                  display: false,
+                  offset: true,
+                  grid: { display: false },
+                  ticks: { display: false },
+                  min: options.logScale ? minPos * 0.1 : undefined,
+                  afterFit: (scale) => {
+                    const shadowOffset = get3DShadowOffset(options.shadow3DPosition || 'bottom-right', options.shadow3DDepth || 5);
+                    scale.paddingLeft = Math.abs(shadowOffset.x);
+                    scale.paddingRight = Math.abs(shadowOffset.x);
+                  }
+                }
+              })
             }
           : {
-              // For vertical bars (BAR, LINE, etc): x=labels, y=values
               x:
                 options.type === CHART_TYPES.SCATTER || options.type === CHART_TYPES.BUBBLE
                   ? {
@@ -569,7 +619,23 @@ export default function ChartView({
                 },
                 min: options.logScale ? minPos * 0.1 : undefined,
                 grid: { color: "rgba(0,0,0,0.1)" }
-              }
+              },
+              // 3D shadow scales for vertical
+              ...(options.enable3D && {
+                'y-shadow': {
+                  type: ys,
+                  display: false,
+                  offset: true,
+                  grid: { display: false },
+                  ticks: { display: false },
+                  min: options.logScale ? minPos * 0.1 : undefined,
+                  afterFit: (scale) => {
+                    const shadowOffset = get3DShadowOffset(options.shadow3DPosition || 'bottom-right', options.shadow3DDepth || 5);
+                    scale.paddingTop = Math.abs(shadowOffset.y);
+                    scale.paddingBottom = Math.abs(shadowOffset.y);
+                  }
+                }
+              })
             }
     };
 
@@ -880,6 +946,54 @@ const getChartComponent = () => {
           />
         </div>
       </div>
+
+      {/* Compare Mode Toggle - NEW */}
+      {options.compareMode && options.compareParam1 && options.compareParam2 && (
+        <div className="mt-4 p-4 border rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-700">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
+              Compare Parameters
+            </span>
+            <span className="text-xs text-gray-500">
+              Viewing: {options.activeCompareParam || options.compareParam1}
+            </span>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                setYAxis(options.compareParam1);
+                setOptions({ ...options, activeCompareParam: options.compareParam1 });
+              }}
+              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
+                (!options.activeCompareParam || options.activeCompareParam === options.compareParam1)
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg scale-105'
+                  : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700'
+              }`}
+            >
+              <div className="text-xs opacity-75 mb-1">Parameter 1</div>
+              <div className="text-sm font-semibold">{options.compareParam1}</div>
+            </button>
+            
+            <button
+              onClick={() => {
+                setYAxis(options.compareParam2);
+                setOptions({ ...options, activeCompareParam: options.compareParam2 });
+              }}
+              className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all ${
+                options.activeCompareParam === options.compareParam2
+                  ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg scale-105'
+                  : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-700'
+              }`}
+            >
+              <div className="text-xs opacity-75 mb-1">Parameter 2</div>
+              <div className="text-sm font-semibold">{options.compareParam2}</div>
+            </button>
+          </div>
+          <div className="mt-3 text-xs text-center text-gray-600 dark:text-slate-400">
+            Click to switch between parameters and compare their flow on the X-axis
+          </div>
+        </div>
+      )}
 
       {/* Color editing panel */}
       {editing && !selectionMode && (
