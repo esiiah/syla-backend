@@ -161,24 +161,30 @@ export const Chart3DPlugin = {
       const meta = chart.getDatasetMeta(datasetIndex);
       if (!meta.data) return;
 
-      meta.data.forEach((arc, index) => {
-        const model = arc;
-        const startAngle = model.startAngle || 0;
-        const endAngle = model.endAngle || 0;
-        const outerRadius = model.outerRadius || radius;
-        const innerRadius = model.innerRadius || 0;
+      // Draw from bottom to top for proper layering
+      for (let d = depth; d > 0; d -= 1) {
+        const offsetY = d * Math.sin(angle);
+        const layerOpacity = 1 - (d / depth) * 0.4;
 
-        // Calculate depth color
-        const baseColor = dataset.backgroundColor[index] || dataset.backgroundColor;
-        const depthColor = darkenColor(baseColor, 0.4);
-        const sideColor = darkenColor(baseColor, 0.25);
+        meta.data.forEach((arc, index) => {
+          const model = arc;
+          const startAngle = model.startAngle || 0;
+          const endAngle = model.endAngle || 0;
+          const outerRadius = model.outerRadius || radius;
+          const innerRadius = model.innerRadius || 0;
 
-        // Draw depth effect (bottom slice)
-        for (let d = depth; d > 0; d -= 2) {
-          const offsetY = d * Math.sin(angle);
-          const layerOpacity = 1 - (d / depth) * 0.3;
+          // Calculate colors for depth
+          const baseColor = Array.isArray(dataset.backgroundColor)
+            ? dataset.backgroundColor[index]
+            : dataset.backgroundColor;
+          
+          const depthColor = d === depth 
+            ? darkenColor(baseColor, 0.5)
+            : darkenColor(baseColor, 0.3);
 
           ctx.globalAlpha = layerOpacity;
+          
+          // Draw the slice depth
           ctx.beginPath();
           ctx.arc(
             centerX,
@@ -196,12 +202,34 @@ export const Chart3DPlugin = {
             true
           );
           ctx.closePath();
-          ctx.fillStyle = d === depth ? depthColor : sideColor;
+          ctx.fillStyle = depthColor;
           ctx.fill();
-        }
 
-        ctx.globalAlpha = 1;
-      });
+          // Draw side edge for visible segments
+          if (d === depth && (startAngle < Math.PI && endAngle > Math.PI)) {
+            ctx.globalAlpha = layerOpacity * 0.8;
+            const sideColor = darkenColor(baseColor, 0.4);
+            
+            // Draw outer edge
+            const x1 = centerX + Math.cos(startAngle) * outerRadius;
+            const y1 = centerY + Math.sin(startAngle) * outerRadius;
+            const x2 = centerX + Math.cos(endAngle) * outerRadius;
+            const y2 = centerY + Math.sin(endAngle) * outerRadius;
+
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x1, y1 + offsetY);
+            ctx.arc(centerX, centerY + offsetY, outerRadius, startAngle, endAngle);
+            ctx.lineTo(x2, y2);
+            ctx.arc(centerX, centerY, outerRadius, endAngle, startAngle, true);
+            ctx.closePath();
+            ctx.fillStyle = sideColor;
+            ctx.fill();
+          }
+        });
+      }
+
+      ctx.globalAlpha = 1;
     });
 
     ctx.restore();
@@ -215,47 +243,112 @@ export const Chart3DBarPlugin = {
   id: 'threeDBar',
   
   beforeDatasetsDraw: (chart, args, pluginOptions) => {
-    const { ctx, data, chartArea } = chart;
+    const { ctx, data, chartArea, scales } = chart;
     if (!chartArea) return;
+
+    const isHorizontal = chart.config.options.indexAxis === 'y';
 
     ctx.save();
 
     data.datasets.forEach((dataset, datasetIndex) => {
       const meta = chart.getDatasetMeta(datasetIndex);
-      if (!meta.data || !dataset.shadowOffsetX) return;
+      if (!meta.data || !dataset.shadowOffsetX || dataset.label?.includes('Trend')) return;
+
+      const offsetX = dataset.shadowOffsetX || 0;
+      const offsetY = dataset.shadowOffsetY || 0;
+      const shadowColor = dataset.shadowColor || 'rgba(0, 0, 0, 0.3)';
 
       meta.data.forEach((bar, index) => {
         const { x, y, width, height, base } = bar.getProps(['x', 'y', 'width', 'height', 'base'], true);
         
-        // Draw shadow/depth
-        ctx.fillStyle = dataset.shadowColor || 'rgba(0, 0, 0, 0.3)';
-        ctx.shadowBlur = dataset.shadowBlur || 0;
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
+        // Draw multiple shadow layers for depth
+        const layers = 3;
+        for (let i = layers; i > 0; i--) {
+          const layerOffset = i / layers;
+          const currentOffsetX = offsetX * layerOffset;
+          const currentOffsetY = offsetY * layerOffset;
+          const opacity = 0.15 * layerOffset;
 
-        // Draw depth rectangles
-        const offsetX = dataset.shadowOffsetX || 0;
-        const offsetY = dataset.shadowOffsetY || 0;
-        
-        ctx.beginPath();
-        if (chart.config.options.indexAxis === 'y') {
-          // Horizontal bars
-          ctx.rect(
-            x + offsetX,
-            y + offsetY,
-            width,
-            height
-          );
-        } else {
-          // Vertical bars
-          ctx.rect(
-            x + offsetX,
-            y + offsetY,
-            width,
-            height
-          );
+          ctx.fillStyle = shadowColor.replace(/[\d.]+\)$/g, `${opacity})`);
+          
+          ctx.beginPath();
+          if (isHorizontal) {
+            // Horizontal bars - 3D extends right and down
+            ctx.rect(
+              x + currentOffsetX,
+              y + currentOffsetY,
+              width,
+              height
+            );
+          } else {
+            // Vertical bars - 3D extends right and down
+            ctx.rect(
+              x + currentOffsetX,
+              y + currentOffsetY,
+              width,
+              height
+            );
+          }
+          ctx.fill();
         }
-        ctx.fill();
+
+        // Draw connecting side faces for more realistic 3D
+        if (Math.abs(offsetX) > 2 || Math.abs(offsetY) > 2) {
+          const sideColor = darkenSingleColor(
+            Array.isArray(dataset.backgroundColor) 
+              ? dataset.backgroundColor[index] 
+              : dataset.backgroundColor,
+            0.3
+          );
+
+          ctx.fillStyle = sideColor;
+          
+          if (isHorizontal) {
+            // Right side face
+            if (offsetX > 0) {
+              ctx.beginPath();
+              ctx.moveTo(x + width, y);
+              ctx.lineTo(x + width + offsetX, y + offsetY);
+              ctx.lineTo(x + width + offsetX, y + height + offsetY);
+              ctx.lineTo(x + width, y + height);
+              ctx.closePath();
+              ctx.fill();
+            }
+            
+            // Bottom side face
+            if (offsetY > 0) {
+              ctx.beginPath();
+              ctx.moveTo(x, y + height);
+              ctx.lineTo(x + offsetX, y + height + offsetY);
+              ctx.lineTo(x + width + offsetX, y + height + offsetY);
+              ctx.lineTo(x + width, y + height);
+              ctx.closePath();
+              ctx.fill();
+            }
+          } else {
+            // Right side face (vertical bars)
+            if (offsetX > 0) {
+              ctx.beginPath();
+              ctx.moveTo(x + width, y);
+              ctx.lineTo(x + width + offsetX, y + offsetY);
+              ctx.lineTo(x + width + offsetX, y + height + offsetY);
+              ctx.lineTo(x + width, y + height);
+              ctx.closePath();
+              ctx.fill();
+            }
+            
+            // Bottom side face (vertical bars)
+            if (offsetY > 0) {
+              ctx.beginPath();
+              ctx.moveTo(x, y + height);
+              ctx.lineTo(x + offsetX, y + height + offsetY);
+              ctx.lineTo(x + width + offsetX, y + height + offsetY);
+              ctx.lineTo(x + width, y + height);
+              ctx.closePath();
+              ctx.fill();
+            }
+          }
+        }
       });
     });
 

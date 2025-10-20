@@ -270,7 +270,7 @@ export default function EditingPanel({
           )}
 
           {/* Chart Component */}
-          <div className="bg-gradient-to-b from-gray-50 to-white dark:from-black/20 dark:to-black/10 rounded-xl p-4 border dark:border-white/10 flex-1">
+          <div className="bg-gradient-to-b from-gray-50 to-white dark:from-black/20 dark:to-black/10 rounded-xl p-4 border dark:border-white/10 flex-1" style={{ overflow: 'visible' }}>           
             <ChartView
               data={chartData.data}
               columns={chartData.columns}
