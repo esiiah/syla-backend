@@ -142,9 +142,10 @@ export const Chart3DPlugin = {
   id: 'threeDEffect',
   
   beforeDatasetsDraw: (chart, args, options) => {
-    if (!options.enabled) return;
+    if (!options || !options.enabled) return;
 
     const { ctx, chartArea, data } = chart;
+    if (!chartArea || !data || !data.datasets) return;
     const { top, bottom, left, right, width, height } = chartArea;
 
     const centerX = (left + right) / 2;
@@ -251,6 +252,10 @@ export const Chart3DBarPlugin = {
     const { ctx, data, chartArea, scales } = chart;
     if (!chartArea) return;
 
+    // Check if any dataset has 3D shadow properties
+    const has3DDatasets = data.datasets.some(ds => ds.shadowOffsetX || ds.shadowOffsetY);
+    if (!has3DDatasets) return;
+
     const isHorizontal = chart.config.options.indexAxis === 'y';
 
     ctx.save();
@@ -261,7 +266,12 @@ export const Chart3DBarPlugin = {
 
       const offsetX = dataset.shadowOffsetX || 0;
       const offsetY = dataset.shadowOffsetY || 0;
-      const shadowColor = dataset.shadowColor || 'rgba(0, 0, 0, 0.3)';
+      let shadowColor = dataset.shadowColor || 'rgba(0, 0, 0, 0.3)';
+      
+      // Ensure shadowColor is a string
+      if (typeof shadowColor !== 'string') {
+        shadowColor = 'rgba(0, 0, 0, 0.3)';
+      }
 
       meta.data.forEach((bar, index) => {
         const { x, y, width, height, base } = bar.getProps(['x', 'y', 'width', 'height', 'base'], true);
@@ -274,7 +284,18 @@ export const Chart3DBarPlugin = {
           const currentOffsetY = offsetY * layerOffset;
           const opacity = 0.15 * layerOffset;
 
-          ctx.fillStyle = shadowColor.replace(/[\d.]+\)$/g, `${opacity})`);
+          // Safely replace opacity in rgba string
+          let layerShadowColor = shadowColor;
+          if (shadowColor.includes('rgba')) {
+            layerShadowColor = shadowColor.replace(/[\d.]+\)$/, `${opacity})`);
+          } else if (shadowColor.includes('rgb')) {
+            layerShadowColor = shadowColor.replace('rgb', 'rgba').replace(')', `, ${opacity})`);
+          } else {
+            // Fallback for hex or other formats
+            layerShadowColor = `rgba(0, 0, 0, ${opacity})`;
+          }
+          
+          ctx.fillStyle = layerShadowColor;
           
           ctx.beginPath();
           if (isHorizontal) {
@@ -412,6 +433,9 @@ export const apply3DTransformations = (chartOptions, chartType, enable3D, positi
 
   const config = CHART_3D_CONFIGS[chartType];
   if (!config || !config.supports3D) return chartOptions;
+  
+  // Safety check for valid chart options
+  if (!chartOptions || typeof chartOptions !== 'object') return chartOptions;
 
   const updatedOptions = { ...chartOptions };
 

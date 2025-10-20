@@ -435,14 +435,18 @@ export default function ChartView({
       });
     }
 
-    // Apply 3D transformation for bar/column charts
+    // Apply 3D transformation for bar/column charts ONLY
     let finalData = { labels: lbls, datasets: ds };
-    if (options.enable3D && (
-      options.type === CHART_TYPES.BAR || 
-      options.type === CHART_TYPES.COLUMN ||
-      options.type === CHART_TYPES.COMPARISON ||
-      options.type === CHART_TYPES.STACKED_BAR
-    )) {
+    
+    // Check if current chart type supports 3D
+    const supports3DBars = [
+      CHART_TYPES.BAR,
+      CHART_TYPES.COLUMN,
+      CHART_TYPES.COMPARISON,
+      CHART_TYPES.STACKED_BAR
+    ].includes(options.type);
+    
+    if (options.enable3D && supports3DBars) {
       finalData = generate3DBarDepth(finalData, options.type, {
         shadow3DDepth: options.shadow3DDepth || 8,
         shadow3DPosition: options.shadow3DPosition || 'bottom-right'
@@ -633,8 +637,18 @@ export default function ChartView({
               }
             }
     };
-   // Add layout padding for 3D depth visibility
-    if (options.enable3D) {
+    
+   // Add layout padding for 3D depth visibility - ONLY for supported types
+    const supports3DEffect = [
+      CHART_TYPES.BAR,
+      CHART_TYPES.COLUMN,
+      CHART_TYPES.PIE,
+      CHART_TYPES.DOUGHNUT,
+      CHART_TYPES.COMPARISON,
+      CHART_TYPES.STACKED_BAR
+    ].includes(options.type);
+    
+    if (options.enable3D && supports3DEffect) {
       const baseDepth = options.shadow3DDepth || (
         options.type === CHART_TYPES.PIE || options.type === CHART_TYPES.DOUGHNUT ? 20 : 8
       );
