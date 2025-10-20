@@ -1,7 +1,7 @@
 # ================================
 # Stage 1: Build Frontend
 # ================================
-FROM node:20.13.1-slim AS frontend-builder
+FROM node:20-slim AS frontend-builder
 WORKDIR /app/frontend
 
 COPY frontend/package*.json ./
@@ -32,7 +32,7 @@ RUN rm -rf dist && npm run build
 # ================================
 # Stage 2: Backend Runtime
 # ================================
-FROM python:3.12.3-slim
+FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
