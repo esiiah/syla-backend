@@ -174,9 +174,14 @@ export const Chart3DPlugin = {
           const innerRadius = model.innerRadius || 0;
 
           // Calculate colors for depth
-          const baseColor = Array.isArray(dataset.backgroundColor)
+          let baseColor = Array.isArray(dataset.backgroundColor)
             ? dataset.backgroundColor[index]
             : dataset.backgroundColor;
+          
+          // Ensure baseColor is a string
+          if (typeof baseColor !== 'string') {
+            baseColor = '#2563eb'; // fallback color
+          }
           
           const depthColor = d === depth 
             ? darkenColor(baseColor, 0.5)
@@ -294,12 +299,16 @@ export const Chart3DBarPlugin = {
 
         // Draw connecting side faces for more realistic 3D
         if (Math.abs(offsetX) > 2 || Math.abs(offsetY) > 2) {
-          const sideColor = darkenSingleColor(
-            Array.isArray(dataset.backgroundColor) 
-              ? dataset.backgroundColor[index] 
-              : dataset.backgroundColor,
-            0.3
-          );
+          let sideColorInput = Array.isArray(dataset.backgroundColor) 
+            ? dataset.backgroundColor[index] 
+            : dataset.backgroundColor;
+          
+          // Ensure it's a string
+          if (typeof sideColorInput !== 'string') {
+            sideColorInput = '#2563eb'; // fallback
+          }
+          
+          const sideColor = darkenSingleColor(sideColorInput, 0.3);
 
           ctx.fillStyle = sideColor;
           

@@ -635,13 +635,17 @@ export default function ChartView({
     };
    // Add layout padding for 3D depth visibility
     if (options.enable3D) {
-      const depthPadding = (options.shadow3DDepth || 8) + 15;
+      const baseDepth = options.shadow3DDepth || (
+        options.type === CHART_TYPES.PIE || options.type === CHART_TYPES.DOUGHNUT ? 20 : 8
+      );
+      const depthPadding = baseDepth + 15;
+      
       opts.layout = {
         padding: {
           top: depthPadding,
           right: depthPadding,
           bottom: depthPadding,
-          left: 10
+          left: depthPadding
         }
       };
     }
@@ -955,7 +959,12 @@ const getChartComponent = () => {
       {/* Chart container */}
 
       <div className="mt-4 rounded-xl p-4 bg-gradient-to-b from-gray-50 to-white border dark:from-black/20 dark:to-black/10 dark:border-white/10">
-        <div style={{ height: 450, position: 'relative', overflow: 'visible', padding: '20px 0' }}>
+        <div style={{ 
+          height: options.enable3D ? 500 : 450, 
+          position: 'relative', 
+          overflow: 'visible', 
+          padding: options.enable3D ? '30px 20px' : '20px 0' 
+        }}>
           <ChartComponent
             ref={ref}
             data={chartData}

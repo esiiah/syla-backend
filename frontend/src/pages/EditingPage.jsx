@@ -306,7 +306,7 @@ export default function EditingPage() {
       <div 
         ref={mainContentRef}
         className="flex flex-1 relative overflow-auto"
-        style={{ height: 'calc(100vh - 60px)' }}
+        style={{ height: 'calc(100vh - 120px)', paddingBottom: '40px' }}
       >
         {/* Sidebar */}
         {sidebarOpen && (
