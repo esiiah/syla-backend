@@ -64,63 +64,49 @@ export const generate3DBarDepth = (chartData, chartType, options = {}) => {
   const depthIntensity = options.shadow3DDepth || 8;
   const position = options.shadow3DPosition || 'bottom-right';
   
-  const datasets = chartData.datasets.map((dataset, index) => {
-    // Skip if this is already a depth dataset
-    if (dataset.label?.includes('3D Depth')) return dataset;
-
-    // Calculate depth color (darker version)
-    const depthColor = darkenColor(dataset.backgroundColor, 0.4);
-    const sideColor = darkenColor(dataset.backgroundColor, 0.2);
-
-    // Create depth datasets
-    const depthDatasets = [];
-
-    // Main face (original dataset with slight adjustment)
-    const mainFace = {
-      ...dataset,
-      order: 1,
-      borderWidth: 2,
-      borderColor: dataset.borderColor || darkenColor(dataset.backgroundColor, 0.1)
+  // Calculate offsets based on position
+  const getOffsets = (pos, depth) => {
+    const offsets = {
+      'bottom-right': { x: depth, y: depth },
+      'bottom-left': { x: -depth, y: depth },
+      'top-right': { x: depth, y: -depth },
+      'top-left': { x: -depth, y: -depth },
+      'bottom': { x: 0, y: depth },
+      'right': { x: depth, y: 0 },
+      'left': { x: -depth, y: 0 },
+      'top': { x: 0, y: -depth }
     };
-
-    // Right/Bottom face (depth)
-    const depthFace = {
-      label: `${dataset.label} 3D Depth`,
-      data: dataset.data,
-      backgroundColor: Array.isArray(depthColor) ? depthColor : [depthColor],
-      borderColor: 'rgba(0, 0, 0, 0.2)',
-      borderWidth: 1,
-      barPercentage: dataset.barPercentage || 0.8,
-      categoryPercentage: dataset.categoryPercentage || 0.9,
-      order: 2,
-      datalabels: { display: false },
-      // Offset for 3D effect
-      xOffset: position.includes('right') ? depthIntensity : 0,
-      yOffset: position.includes('bottom') ? -depthIntensity : 0
-    };
-
-    // Side face (connecting edge)
-    const sideFace = {
-      label: `${dataset.label} 3D Side`,
-      data: dataset.data,
-      backgroundColor: Array.isArray(sideColor) ? sideColor : [sideColor],
-      borderColor: 'rgba(0, 0, 0, 0.15)',
-      borderWidth: 1,
-      barPercentage: dataset.barPercentage || 0.8,
-      categoryPercentage: dataset.categoryPercentage || 0.9,
-      order: 1.5,
-      datalabels: { display: false },
-      xOffset: position.includes('right') ? depthIntensity / 2 : 0,
-      yOffset: position.includes('bottom') ? -depthIntensity / 2 : 0
-    };
-
-    return [depthFace, sideFace, mainFace];
-  }).flat();
-
-  return {
-    ...chartData,
-    datasets
+    return offsets[pos] || offsets['bottom-right'];
   };
+
+  const offset = getOffsets(position, depthIntensity);
+  
+  // Use Chart.js shadow plugin approach instead of dataset duplication
+  const enhancedData = {
+    ...chartData,
+    datasets: chartData.datasets.map((dataset, index) => {
+      if (dataset.label?.includes('3D Depth') || dataset.label?.includes('Trend')) {
+        return dataset; // Skip depth layers and trendlines
+      }
+
+      // Calculate depth color (darker version)
+      const depthColor = darkenColor(dataset.backgroundColor, 0.5);
+      
+      return {
+        ...dataset,
+        // Add shadow configuration
+        shadowOffsetX: offset.x,
+        shadowOffsetY: offset.y,
+        shadowBlur: depthIntensity / 2,
+        shadowColor: depthColor,
+        // Enhanced border for 3D effect
+        borderWidth: 2,
+        borderColor: darkenColor(dataset.backgroundColor, 0.2)
+      };
+    })
+  };
+
+  return enhancedData;
 };
 
 /**
@@ -215,6 +201,61 @@ export const Chart3DPlugin = {
         }
 
         ctx.globalAlpha = 1;
+      });
+    });
+
+    ctx.restore();
+  }
+};
+
+/**
+ * Custom Chart.js plugin for 3D bar shadow rendering
+ */
+export const Chart3DBarPlugin = {
+  id: 'threeDBar',
+  
+  beforeDatasetsDraw: (chart, args, pluginOptions) => {
+    const { ctx, data, chartArea } = chart;
+    if (!chartArea) return;
+
+    ctx.save();
+
+    data.datasets.forEach((dataset, datasetIndex) => {
+      const meta = chart.getDatasetMeta(datasetIndex);
+      if (!meta.data || !dataset.shadowOffsetX) return;
+
+      meta.data.forEach((bar, index) => {
+        const { x, y, width, height, base } = bar.getProps(['x', 'y', 'width', 'height', 'base'], true);
+        
+        // Draw shadow/depth
+        ctx.fillStyle = dataset.shadowColor || 'rgba(0, 0, 0, 0.3)';
+        ctx.shadowBlur = dataset.shadowBlur || 0;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+
+        // Draw depth rectangles
+        const offsetX = dataset.shadowOffsetX || 0;
+        const offsetY = dataset.shadowOffsetY || 0;
+        
+        ctx.beginPath();
+        if (chart.config.options.indexAxis === 'y') {
+          // Horizontal bars
+          ctx.rect(
+            x + offsetX,
+            y + offsetY,
+            width,
+            height
+          );
+        } else {
+          // Vertical bars
+          ctx.rect(
+            x + offsetX,
+            y + offsetY,
+            width,
+            height
+          );
+        }
+        ctx.fill();
       });
     });
 
@@ -344,6 +385,7 @@ export default {
   generate3DBarDepth,
   generate3DPieEffect,
   Chart3DPlugin,
+  Chart3DBarPlugin,
   darkenColor,
   apply3DTransformations,
   supports3D,

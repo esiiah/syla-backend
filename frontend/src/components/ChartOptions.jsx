@@ -733,12 +733,16 @@ function ChartOptions({
                             <label className="block text-xs text-gray-600 dark:text-slate-400 mb-2">
                               Shadow Direction
                             </label>
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-3 gap-2">
                               {[
-                                { value: 'bottom-right', label: 'Bottom Right ↘', icon: '↘' },
-                                { value: 'bottom-left', label: 'Bottom Left ↙', icon: '↙' },
-                                { value: 'top-right', label: 'Top Right ↗', icon: '↗' },
-                                { value: 'top-left', label: 'Top Left ↖', icon: '↖' }
+                                { value: 'top-left', label: '↖', desc: 'Top Left' },
+                                { value: 'top', label: '↑', desc: 'Top' },
+                                { value: 'top-right', label: '↗', desc: 'Top Right' },
+                                { value: 'left', label: '←', desc: 'Left' },
+                                { value: 'bottom-right', label: '↘', desc: 'Bottom Right (Default)' },
+                                { value: 'right', label: '→', desc: 'Right' },
+                                { value: 'bottom-left', label: '↙', desc: 'Bottom Left' },
+                                { value: 'bottom', label: '↓', desc: 'Bottom' },
                               ].map(pos => (
                                 <button
                                   key={pos.value}
@@ -748,9 +752,9 @@ function ChartOptions({
                                       ? 'bg-blue-600 text-white shadow-md'
                                       : 'bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 hover:border-blue-400'
                                   }`}
+                                  title={pos.desc}
                                 >
-                                  <span className="text-lg mr-1">{pos.icon}</span>
-                                  <span className="hidden sm:inline">{pos.label.split(' ')[0]}</span>
+                                  <span className="text-xl">{pos.label}</span>
                                 </button>
                               ))}
                             </div>

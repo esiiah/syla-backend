@@ -19,8 +19,7 @@ import {
 } from './charts/AdvancedChartRenderer';
 
 import { CHART_TYPES, get3DShadowOffset } from '../utils/chartConfigs';
-import { Chart3DPlugin, generate3DBarDepth, generate3DPieEffect, apply3DTransformations } from '../utils/chart3DEffects';
-
+import { Chart3DPlugin, Chart3DBarPlugin, generate3DBarDepth, generate3DPieEffect, apply3DTransformations } from '../utils/chart3DEffects';
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import { TrendingUp, Download, Edit3 } from "lucide-react";
 import ChartExportTool from "./export/ChartExportTool";
@@ -29,7 +28,8 @@ ChartJS.register(
   CategoryScale, LinearScale, LogarithmicScale, RadialLinearScale,
   BarElement, PointElement, LineElement, ArcElement,
   Title, Tooltip, Legend, Filler, ChartDataLabels,
-  Chart3DPlugin  // Register 3D plugin
+  Chart3DPlugin,  // Register 3D pie plugin
+  Chart3DBarPlugin  // Register 3D bar plugin
 );
 
 // Helper functions remain the same...
@@ -308,9 +308,20 @@ export default function ChartView({
       };
     }
 
+    // Determine chart type for core dataset
+    let coreType = "bar";
+    if (options.type === CHART_TYPES.LINE) {
+      coreType = "line";
+    } else if (options.type === CHART_TYPES.BAR || 
+               options.type === CHART_TYPES.COLUMN || 
+               options.type === CHART_TYPES.COMPARISON || 
+               options.type === CHART_TYPES.STACKED_BAR) {
+      coreType = "bar";
+    }
+
     const core = {
       label: yAxis || "Value",
-      type: options.type === CHART_TYPES.LINE ? "line" : "bar",
+      type: coreType,
       data: safeVals,
       originalData: vals,
       backgroundColor: finalColors,
