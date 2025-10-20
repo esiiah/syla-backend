@@ -681,9 +681,14 @@ function ChartOptions({
                   </div>
                 )}
 
-                {/* 3D Effect with Shadow Position */}
-                {(local.type === CHART_TYPES.BAR || local.type === CHART_TYPES.COLUMN) && (
-                  <div className="space-y-2">
+                {/* 3D Effect with Enhanced Controls */}
+                {(local.type === CHART_TYPES.BAR || 
+                  local.type === CHART_TYPES.COLUMN || 
+                  local.type === CHART_TYPES.PIE || 
+                  local.type === CHART_TYPES.DOUGHNUT ||
+                  local.type === CHART_TYPES.COMPARISON ||
+                  local.type === CHART_TYPES.STACKED_BAR) && (
+                  <div className="space-y-3 p-4 bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-lg border border-indigo-200 dark:border-indigo-700">
                     <label className="flex items-center gap-3">
                       <input
                         type="checkbox"
@@ -691,37 +696,76 @@ function ChartOptions({
                         onChange={e => commit({ enable3D: e.target.checked })}
                         className="rounded"
                       />
-                      <span className="text-sm">3D Effect</span>
+                      <span className="text-sm font-medium">Enable 3D Effect</span>
                     </label>
                     
                     {local.enable3D && (
-                      <div className="ml-6 space-y-2">
+                      <div className="ml-6 space-y-4 pt-2">
+                        {/* Depth Intensity */}
                         <div>
-                          <label className="block text-xs text-gray-500 mb-1">Shadow Position</label>
-                          <select
-                            value={local.shadow3DPosition || 'bottom-right'}
-                            onChange={e => commit({ shadow3DPosition: e.target.value })}
-                            className="w-full rounded border px-2 py-1 text-xs dark:border-slate-600 dark:bg-slate-800"
-                          >
-                            <option value="bottom-right">Bottom Right ↘</option>
-                            <option value="bottom-left">Bottom Left ↙</option>
-                            <option value="top-right">Top Right ↗</option>
-                            <option value="top-left">Top Left ↖</option>
-                            <option value="bottom">Bottom ↓</option>
-                            <option value="right">Right →</option>
-                          </select>
-                        </div>
-                        
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Shadow Depth: {local.shadow3DDepth || 5}px</label>
+                          <label className="block text-xs text-gray-600 dark:text-slate-400 mb-2">
+                            3D Depth: {local.shadow3DDepth || (
+                              local.type === CHART_TYPES.PIE || local.type === CHART_TYPES.DOUGHNUT ? 20 : 8
+                            )}px
+                          </label>
                           <input
                             type="range"
-                            min="2"
-                            max="15"
-                            value={local.shadow3DDepth || 5}
+                            min={local.type === CHART_TYPES.PIE || local.type === CHART_TYPES.DOUGHNUT ? 10 : 5}
+                            max={local.type === CHART_TYPES.PIE || local.type === CHART_TYPES.DOUGHNUT ? 40 : 20}
+                            value={local.shadow3DDepth || (
+                              local.type === CHART_TYPES.PIE || local.type === CHART_TYPES.DOUGHNUT ? 20 : 8
+                            )}
                             onChange={e => commit({ shadow3DDepth: parseInt(e.target.value) })}
-                            className="w-full"
+                            className="w-full accent-blue-600"
                           />
+                          <div className="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>Subtle</span>
+                            <span>Dramatic</span>
+                          </div>
+                        </div>
+
+                        {/* Shadow Position - Only for Bar/Column charts */}
+                        {(local.type === CHART_TYPES.BAR || 
+                          local.type === CHART_TYPES.COLUMN ||
+                          local.type === CHART_TYPES.COMPARISON ||
+                          local.type === CHART_TYPES.STACKED_BAR) && (
+                          <div>
+                            <label className="block text-xs text-gray-600 dark:text-slate-400 mb-2">
+                              Shadow Direction
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                              {[
+                                { value: 'bottom-right', label: 'Bottom Right ↘', icon: '↘' },
+                                { value: 'bottom-left', label: 'Bottom Left ↙', icon: '↙' },
+                                { value: 'top-right', label: 'Top Right ↗', icon: '↗' },
+                                { value: 'top-left', label: 'Top Left ↖', icon: '↖' }
+                              ].map(pos => (
+                                <button
+                                  key={pos.value}
+                                  onClick={() => commit({ shadow3DPosition: pos.value })}
+                                  className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                                    (local.shadow3DPosition || 'bottom-right') === pos.value
+                                      ? 'bg-blue-600 text-white shadow-md'
+                                      : 'bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 hover:border-blue-400'
+                                  }`}
+                                >
+                                  <span className="text-lg mr-1">{pos.icon}</span>
+                                  <span className="hidden sm:inline">{pos.label.split(' ')[0]}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 3D Preview Indicator */}
+                        <div className="flex items-center gap-2 p-2 bg-white dark:bg-slate-800 rounded border border-indigo-200 dark:border-indigo-700">
+                          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded shadow-lg transform rotate-3"></div>
+                          <div className="text-xs text-gray-600 dark:text-slate-400">
+                            {local.type === CHART_TYPES.PIE || local.type === CHART_TYPES.DOUGHNUT
+                              ? '3D depth effect will create layered circular slices'
+                              : '3D depth effect creates realistic bar depth and shadows'
+                            }
+                          </div>
                         </div>
                       </div>
                     )}
@@ -730,7 +774,7 @@ function ChartOptions({
               </div>
             </div>
 
-{/* Compare Mode Section */}
+            {/* Compare Mode Section */}
             <div className="pt-4 border-t border-gray-200 dark:border-white/10">
               <h4 className="font-medium text-gray-700 dark:text-slate-300 mb-3">Compare Parameters</h4>
               <div className="space-y-3">

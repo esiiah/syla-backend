@@ -265,18 +265,25 @@ export default function EditingBar({
             )}
           </div>
 
-          {/* Toggle 3D */}
-          <button
-            onClick={() => onOptionsChange({ enable3D: !chartOptions.enable3D })}
-            className={`p-2 rounded-lg transition-colors ${
-              chartOptions.enable3D
-                ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30"
-                : "hover:bg-gray-100 dark:hover:bg-slate-700"
-            }`}
-            title="Toggle 3D Effect"
-          >
-            <Layers size={18} />
-          </button>
+          {/* Toggle 3D - Show only for supported chart types */}
+          {(chartOptions.type === CHART_TYPES.BAR || 
+            chartOptions.type === CHART_TYPES.COLUMN ||
+            chartOptions.type === CHART_TYPES.PIE ||
+            chartOptions.type === CHART_TYPES.DOUGHNUT ||
+            chartOptions.type === CHART_TYPES.COMPARISON ||
+            chartOptions.type === CHART_TYPES.STACKED_BAR) && (
+            <button
+              onClick={() => onOptionsChange({ enable3D: !chartOptions.enable3D })}
+              className={`p-2 rounded-lg transition-colors ${
+                chartOptions.enable3D
+                  ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30"
+                  : "hover:bg-gray-100 dark:hover:bg-slate-700"
+              }`}
+              title={`Toggle 3D Effect (${chartOptions.enable3D ? 'ON' : 'OFF'})`}
+            >
+              <Layers size={18} />
+            </button>
+          )}
 
           {/* Toggle Log scale */}
           <button

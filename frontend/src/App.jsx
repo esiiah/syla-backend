@@ -135,13 +135,15 @@ function App() {
             <div className="hero-content">
               {user ? (
                 <>
-                  <h1 className="font-body text-4xl md:text-5xl tracking-wide mb-6 text-gray-800 dark:text-slate-200">
-                    {heroGreeting}
-                    {/[!?.]$/.test(heroGreeting) ? " " : " "}
-                    <span className="text-neonYellow font-bold">
-                      {heroGreeting.split(",")[0].includes(user.name) ? "" : ""}
-                    </span>
-                  </h1>
+                  <h1
+                    className="font-body text-4xl md:text-5xl tracking-wide mb-6 text-gray-800 dark:text-slate-200"
+                    dangerouslySetInnerHTML={{
+                      __html: heroGreeting.replace(
+                        /(\b[A-Z][a-zA-Z]*)(?=$|\s*$)/,
+                        match => `<span class='text-neonYellow font-bold'>${match}</span>`
+                      ),
+                    }}
+                  />
                   <p className="text-lg text-gray-700 dark:text-slate-300 max-w-3xl mx-auto">
                     Ready to dive into your data? Upload files for cleaning and visualization, 
                     or use our powerful file conversion tools.

@@ -19,6 +19,7 @@ import {
 } from './charts/AdvancedChartRenderer';
 
 import { CHART_TYPES, get3DShadowOffset } from '../utils/chartConfigs';
+import { Chart3DPlugin, generate3DBarDepth, generate3DPieEffect, apply3DTransformations } from '../utils/chart3DEffects';
 
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import { TrendingUp, Download, Edit3 } from "lucide-react";
@@ -27,7 +28,8 @@ import ChartExportTool from "./export/ChartExportTool";
 ChartJS.register(
   CategoryScale, LinearScale, LogarithmicScale, RadialLinearScale,
   BarElement, PointElement, LineElement, ArcElement,
-  Title, Tooltip, Legend, Filler, ChartDataLabels
+  Title, Tooltip, Legend, Filler, ChartDataLabels,
+  Chart3DPlugin  // Register 3D plugin
 );
 
 // Helper functions remain the same...
@@ -193,7 +195,7 @@ export default function ChartView({
 
     // PIE & DOUGHNUT
     if (options.type === CHART_TYPES.PIE || options.type === CHART_TYPES.DOUGHNUT) {
-      return {
+      let pieData = {
         labels: lbls,
         datasets: [{
           label: yAxis || "Value",
@@ -203,6 +205,15 @@ export default function ChartView({
           borderWidth: 2
         }]
       };
+
+      // Apply 3D effect for pie/doughnut
+      if (options.enable3D) {
+        pieData = generate3DPieEffect(pieData, options.type, {
+          shadow3DDepth: options.shadow3DDepth || 20
+        });
+      }
+
+      return pieData;
     }
 
     // SCATTER & BUBBLE
@@ -210,14 +221,9 @@ export default function ChartView({
       const scatterData = safeVals.map((v, i) => {
         let bubbleSize = undefined;
         if (options.type === CHART_TYPES.BUBBLE) {
-          // Real bubble sizes: scale based on data magnitude
           const maxValue = Math.max(...safeVals.filter(v => v > 0));
-          const minValue = Math.min(...safeVals.filter(v => v > 0));
-          const range = maxValue - minValue || maxValue || 1;
-          
-          // Scale bubble radius: 10-50 pixels for actual bubble appearance
           const normalizedValue = Math.abs(v) / (maxValue || 1);
-          bubbleSize = 15 + (normalizedValue * 40); // 15-55 pixel radius
+          bubbleSize = 15 + (normalizedValue * 40);
         }
         
         return {
@@ -235,28 +241,21 @@ export default function ChartView({
           backgroundColor: options.type === CHART_TYPES.BUBBLE 
             ? finalColors.map(c => {
                 const rgb = hexToRgb(c);
-                return rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)` : c.replace(')', ', 0.5)').replace('rgb(', 'rgba(');
+                return rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)` : c;
               })
             : finalColors,
           borderColor: options.type === CHART_TYPES.BUBBLE 
             ? finalColors.map(c => {
                 const rgb = hexToRgb(c);
-                return rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)` : c.replace(')', ', 0.8)').replace('rgb(', 'rgba(');
+                return rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)` : c;
               })
             : borderColors,
-          borderWidth: options.type === CHART_TYPES.BUBBLE ? 2 : (selectedBars.length > 0 ? 3 : 2),
+          borderWidth: options.type === CHART_TYPES.BUBBLE ? 2 : 2,
           showLine: false,
           pointRadius: options.type === CHART_TYPES.BUBBLE ? undefined : 6,
           pointHoverRadius: options.type === CHART_TYPES.BUBBLE ? undefined : 8,
           pointStyle: 'circle',
-          // Bubble-specific settings
-          hoverBorderWidth: options.type === CHART_TYPES.BUBBLE ? 3 : undefined,
-          hoverBackgroundColor: options.type === CHART_TYPES.BUBBLE 
-            ? finalColors.map(c => {
-                const rgb = hexToRgb(c);
-                return rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.7)` : c;
-              })
-            : undefined
+          hoverBorderWidth: options.type === CHART_TYPES.BUBBLE ? 3 : undefined
         }]
       };
     }
@@ -323,9 +322,8 @@ export default function ChartView({
 
     const ds = [core];
 
-// Handle COMPARISON chart - add second dataset for side-by-side comparison
+    // Handle COMPARISON chart
     if (options.type === CHART_TYPES.COMPARISON && safeCmp) {
-      // Make bars grouped (side-by-side) instead of stacked
       core.barPercentage = 0.8;
       core.categoryPercentage = 0.7;
       
@@ -342,15 +340,13 @@ export default function ChartView({
       });
     }
 
-    // Handle Compare Mode - show both parameters simultaneously
+    // Handle Compare Mode
     if (options.compareMode && options.compareParam1 && options.compareParam2) {
       const param1Values = data.map(r => parseNum(r?.[options.compareParam1]));
       const param2Values = data.map(r => parseNum(r?.[options.compareParam2]));
       
-      // Clear existing datasets
       ds.length = 0;
       
-      // Add first parameter
       ds.push({
         label: options.compareParam1,
         type: "bar",
@@ -363,7 +359,6 @@ export default function ChartView({
         categoryPercentage: 0.7
       });
       
-      // Add second parameter
       ds.push({
         label: options.compareParam2,
         type: "bar",
@@ -377,7 +372,7 @@ export default function ChartView({
       });
     }
 
-    // Handle STACKED_BAR - create multiple series
+    // Handle STACKED_BAR
     if (options.type === CHART_TYPES.STACKED_BAR) {
       ds.push({
         label: `${yAxis} (Secondary)`,
@@ -412,6 +407,7 @@ export default function ChartView({
       });
     }
 
+    // Trendline - overlay naturally without negative offset
     if (options.trendline && options.type !== CHART_TYPES.PIE) {
       ds.push({
         label: `${yAxis} Trend`,
@@ -423,57 +419,34 @@ export default function ChartView({
         pointRadius: 0,
         pointHoverRadius: 0,
         borderWidth: 2,
-        borderDash: [5, 5]
+        borderDash: [5, 5],
+        order: 0  // Render on top
       });
     }
 
-    // Add 3D shadow dataset if enabled
-    if (options.enable3D && (options.type === CHART_TYPES.BAR || options.type === CHART_TYPES.COLUMN)) {
-      const shadowPosition = options.shadow3DPosition || 'bottom-right';
-      const shadowDepth = options.shadow3DDepth || 5;
-      const shadowOffset = get3DShadowOffset(shadowPosition, shadowDepth);
-      
-      const shadowColors = finalColors.map(color => {
-        const rgb = hexToRgb(color);
-        if (rgb) {
-          return rgbToHex({
-            r: Math.max(0, rgb.r - 60),
-            g: Math.max(0, rgb.g - 60),
-            b: Math.max(0, rgb.b - 60)
-          });
-        }
-        return color;
+    // Apply 3D transformation for bar/column charts
+    let finalData = { labels: lbls, datasets: ds };
+    if (options.enable3D && (
+      options.type === CHART_TYPES.BAR || 
+      options.type === CHART_TYPES.COLUMN ||
+      options.type === CHART_TYPES.COMPARISON ||
+      options.type === CHART_TYPES.STACKED_BAR
+    )) {
+      finalData = generate3DBarDepth(finalData, options.type, {
+        shadow3DDepth: options.shadow3DDepth || 8,
+        shadow3DPosition: options.shadow3DPosition || 'bottom-right'
       });
-
-      // Create shadow dataset
-      const shadowDataset = {
-        label: '3D Shadow',
-        type: "bar",
-        data: safeVals,
-        backgroundColor: shadowColors.map(c => c + '80'), // Add transparency
-        borderColor: 'transparent',
-        borderWidth: 0,
-        barPercentage: core.barPercentage || 0.8,
-        categoryPercentage: core.categoryPercentage || 0.9,
-        xAxisID: isHorizontal ? 'x-shadow' : 'x',
-        yAxisID: isHorizontal ? 'y' : 'y-shadow',
-        order: 2, // Render behind main bars
-        datalabels: { display: false }
-      };
-
-      // Insert shadow before main dataset
-      ds.unshift(shadowDataset);
     }
 
-    return { labels: lbls, datasets: ds };
-  }, [options, lbls, vals, safeVals, perColor, yAxis, map, safeCmp, cmp, selectedBars]);
+    return finalData;
+  }, [options, lbls, vals, safeVals, perColor, yAxis, map, safeCmp, cmp, selectedBars, data]);
 
-    const chartOptions = useMemo(() => {
+  const chartOptions = useMemo(() => {
     const tc = themeText();
     const ys = options.logScale ? "logarithmic" : "linear";
   
     const opts = {
-      indexAxis: isHorizontal ? 'y' : 'x', // Horizontal for COLUMN/COMPARISON/STACKED, vertical for BAR
+      indexAxis: isHorizontal ? 'y' : 'x',
       maintainAspectRatio: false,
       responsive: true,
       interaction: {
@@ -498,13 +471,9 @@ export default function ChartView({
           labels: { 
             color: tc, 
             usePointStyle: true,
-            generateLabels: (chart) => {
-              const original = ChartJS.defaults.plugins.legend.labels.generateLabels(chart);
-              return original.map(label => ({
-                ...label,
-                fillStyle: label.fillStyle,
-                strokeStyle: selectedBars.length > 0 ? "#ff6b6b" : label.strokeStyle
-              }));
+            filter: (legendItem) => {
+              // Hide 3D depth/side layers from legend
+              return !legendItem.text.includes('3D Depth') && !legendItem.text.includes('3D Side');
             }
           },
           onClick: (e, legendItem, legend) => {
@@ -518,7 +487,13 @@ export default function ChartView({
         },
         datalabels: {
           color: tc,
-          display: ctx => ctx.dataset?.datalabels?.display ?? !!options.showLabels,
+          display: ctx => {
+            // Hide labels on 3D depth layers
+            if (ctx.dataset.label?.includes('3D Depth') || ctx.dataset.label?.includes('3D Side')) {
+              return false;
+            }
+            return ctx.dataset?.datalabels?.display ?? !!options.showLabels;
+          },
           formatter: (value, ctx) => {
             if (options.type === CHART_TYPES.PIE || options.type === CHART_TYPES.DOUGHNUT) {
               const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
@@ -534,6 +509,11 @@ export default function ChartView({
           bodyColor: '#fff',
           borderColor: '#2563eb',
           borderWidth: 1,
+          filter: (tooltipItem) => {
+            // Don't show tooltips for 3D depth layers
+            return !tooltipItem.dataset.label?.includes('3D Depth') && 
+                   !tooltipItem.dataset.label?.includes('3D Side');
+          },
           callbacks: {
             title: ctx => {
               if ((options.type === CHART_TYPES.SCATTER || options.type === CHART_TYPES.BUBBLE) && ctx[0]) {
@@ -616,23 +596,7 @@ export default function ChartView({
                   maxRotation: 0
                 },
                 grid: { color: "rgba(0,0,0,0.1)" }
-              },
-              // 3D shadow scales for horizontal
-              ...(options.enable3D && {
-                'x-shadow': {
-                  type: ys,
-                  display: false,
-                  offset: true,
-                  grid: { display: false },
-                  ticks: { display: false },
-                  min: options.logScale ? minPos * 0.1 : undefined,
-                  afterFit: (scale) => {
-                    const shadowOffset = get3DShadowOffset(options.shadow3DPosition || 'bottom-right', options.shadow3DDepth || 5);
-                    scale.paddingLeft = Math.abs(shadowOffset.x);
-                    scale.paddingRight = Math.abs(shadowOffset.x);
-                  }
-                }
-              })
+              }
             }
           : {
               x:
@@ -655,28 +619,23 @@ export default function ChartView({
                 },
                 min: options.logScale ? minPos * 0.1 : undefined,
                 grid: { color: "rgba(0,0,0,0.1)" }
-              },
-              // 3D shadow scales for vertical
-              ...(options.enable3D && {
-                'y-shadow': {
-                  type: ys,
-                  display: false,
-                  offset: true,
-                  grid: { display: false },
-                  ticks: { display: false },
-                  min: options.logScale ? minPos * 0.1 : undefined,
-                  afterFit: (scale) => {
-                    const shadowOffset = get3DShadowOffset(options.shadow3DPosition || 'bottom-right', options.shadow3DDepth || 5);
-                    scale.paddingTop = Math.abs(shadowOffset.y);
-                    scale.paddingBottom = Math.abs(shadowOffset.y);
-                  }
-                }
-              })
+              }
             }
     };
 
-    // Add rounded corners for horizontal bars
-    if (isHorizontal) {
+    // Apply rounded corners for horizontal bars with 3D
+    if (isHorizontal && options.enable3D) {
+      opts.elements = {
+        bar: {
+          borderRadius: {
+            topLeft: 0,
+            topRight: 6,
+            bottomLeft: 0,
+            bottomRight: 6
+          }
+        }
+      };
+    } else if (isHorizontal) {
       opts.elements = {
         bar: {
           borderRadius: {
@@ -689,8 +648,17 @@ export default function ChartView({
       };
     }
 
+    // Apply 3D transformations
+    const finalOpts = apply3DTransformations(
+      opts, 
+      options.type, 
+      options.enable3D, 
+      options.shadow3DPosition, 
+      options.shadow3DDepth || 8
+    );
+
     if (options.compareField && options.type !== CHART_TYPES.PIE && options.type !== CHART_TYPES.SCATTER) {
-      opts.scales.y1 = {
+      finalOpts.scales.y1 = {
         type: ys,
         position: "right",
         grid: { drawOnChartArea: false },
@@ -706,7 +674,7 @@ export default function ChartView({
 
     // Radar-specific scale config
     if (options.type === CHART_TYPES.RADAR) {
-      opts.scales = {
+      finalOpts.scales = {
         r: {
           beginAtZero: true,
           ticks: {
@@ -724,8 +692,8 @@ export default function ChartView({
       };
     }
 
-    return opts;
-  }, [options, lbls, yAxis, onBarClick, onLegendToggle, selectedBars, selectionMode, minPos]);
+    return finalOpts;
+  }, [options, lbls, yAxis, onBarClick, onLegendToggle, selectedBars, selectionMode, minPos, isHorizontal]);
   
 
   // Render special chart types

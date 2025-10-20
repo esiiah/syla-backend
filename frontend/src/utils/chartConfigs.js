@@ -299,7 +299,9 @@ export const CHART_3D_SHADOW_POSITIONS = {
   RIGHT: 'right'
 };
 
+// Use chart3DEffects.js for actual 3D rendering
 export const get3DShadowOffset = (position, depth = 5) => {
+  console.warn('get3DShadowOffset is deprecated. Use chart3DEffects.js instead.');
   const offsets = {
     'bottom-right': { x: depth, y: depth },
     'bottom-left': { x: -depth, y: depth },
