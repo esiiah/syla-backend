@@ -16,22 +16,22 @@ services:
     ports:
       - "8080:8080"
     env_file:
-      - .env
+      - .env.production
     environment:
       ENVIRONMENT: ${ENVIRONMENT}
-      DATABASE_URL: ${DATABASE_LOCAL_URL}
+      DATABASE_URL: ${DATABASE_URL}
       DATABASE_LOCAL_URL: ${DATABASE_LOCAL_URL}
       DATABASE_PROD_URL: ${DATABASE_PROD_URL}
       DATABASE_PUBLIC_URL: ${DATABASE_PUBLIC_URL}
-      FRONTEND_URL: http://localhost:8080
-      BACKEND_URL: http://localhost:8080
+      FRONTEND_URL: ${FRONTEND_URL}
+      BACKEND_URL: ${BACKEND_URL}
       PORT: 8080
     volumes:
       - uploads_data:/app/uploads:delegated
     depends_on:
       - syla-db
     user: "1000:1000"
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers 1
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers 4
     deploy:
       resources:
         limits:
