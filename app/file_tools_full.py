@@ -624,37 +624,48 @@ async def excel_to_pdf(file: UploadFile = File(...)):
 
 @router.post("/pdf-to-word")
 async def pdf_to_word(file: UploadFile = File(...)):
-    """Convert PDF to Word using pdf2docx"""
+    """Convert PDF to Word using LibreOffice"""
     if not (file.filename or "").lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files allowed")
     
-    try:
-        from pdf2docx import Converter
-    except ImportError:
-        raise HTTPException(status_code=500, detail="pdf2docx required")
-    
     in_path = write_upload_to_temp(file, prefix="pdf2word_in_")
-    out_name = f"pdf2word_{int(time.time() * 1000)}.docx"
-    out_path = os.path.join(UPLOAD_DIR, out_name)
-    
     try:
-        if not os.path.exists(in_path) or os.path.getsize(in_path) == 0:
-            raise HTTPException(status_code=400, detail="Uploaded PDF is empty")
+        # Use LibreOffice to convert PDF to Word
+        out_name = f"pdf2word_{int(time.time() * 1000)}.docx"
+        temp_docx = os.path.join(TMP_DIR, out_name)
         
-        cv = Converter(in_path)
-        cv.convert(out_path, start=0, end=None)
-        cv.close()
+        # LibreOffice command to convert PDF to DOCX
+        cmd = [
+            "libreoffice",
+            "--headless",
+            "--convert-to", "docx",
+            "--outdir", TMP_DIR,
+            in_path
+        ]
         
-        if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
-            raise HTTPException(status_code=500, detail="Conversion failed")
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        
+        if result.returncode != 0:
+            raise Exception(f"LibreOffice conversion failed: {result.stderr}")
+        
+        # Find the converted file (LibreOffice uses input filename)
+        base_name = Path(in_path).stem
+        converted_file = os.path.join(TMP_DIR, f"{base_name}.docx")
+        
+        if not os.path.exists(converted_file):
+            raise Exception("Converted file not found")
+        
+        # Move to final location
+        final_path = os.path.join(UPLOAD_DIR, out_name)
+        shutil.move(converted_file, final_path)
         
         return {
             "message": "PDF successfully converted to Word",
             "download_url": f"/api/filetools/files/{out_name}",
             "filename": out_name
         }
-    except HTTPException:
-        raise
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=500, detail="Conversion timeout - PDF may be too large")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF to Word conversion failed: {str(e)}")
     finally:

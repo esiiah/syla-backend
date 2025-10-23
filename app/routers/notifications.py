@@ -151,6 +151,30 @@ def create_notification_for_user(
     db.refresh(notification)
     return notification
 
+def create_welcome_notification_for_user(db: Session, user_id: int):
+    """
+    Automatically create a welcome notification for a new user.
+    """
+    # Check if welcome already exists
+    existing = db.query(Notification).filter(
+        Notification.user_id == user_id,
+        Notification.title == "Welcome to SYLA Analytics"
+    ).first()
+
+    if existing:
+        return existing  # do nothing if already exists
+
+    return create_notification_for_user(
+        db=db,
+        user_id=user_id,
+        title="Welcome to SYLA Analytics",
+        message="Clean, Analyse, Visualise, Convert and Forecast in just a few minutes. Enjoy your easy work with SYLA!",
+        type=NotificationType.INFO,
+        category=NotificationCategory.SYSTEM,
+        priority=NotificationPriority.MEDIUM
+    )
+
+
 def build_notification_query(db: Session, user_id: int, filters: NotificationFilters):
     """Build a filtered query for notifications"""
     query = db.query(Notification).filter(Notification.user_id == user_id)
