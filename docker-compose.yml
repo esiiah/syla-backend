@@ -32,7 +32,12 @@ services:
       - syla-db
     user: "1000:1000"
     command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers 1
-    # ✅ ADD THIS - Prevents logs from filling disk
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
     logging:
       driver: "json-file"
       options:
@@ -57,7 +62,12 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    # ✅ ADD THIS TOO - Database logs can also get big
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
     logging:
       driver: "json-file"
       options:
