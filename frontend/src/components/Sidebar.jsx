@@ -36,7 +36,8 @@ function Sidebar({ onReportChange, theme, setTheme }) {
     <aside
       className={`${collapsed ? "w-16" : "w-64"} flex flex-col transition-all duration-300 relative
       bg-white text-gray-900 border-r border-gray-200
-      dark:bg-ink/80 dark:text-slate-200 dark:border-white/5 rounded-r-2xl shadow-soft neon-border`}
+      dark:bg-ink/80 dark:text-slate-200 dark:border-white/5 rounded-r-2xl shadow-soft neon-border
+      hidden md:flex`}
     >
       {/* Collapse toggle */}
       <button

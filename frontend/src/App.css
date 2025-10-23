@@ -1,6 +1,5 @@
-/* frontend/src/App.css - Syla Futuristic Theme with Z-index fixes */
+/* frontend/src/App.css - Mobile-First Responsive */
 
-/* Import Google fonts for titles (display) and interface */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Orbitron:wght@400;700&display=swap');
 
 /* Z-index management */
@@ -20,23 +19,29 @@
 /* Root App wrapper */
 .App {
   text-align: center;
-  padding: 2rem;
+  padding: 1rem;
   transition: background 0.3s ease, color 0.3s ease;
+}
+
+@media (min-width: 768px) {
+  .App {
+    padding: 2rem;
+  }
 }
 
 /* Light mode */
 .light {
-  background: #f9fafb; /* soft white */
-  color: #0f172a; /* slate text */
+  background: #f9fafb;
+  color: #0f172a;
 }
 
 /* Dark mode */
 .dark {
-  background: #0f172a; /* midnight */
-  color: #e2e8f0; /* light gray text */
+  background: #0f172a;
+  color: #e2e8f0;
 }
 
-/* Fonts usage */
+/* Fonts */
 body, p, span, li, input, button {
   font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
 }
@@ -46,13 +51,12 @@ h1, h2, h3, h4, h5, h6, .font-display {
   letter-spacing: 0.2px;
 }
 
-/* Neon border helper (used across panels & cards) */
+/* Neon effects */
 .neon-border {
   box-shadow: 0 1px 0 rgba(255,255,255,0.02), 0 8px 18px rgba(0,0,0,0.18);
   position: relative;
 }
 
-/* Small accent outline for neon effect */
 .neon-border::after {
   content: "";
   position: absolute;
@@ -63,49 +67,45 @@ h1, h2, h3, h4, h5, h6, .font-display {
   z-index: -1;
 }
 
-/* Neon text effect for headings (occasional) */
 .neon-text {
-  color: #facc15; /* neon yellow */
-  text-shadow: 0 0 5px rgba(250, 204, 21, 0.6),
-               0 0 10px rgba(250, 204, 21, 0.5),
-               0 0 20px rgba(250, 204, 21, 0.4);
+  color: #facc15;
+  text-shadow: 0 0 5px rgba(250, 204, 21, 0.6), 0 0 10px rgba(250, 204, 21, 0.5), 0 0 20px rgba(250, 204, 21, 0.4);
 }
 
-/* Glow-on-hover for buttons */
 .button-glow:hover {
-  box-shadow: 0 0 12px rgba(37, 99, 235, 0.65),
-              0 0 28px rgba(250, 204, 21, 0.45);
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.65), 0 0 28px rgba(250, 204, 21, 0.45);
   transform: translateY(-1px);
   transition: all 0.25s ease;
 }
 
-/* Smooth transitions for cards */
 .card {
   transition: all 0.3s ease;
 }
+
 .card:hover {
   transform: translateY(-4px) scale(1.01);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35),
-              0 0 12px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35), 0 0 12px rgba(37, 99, 235, 0.4);
 }
 
-/* Custom scrollbars */
+/* Scrollbars */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: rgba(37, 99, 235, 0.6);
   border-radius: 6px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(250, 204, 21, 0.8);
 }
 
-/* Default to dark mode visual defaults */
 body {
   background-color: #0f172a;
   color: #e2e8f0;
@@ -113,210 +113,181 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Utility */
-.flex {
-  display: flex;
-}
-.grid {
-  display: grid;
-}
-.relative {
-  position: relative;
-}
-.absolute {
-  position: absolute;
-}
-.rounded-2xl {
-  border-radius: 1rem;
-}
-.shadow-soft {
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
-}
+/* HERO SECTION - MOBILE FIRST */
 
-/* Small helper visibility improvements for light/dark */
-.text-contrast-light {
-  color: #0b1220; /* stronger in light backgrounds */
-}
-.text-contrast-dark {
-  color: #e6eef8; /* strong in dark backgrounds */
-}
-
-/* Make .font-display headings visually stronger for both modes */
-.font-display.text-lg,
-.font-display.text-3xl,
-.font-display.text-2xl {
-  color: #0b1220;
-}
-body.dark .font-display.text-lg,
-body.dark .font-display.text-3xl,
-body.dark .font-display.text-2xl {
-  color: #e6eef8;
-}
-
-/* Keep small form items accessible */
-select, input, textarea {
-  outline: none;
-  transition: box-shadow 0.15s ease, border-color 0.15s ease;
-}
-
-/* ================= HERO SECTION STYLES ================= */
-
-/* Hero section container */
 .hero-section {
   position: relative;
-  width: 100%;
-  min-height: 60vh;       /* ensures gradient covers top portion */
+  width: 100vw;
+  min-height: 50vh;
   margin: 0;
   overflow: visible;
   background: transparent;
   z-index: var(--z-base);
+  margin-left: calc(-1 * var(--container-padding, 1rem));
+  margin-right: calc(-1 * var(--container-padding, 1rem));
 }
 
-/* Hero gradient background */
+@media (min-width: 768px) {
+  .hero-section {
+    min-height: 60vh;
+    margin-left: -2rem;
+    margin-right: -2rem;
+  }
+}
+
 .hero-gradient-bg {
   width: 100%;
   height: 100%;
   position: absolute;
   top: 0;
   left: 0;
-  z-index: -1; /* behind navbar/sidebar */
+  z-index: -1;
   pointer-events: none;
-  border-top-left-radius: 1.5rem;  /* rounded top-left */
-  border-top-right-radius: 1.5rem; /* rounded top-right */
+  border-top-left-radius: 1rem;
+  border-top-right-radius: 1rem;
   background: linear-gradient(to bottom, #3b82f6 0%, #60a5fa 20%, #93c5fd 40%, #dbeafe 60%, #f0f9ff 80%, #ffffff 100%);
 }
 
-/* Light theme gradient */
+@media (min-width: 768px) {
+  .hero-gradient-bg {
+    border-top-left-radius: 1.5rem;
+    border-top-right-radius: 1.5rem;
+  }
+}
+
 .light .hero-gradient-bg {
-  background: linear-gradient(to bottom, 
-    #3b82f6 0%, 
-    #60a5fa 20%, 
-    #93c5fd 40%, 
-    #dbeafe 60%, 
-    #f0f9ff 80%, 
-    #ffffff 100%);
+  background: linear-gradient(to bottom, #3b82f6 0%, #60a5fa 20%, #93c5fd 40%, #dbeafe 60%, #f0f9ff 80%, #ffffff 100%);
 }
 
-/* Dark theme gradient (blue → navy → dark navy) */
 .dark .hero-gradient-bg {
-  background: linear-gradient(to bottom,
-    #3b82f6 0%,
-    #2563eb 20%,   /* stronger blue */
-    #1e40af 50%,   /* deep blue */
-    #1e3a8a 75%,   /* navy */
-    #0f172a 100%   /* dark navy background */
-  );
+  background: linear-gradient(to bottom, #3b82f6 0%, #2563eb 20%, #1e40af 50%, #1e3a8a 75%, #0f172a 100%);
 }
 
-/* Hero content */
 .hero-content {
   position: relative;
   z-index: var(--z-content);
   text-align: center;
-  padding: 6rem 1.5rem 3rem;
+  padding: 3rem 1rem 2rem;
 }
 
-/* Mobile responsive overrides */
-@media (max-width: 768px) {
+@media (min-width: 640px) {
   .hero-content {
-    padding: 3rem 1rem 2rem !important;
+    padding: 4rem 1.5rem 2.5rem;
   }
-  
+}
+
+@media (min-width: 768px) {
+  .hero-content {
+    padding: 6rem 1.5rem 3rem;
+  }
+}
+
+/* Mobile text sizing */
+.hero-content h1 {
+  font-size: 1.5rem !important;
+  line-height: 1.3 !important;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 640px) {
   .hero-content h1 {
-    font-size: 1.75rem !important;
-    line-height: 1.3 !important;
+    font-size: 2rem !important;
+    margin-bottom: 1.5rem;
   }
-  
+}
+
+@media (min-width: 768px) {
+  .hero-content h1 {
+    font-size: 2.5rem !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero-content h1 {
+    font-size: 3rem !important;
+  }
+}
+
+.hero-content p {
+  font-size: 0.875rem !important;
+  line-height: 1.5 !important;
+  margin-bottom: 1.5rem;
+  padding: 0 0.5rem;
+}
+
+@media (min-width: 640px) {
   .hero-content p {
     font-size: 1rem !important;
+    padding: 0 1rem;
   }
-  
-  .hero-content button {
-    width: 100% !important;
-    font-size: 0.875rem !important;
-  }
-  
-  /* Force grid to single column */
-  .grid {
-    grid-template-columns: 1fr !important;
-  }
-  
-  /* Mobile padding */
-  main {
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
-  }
-  
-  /* Mobile text sizes */
-  .text-4xl, .text-5xl {
-    font-size: 1.75rem !important;
-  }
-  
-  .text-3xl {
-    font-size: 1.5rem !important;
-  }
-  
-  .text-2xl {
-    font-size: 1.25rem !important;
-  }
-  
-  .text-xl {
+}
+
+@media (min-width: 768px) {
+  .hero-content p {
     font-size: 1.125rem !important;
+    margin-bottom: 2rem;
   }
-  
-  .text-lg {
+}
+
+/* Hero buttons mobile-first */
+.hero-content .flex {
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0 1rem;
+}
+
+@media (min-width: 640px) {
+  .hero-content .flex {
+    flex-direction: row;
+    gap: 1rem;
+    padding: 0;
+  }
+}
+
+.hero-content button,
+.hero-content a {
+  width: 100% !important;
+  font-size: 0.875rem !important;
+  padding: 0.75rem 1rem !important;
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .hero-content button,
+  .hero-content a {
+    width: auto !important;
     font-size: 1rem !important;
+    padding: 0.75rem 2rem !important;
   }
 }
 
-@media (max-width: 640px) {
-  .hero-content {
-    padding-top: 4rem;
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-}
-
-/* Ensure floating panel never exceeds viewport */
-.filetool-panel {
-  max-height: calc(100vh - 72px);
-  overflow-y: auto;
-}
-
-/* ================= Z-INDEX LAYER FIXES ================= */
-
-/* Navbar and its components */
+/* Z-INDEX FIXES */
 nav {
   z-index: var(--z-navbar) !important;
 }
 
-/* Navbar dropdowns should be above everything except modals */
 nav .dropdown-menu,
 nav [class*="dropdown"],
 nav [class*="menu"] {
   z-index: var(--z-navbar-dropdowns) !important;
 }
 
-/* Editing bar should be below navbar but above content */
 .editing-bar,
 [class*="editing-bar"] {
   z-index: var(--z-editing-bar) !important;
 }
 
-/* Editing bar dropdowns should be below navbar dropdowns */
 .editing-bar .dropdown-menu,
 .editing-bar [class*="dropdown"] {
   z-index: var(--z-dropdowns) !important;
 }
 
-/* Sidebar */
 aside,
 .sidebar,
 [class*="sidebar"] {
   z-index: var(--z-sidebar) !important;
 }
 
-/* Modal overlays */
 .modal,
 .overlay,
 [class*="modal"],
@@ -324,71 +295,98 @@ aside,
   z-index: var(--z-modals) !important;
 }
 
-/* Tooltips should be on top of everything */
 .tooltip,
 [class*="tooltip"] {
   z-index: var(--z-tooltips) !important;
 }
 
-/* Specific fixes for notification and user menu dropdowns */
 .notification-dropdown,
-.user-menu-dropdown {
-  z-index: var(--z-navbar-dropdowns) !important;
-}
-
-/* Search results dropdown */
+.user-menu-dropdown,
 .search-dropdown {
   z-index: var(--z-navbar-dropdowns) !important;
 }
 
-/* Ensure content doesn't interfere with dropdowns */
 main,
 .main-content {
   z-index: var(--z-content);
   position: relative;
 }
 
-/* Animation keyframes for floating dots */
+/* Animations */
 @keyframes dot1 {
-  0%, 100% { transform: translate(0, 0); opacity: 0.7; }
-  50% { transform: translate(10px, -10px); opacity: 1; }
+  0%, 100% { 
+    transform: translate(0, 0); 
+    opacity: 0.7; 
+  }
+  50% { 
+    transform: translate(10px, -10px); 
+    opacity: 1; 
+  }
 }
 
 @keyframes dot2 {
-  0%, 100% { transform: translate(0, 0); opacity: 0.8; }
-  50% { transform: translate(-8px, 8px); opacity: 1; }
+  0%, 100% { 
+    transform: translate(0, 0); 
+    opacity: 0.8; 
+  }
+  50% { 
+    transform: translate(-8px, 8px); 
+    opacity: 1; 
+  }
 }
 
 @keyframes dot3 {
-  0%, 100% { transform: translate(0, 0); opacity: 0.6; }
-  50% { transform: translate(6px, 6px); opacity: 1; }
+  0%, 100% { 
+    transform: translate(0, 0); 
+    opacity: 0.6; 
+  }
+  50% { 
+    transform: translate(6px, 6px); 
+    opacity: 1; 
+  }
 }
 
 @keyframes dot5 {
-  0%, 100% { transform: translate(0, 0); opacity: 0.9; }
-  50% { transform: translate(12px, -6px); opacity: 1; }
+  0%, 100% { 
+    transform: translate(0, 0); 
+    opacity: 0.9; 
+  }
+  50% { 
+    transform: translate(12px, -6px); 
+    opacity: 1; 
+  }
 }
 
-.animate-dot1 {
-  animation: dot1 3s ease-in-out infinite;
+.animate-dot1 { 
+  animation: dot1 3s ease-in-out infinite; 
 }
 
-.animate-dot2 {
-  animation: dot2 2.5s ease-in-out infinite;
+.animate-dot2 { 
+  animation: dot2 2.5s ease-in-out infinite; 
 }
 
-.animate-dot3 {
-  animation: dot3 3.5s ease-in-out infinite;
+.animate-dot3 { 
+  animation: dot3 3.5s ease-in-out infinite; 
 }
 
-.animate-dot5 {
-  animation: dot5 2.8s ease-in-out infinite;
+.animate-dot5 { 
+  animation: dot5 2.8s ease-in-out infinite; 
 }
 
-/* Line clamp utility */
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Mobile grid fix */
+@media (max-width: 1023px) {
+  .grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  [class*="col-span"] {
+    grid-column: span 1 !important;
+  }
 }

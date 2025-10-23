@@ -33,7 +33,7 @@ function Footer() {
         </div>
 
         {/* Navigation Sections */}
-        <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-8 text-sm">
+        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 text-sm">
           {/* General */}
           <div>
             <h3 className="font-semibold text-gray-200 mb-3">
@@ -63,7 +63,7 @@ function Footer() {
             <h3 className="font-semibold text-gray-200 mb-3">
               File Tools
             </h3>
-            <ul className="grid grid-cols-2 gap-y-2 gap-x-6">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-4 sm:gap-x-6">
               {tools.map((t, i) => (
                 <li key={i}>
                   <Link

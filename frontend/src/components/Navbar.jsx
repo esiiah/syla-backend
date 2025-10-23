@@ -335,7 +335,16 @@ export default function Navbar() {
           </div>
 
           {/* Right side */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
+            {/* Mobile Menu Button */}
+            <button
+              className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700"
+              onClick={() => {/* Add mobile menu logic */}}
+            >
+              <Menu size={24} />
+            </button>
+
+            {/* Theme toggle */}
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
@@ -344,6 +353,7 @@ export default function Navbar() {
               {theme === "light" ? <Moon size={20} /> : <Sun size={20} />}
             </button>
 
+            {/* Help / Pricing links */}
             <div className="flex items-center gap-2">
               <Link to="/help" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
                 <HelpCircle size={20} className="text-gray-600 dark:text-slate-300" />
