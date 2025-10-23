@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { auth } from '../config/firebase';
+import { useUser } from '../context/UserContext';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "618939207673-gbevo0aok0bqufjch9mmr4sc9ma86qtm.apps.googleusercontent.com";
 
@@ -29,6 +30,7 @@ const countryCodes = [
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { login: contextLogin } = useUser();
   const [contact, setContact] = useState("");
   const [password, setPassword] = useState("");
   const [contactType, setContactType] = useState("email");
@@ -85,8 +87,7 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || "Google sign-in failed");
-      localStorage.setItem("token", data.access_token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      await contextLogin(data.user, data.access_token);
       navigate("/");
     } catch (err) {
       setError(err.message);
@@ -213,8 +214,7 @@ export default function LoginPage() {
       }
       
       const data = await res.json();
-      localStorage.setItem("token", data.access_token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      await contextLogin(data.user, data.access_token);
       navigate("/");
     } catch (err) {
       setError(err.message);
@@ -253,8 +253,7 @@ export default function LoginPage() {
       }
 
       const data = await res.json();
-      localStorage.setItem("token", data.access_token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      await contextLogin(data.user, data.access_token);
       navigate("/");
     } catch (err) {
       setOtpError(err.message || "Invalid OTP. Please try again.");
