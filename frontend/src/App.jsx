@@ -177,24 +177,24 @@ function App() {
                 </>
               ) : (
                 <>
-                  <h1 className="font-body text-4xl md:text-5xl tracking-wide mb-6 text-gray-800 dark:text-slate-200">
+                  <h1 className="font-body text-2xl sm:text-3xl md:text-4xl lg:text-5xl tracking-wide mb-6 text-gray-800 dark:text-slate-200">
                     From raw data to <span className="text-red-500 font-semibold">smart decisions</span>
                     <br />
                     all powered by <span className="text-neonYellow font-semibold">Ai</span>.
                   </h1>
-                  <p className="text-xl text-gray-700 dark:text-slate-300 mb-8 max-w-4xl mx-auto">
+                  <p className="text-base sm:text-lg md:text-xl text-gray-700 dark:text-slate-300 mb-8 max-w-4xl mx-auto">
                     Clean, visualize, and convert your data with intelligent automation.
                   </p>
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center px-4">
                     <button
                       onClick={handleSignupNavigation}
-                      className="px-8 py-3 bg-neonBlue text-white rounded-xl font-semibold hover:bg-blue-600 shadow-lg hover:shadow-neon transition-all duration-300"
+                      className="w-full sm:w-auto px-6 sm:px-8 py-3 text-sm sm:text-base bg-neonBlue text-white rounded-xl font-semibold hover:bg-blue-600 shadow-lg hover:shadow-neon transition-all duration-300"
                     >
                       Get Started - Sign Up
                     </button>
                     <button
                       onClick={handleLoginNavigation}
-                      className="px-8 py-3 border-2 border-neonBlue text-neonBlue rounded-xl font-semibold hover:bg-neonBlue hover:text-white transition-all duration-300"
+                      className="w-full sm:w-auto px-6 sm:px-8 py-3 text-sm sm:text-base border-2 border-neonBlue text-neonBlue rounded-xl font-semibold hover:bg-neonBlue hover:text-white transition-all duration-300"
                     >
                       Already have an account? Log In
                     </button>
@@ -205,7 +205,7 @@ function App() {
           </div>
 
           {/* Dashboard Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mt-6">
             <section className="lg:col-span-1 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
               <div className="p-5">
                 <h2 className="font-display text-lg mb-1">Upload Data</h2>
