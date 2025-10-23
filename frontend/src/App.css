@@ -216,6 +216,59 @@ select, input, textarea {
   padding: 6rem 1.5rem 3rem;
 }
 
+/* Mobile responsive overrides */
+@media (max-width: 768px) {
+  .hero-content {
+    padding: 3rem 1rem 2rem !important;
+  }
+  
+  .hero-content h1 {
+    font-size: 1.75rem !important;
+    line-height: 1.3 !important;
+  }
+  
+  .hero-content p {
+    font-size: 1rem !important;
+  }
+  
+  .hero-content button {
+    width: 100% !important;
+    font-size: 0.875rem !important;
+  }
+  
+  /* Force grid to single column */
+  .grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Mobile padding */
+  main {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+  
+  /* Mobile text sizes */
+  .text-4xl, .text-5xl {
+    font-size: 1.75rem !important;
+  }
+  
+  .text-3xl {
+    font-size: 1.5rem !important;
+  }
+  
+  .text-2xl {
+    font-size: 1.25rem !important;
+  }
+  
+  .text-xl {
+    font-size: 1.125rem !important;
+  }
+  
+  .text-lg {
+    font-size: 1rem !important;
+  }
+}
+
 @media (max-width: 640px) {
   .hero-content {
     padding-top: 4rem;
