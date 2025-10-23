@@ -9,7 +9,7 @@ import json
 from pydantic import BaseModel, validator
 from app.routers.db import get_db, Base  # Import Base from your db module
 from app.models.user import User
-from app.routers.auth import get_current_user
+# ⛔ Removed: from app.routers.auth import get_current_user  ← circular import fix
 
 router = APIRouter(prefix="/api/notifications", tags=["notifications"])
 
@@ -221,6 +221,7 @@ async def get_notifications(
     db: Session = Depends(get_db)
 ):
     """Get paginated notifications for the current user"""
+    from app.routers.auth import get_current_user  # Local import to break circular dependency
     current_user = get_current_user(request)
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -236,7 +237,6 @@ async def get_notifications(
     
     query = build_notification_query(db, current_user["id"], filters)
     
-    # Apply sorting
     if sort_by == "created_at":
         order_by = desc(Notification.created_at) if sort_order == "desc" else asc(Notification.created_at)
     elif sort_by == "title":
@@ -247,7 +247,6 @@ async def get_notifications(
     query = query.order_by(order_by)
     notifications = query.offset(skip).limit(limit).all()
     
-    # Convert to response format
     result = []
     for n in notifications:
         result.append(NotificationResponse(
@@ -275,6 +274,7 @@ async def get_notification_stats(
     db: Session = Depends(get_db)
 ):
     """Get notification statistics for the current user"""
+    from app.routers.auth import get_current_user
     current_user = get_current_user(request)
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -286,19 +286,16 @@ async def get_notification_stats(
     read = base_query.filter(Notification.read == True).count()
     archived = base_query.filter(Notification.archived == True).count()
     
-    # Get counts by type
     by_type = {}
     for type_enum in NotificationType:
         count = base_query.filter(Notification.type == type_enum.value).count()
         by_type[type_enum.value] = count
     
-    # Get counts by category
     by_category = {}
     for category_enum in NotificationCategory:
         count = base_query.filter(Notification.category == category_enum.value).count()
         by_category[category_enum.value] = count
     
-    # Get counts by priority
     by_priority = {}
     for priority_enum in NotificationPriority:
         count = base_query.filter(Notification.priority == priority_enum.value).count()
@@ -322,6 +319,7 @@ async def update_notification(
     db: Session = Depends(get_db)
 ):
     """Update a notification (mark as read/unread, archive/unarchive)"""
+    from app.routers.auth import get_current_user
     current_user = get_current_user(request)
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -377,6 +375,7 @@ async def bulk_action(
     db: Session = Depends(get_db)
 ):
     """Perform bulk actions on multiple notifications"""
+    from app.routers.auth import get_current_user
     current_user = get_current_user(request)
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
@@ -441,6 +440,7 @@ async def mark_all_notifications_read(
     db: Session = Depends(get_db)
 ):
     """Mark all unread notifications as read"""
+    from app.routers.auth import get_current_user
     current_user = get_current_user(request)
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
