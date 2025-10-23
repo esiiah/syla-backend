@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pandas as pd
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
@@ -251,6 +252,68 @@ app.include_router(help.router)
 app.include_router(pricing.router)
 app.include_router(file_tools_full_router)
 
+# ------------------------------
+# SSR Data Endpoint for Crawlers
+# ------------------------------
+@app.get("/api/ssr-meta")
+def get_ssr_meta(path: str = "/"):
+    """Provide metadata for SSR/crawlers based on route"""
+    routes = {
+        "/": {
+            "title": "Syla Analytics – AI Data Forecasting & Visualization",
+            "description": "Clean, visualize, and convert your data with intelligent AI automation. Upload CSV/Excel files for instant analysis.",
+            "keywords": "AI forecasting, data visualization, CSV analysis, Excel tools, data cleaning"
+        },
+        "/forecast": {
+            "title": "AI Forecasting - Syla Analytics",
+            "description": "Generate accurate AI-powered forecasts from your data. Prophet and GPT-based models available.",
+            "keywords": "AI forecasting, predictive analytics, time series, Prophet, GPT forecasting"
+        },
+        "/tools/compress": {
+            "title": "File Compression Tools - Syla Analytics",
+            "description": "Compress images, PDFs, and documents with smart AI-powered optimization.",
+            "keywords": "file compression, image optimization, PDF compression"
+        },
+        "/tools/convert": {
+            "title": "File Conversion Tools - Syla Analytics",
+            "description": "Convert between CSV, Excel, PDF, and other formats instantly.",
+            "keywords": "file conversion, CSV to Excel, PDF conversion, format converter"
+        },
+        "/tools/merge": {
+            "title": "PDF Merge Tool - Syla Analytics",
+            "description": "Merge multiple PDF files into a single document.",
+            "keywords": "PDF merge, combine PDFs, PDF tools"
+        },
+        "/editing": {
+            "title": "Chart Editing - Syla Analytics",
+            "description": "Advanced chart editing and customization tools for data visualization.",
+            "keywords": "chart editing, data visualization, chart customization"
+        },
+        "/pricing": {
+            "title": "Pricing - Syla Analytics",
+            "description": "View our pricing plans for advanced AI forecasting and data analysis features.",
+            "keywords": "pricing, plans, subscription, AI tools"
+        },
+        "/help": {
+            "title": "Help & Support - Syla Analytics",
+            "description": "Get help with using Syla Analytics features and tools.",
+            "keywords": "help, support, documentation, FAQ"
+        },
+        "/docs": {
+            "title": "Documentation - Syla Analytics",
+            "description": "Complete documentation for Syla Analytics API and features.",
+            "keywords": "documentation, API docs, guides, tutorials"
+        }
+    }
+    
+    meta = routes.get(path, routes["/"])
+    return {
+        "title": meta["title"],
+        "description": meta["description"],
+        "keywords": meta["keywords"],
+        "url": f"https://sylaanalytics.com{path}",
+        "image": "https://sylaanalytics.com/favicon.png"
+    }
 # ------------------------------
 # Chart & Data Processing Endpoints
 # ------------------------------
@@ -587,7 +650,7 @@ async def serve_ads():
 # ------------------------------
 @app.get("/{full_path:path}")
 async def spa_fallback(request: Request, full_path: str):
-    logger.info(f"📍 SPA fallback triggered for: {full_path}")
+    logger.info(f"🔍 SPA fallback triggered for: {full_path}")
     
     if full_path.startswith("api/"):
         logger.warning(f"❌ API route not found: {full_path}")
@@ -605,7 +668,35 @@ async def spa_fallback(request: Request, full_path: str):
         logger.error(f"❌ index.html NOT FOUND at {index_path}")
         raise HTTPException(status_code=404, detail="Frontend not found - index.html missing")
     
-    logger.info(f"✅ Serving index.html from {index_path}")
-    return FileResponse(index_path, media_type="text/html")
-
-logger.info(f"✅ FastAPI app initialized successfully on port {PORT}")
+    # Read and inject meta tags
+    with open(index_path, 'r', encoding='utf-8') as f:
+        html_content = f.read()
+    
+    # Get meta data for this route
+    path_for_meta = f"/{full_path}" if full_path else "/"
+    meta = get_ssr_meta(path_for_meta)
+    
+    # Inject meta tags
+    meta_tags = f'''
+    <title>{meta["title"]}</title>
+    <meta name="description" content="{meta["description"]}" />
+    <meta name="keywords" content="{meta["keywords"]}" />
+    <meta property="og:title" content="{meta["title"]}" />
+    <meta property="og:description" content="{meta["description"]}" />
+    <meta property="og:url" content="{meta["url"]}" />
+    <meta property="og:image" content="{meta["image"]}" />
+    <meta name="twitter:title" content="{meta["title"]}" />
+    <meta name="twitter:description" content="{meta["description"]}" />
+    <meta name="twitter:image" content="{meta["image"]}" />
+    <link rel="canonical" href="{meta["url"]}" />
+    '''
+    
+    # Replace existing title and inject meta
+    import re
+    html_content = re.sub(r'<title>.*?</title>', '', html_content)
+    html_content = html_content.replace('</head>', f'{meta_tags}</head>')
+    
+    logger.info(f"✅ Serving index.html with SSR meta for: {full_path}")
+    
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(content=html_content)
