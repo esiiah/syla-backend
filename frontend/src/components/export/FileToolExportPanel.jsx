@@ -268,12 +268,13 @@ export default function FileToolExportPanel({
       ref={panelRef}
       style={{
         position: "fixed",
-        right: position ? "auto" : 24,
-        top: position ? "auto" : "50%",
+        right: position ? "auto" : (window.innerWidth < 768 ? 8 : 24),
+        top: position ? "auto" : (window.innerWidth < 768 ? "auto" : "50%"),
+        bottom: position ? "auto" : (window.innerWidth < 768 ? 8 : "auto"),
         left: position ? position.x : "auto",
-        transform: position ? "none" : "translateY(-50%)",
+        transform: position ? "none" : (window.innerWidth < 768 ? "none" : "translateY(-50%)"),
         ...(position && { top: position.y }),
-        width: panelWidth,
+        width: window.innerWidth < 768 ? "calc(100vw - 16px)" : panelWidth,
         maxHeight: "calc(100vh - 72px)",
         zIndex: 1000,
         display: "flex",
@@ -282,6 +283,7 @@ export default function FileToolExportPanel({
         borderRadius: "1rem",
         boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
         overflow: "hidden",
+        maxWidth: window.innerWidth < 768 ? "calc(100vw - 16px)" : "none",
         border: "2px solid rgba(14,165,233,0.35)", // sky-blue border
       }}
     >
