@@ -397,76 +397,75 @@ export default function ExpandedChartModal({
 
   return (
     <div 
-      className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fadeIn"
+      className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-2 sm:p-4 animate-fadeIn"
       onClick={onClose}
     >
       <div 
-        className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-6xl max-h-[90vh] shadow-2xl flex flex-col animate-slideUp overflow-hidden"
+        className="bg-white dark:bg-slate-900 rounded-xl sm:rounded-2xl w-full max-w-6xl max-h-[95vh] sm:max-h-[90vh] shadow-2xl flex flex-col animate-slideUp overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-slate-700 bg-gradient-to-r from-gray-50 to-white dark:from-slate-800 dark:to-slate-900">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 sm:p-6 border-b border-gray-200 dark:border-slate-700 bg-gradient-to-r from-gray-50 to-white dark:from-slate-800 dark:to-slate-900">
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
             <div 
-              className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg"
+              className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg flex-shrink-0"
               style={{ 
-                background: `linear-gradient(135deg, rgb(${config.color}), rgba(${config.colorEnd || config.color}, 0.7))` 
+                background: `linear-gradient(135deg, rgb(${config.color}), rgba(${config.colorEnd || config.color}, 0.7))`` 
               }}
             >
-              <Maximize2 size={24} className="text-white" />
+              <Maximize2 size={20} className="sm:w-6 sm:h-6 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-800 dark:text-slate-200">
+              <h2 className="text-base sm:text-xl font-bold text-gray-800 dark:text-slate-200 truncate">
                 {title || `${chartType.charAt(0).toUpperCase() + chartType.slice(1)} Chart`}
               </h2>
-              <p className="text-sm text-gray-500 dark:text-slate-400">
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-slate-400 truncate">
                 {forecast.length} forecast periods • Full visualization
               </p>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1 sm:gap-2 w-full sm:w-auto">
             {/* Labels Toggle */}
             <button
               onClick={() => setShowLabels(!showLabels)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-colors text-sm ${
+              className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg font-medium transition-colors text-xs sm:text-sm ${
                 showLabels
                   ? 'bg-blue-600 text-white hover:bg-blue-700'
                   : 'bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300'
               }`}
               title={showLabels ? 'Hide data labels' : 'Show data labels'}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="sm:w-4 sm:h-4">
                 <text x="12" y="18" fontSize="16" textAnchor="middle" fill="currentColor">123</text>
               </svg>
-              Labels
+              <span className="hidden sm:inline">Labels</span>
             </button>
             <button
               onClick={handleExportCSV}
-              className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg font-medium transition-colors text-sm"
+              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg font-medium transition-colors text-xs sm:text-sm"
               title="Export as CSV"
             >
-              <Download size={16} />
-              CSV
+              <Download size={14} className="sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">CSV</span>
             </button>
             <button
               onClick={handleExportImage}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-md"
+              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-md text-xs sm:text-sm"
             >
-              <Download size={18} />
-              <span className="hidden sm:inline">PNG</span>
-            </button>
+              <Download size={14} className="sm:w-[18px] sm:h-[18px]" />
+              <span>PNG</span>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              className="p-1.5 sm:p-2 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
               title="Close"
             >
-              <X size={24} className="text-gray-600 dark:text-slate-400" />
+              <X size={20} className="sm:w-6 sm:h-6 text-gray-600 dark:text-slate-400" />
             </button>
           </div>
         </div>
 
-        <div className="flex-1 p-8 overflow-auto bg-gradient-to-br from-gray-50 to-white dark:from-slate-900 dark:to-slate-800">
-          <div className="h-full min-h-[500px]">
+        <div className="flex-1 p-3 sm:p-8 overflow-auto bg-gradient-to-br from-gray-50 to-white dark:from-slate-900 dark:to-slate-800">
+          <div className="h-full min-h-[300px] sm:min-h-[500px]">
             {forecast.length > 0 ? (
               chartType === 'gauge' ? (
                 <GaugeChart 
@@ -497,11 +496,11 @@ export default function ExpandedChartModal({
         </div>
 
         {stats && (
-          <div className="p-5 border-t border-gray-200 dark:border-slate-700 bg-gradient-to-r from-gray-50 to-white dark:from-slate-800 dark:to-slate-900">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
-              <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
+          <div className="p-3 sm:p-5 border-t border-gray-200 dark:border-slate-700 bg-gradient-to-r from-gray-50 to-white dark:from-slate-800 dark:to-slate-900">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-4 text-center">
+              <div className="p-2 sm:p-3 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
                 <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Average</p>
-                <p className="text-lg font-bold text-gray-800 dark:text-slate-200">{stats.average}</p>
+                <p className="text-sm sm:text-lg font-bold text-gray-800 dark:text-slate-200">{stats.average}</p>
               </div>
               <div className="p-3 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
                 <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">Peak</p>
