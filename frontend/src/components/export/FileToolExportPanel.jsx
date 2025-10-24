@@ -2,27 +2,6 @@
 // FileToolExportPanel.jsx
 import React, { useState, useEffect, useRef } from "react";
 
-/**
- * FileToolExportPanel
- *
- * Props:
- *  - onUpload(files, opts) => Promise | void   (called when user clicks process/upload)
- *  - onDownload(downloadUrl) => void
- *  - uploadLabel, error, loading, showPanel, conversionComplete, fileName
- *  - toolType: one of: compress, merge, pdf, csv, csv-to-excel, excel-to-csv, pdf-to-csv, csv-to-pdf, pdf-to-excel, excel-to-pdf, pdf-to-word
- *  - compressionLevel default "medium"
- *  - onCompressionLevelChange(level)
- *
- * If onUpload is not provided, this panel will do a built-in upload to reasonable backend endpoints:
- *   /api/filetools/pdf/compress (PDF compression)
- *   /api/filetools/pdf/merge    (PDF merge)
- *   /api/filetools/convert/... (all conversions)
- *
- * Built-in behavior will open downloadUrl in a new tab or call onDownload if provided.
- *
- * Styling: sky-blue border added (border-sky-400)
- */
-
 export default function FileToolExportPanel({
   files = [], // files[] should be File objects (from input) OR metadata returned by upload
   onUpload = null,
