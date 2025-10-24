@@ -33,7 +33,7 @@ const DocsPage = () => {
 
   // Local sidebar for docs
   const DocsSidebar = ({ sections, activeSection, setActiveSection }) => (
-   <div className="w-64 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 p-4">
+   <div className="w-64 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 p-4 hidden lg:block">
      <h2 className="text-lg font-semibold mb-4 text-slate-800 dark:text-slate-200">Documentation</h2>
       {sections.map((s) => (
        <button
@@ -961,7 +961,7 @@ async function monitoredFetch(url, options) {
 }; // closes renderContent()
 
 return (
-  <div className="flex min-h-screen bg-gray-50 dark:bg-slate-900">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-gray-50 dark:bg-slate-900">
     <DocsSidebar
       sections={sections}
       activeSection={activeSection}
@@ -969,7 +969,7 @@ return (
     />
     <div className="flex-1 flex flex-col">
       <Navbar />
-      <main className="flex-1 p-8 overflow-y-auto">{renderContent()}</main>
+      <main className="flex-1 p-4 sm:p-8 overflow-y-auto">{renderContent()}</main>
       <Footer />
     </div>
   </div>
