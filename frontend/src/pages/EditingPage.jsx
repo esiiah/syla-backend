@@ -280,12 +280,13 @@ export default function EditingPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-slate-950">
-      {/* User Navbar - Scrollable */}
-      <div className={`transition-transform duration-300 ${navbarHidden ? '-translate-y-full' : 'translate-y-0'}`}>
+      {/* User Navbar - Scrollable, hidden on mobile */}
+      <div className={`hidden md:block transition-transform duration-300 ${navbarHidden ? '-translate-y-full' : 'translate-y-0'}`}>
         <Navbar user={user} />
       </div>
       
-      {/* Editing Toolbar - Always Visible */}
+      {/* Editing Toolbar - Hidden on mobile */}
+      <div className="hidden md:block">
       <EditingBar
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
@@ -301,21 +302,22 @@ export default function EditingPage() {
         onFitToScreen={() => console.log("Fit to screen")}
         className="sticky top-0 z-40"
       />
+      </div>
 
       {/* Main Content Area */}
       <div 
         ref={mainContentRef}
         className="flex flex-1 relative overflow-auto"
-        style={{ height: 'calc(100vh - 120px)', paddingBottom: '40px' }}
+        style={{ height: window.innerWidth < 768 ? 'calc(100vh - 60px)' : 'calc(100vh - 120px)', paddingBottom: '40px' }}
       >
-        {/* Sidebar */}
+        {/* Sidebar - Hidden on mobile */}
         {sidebarOpen && (
           <>
             <div 
-              className="fixed inset-0 bg-black/20 z-20 lg:hidden"
+              className="fixed inset-0 bg-black/20 z-20 hidden lg:block"
               onClick={() => setSidebarOpen(false)}
             />
-            <div className="fixed lg:relative left-0 top-0 h-full w-64 z-30 lg:z-10">
+            <div className="fixed lg:relative left-0 top-0 h-full w-64 z-30 lg:z-10 hidden lg:block">
               <Sidebar theme={theme} setTheme={setTheme} onReportChange={() => {}} />
             </div>
           </>
