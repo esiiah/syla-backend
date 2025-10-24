@@ -282,7 +282,8 @@ export default function Navbar() {
           </Link>
 
           {/* Search Bar */}
-          <div className="hidden md:flex flex-1 max-w-md mx-8 relative" ref={searchRef}>
+          {/* Search Bar - Hidden on mobile */}
+          <div className="hidden lg:flex flex-1 max-w-md mx-8 relative" ref={searchRef}>
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
               <input
@@ -336,25 +337,19 @@ export default function Navbar() {
 
           {/* Right side */}
           <div className="flex items-center gap-1 sm:gap-2">
-            {/* Mobile Menu Button */}
-            <button
-              className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700"
-              onClick={() => {/* Add mobile menu logic */}}
-            >
-              <Menu size={24} />
-            </button>
+            {/* Mobile Menu Button - Hidden, hamburger handled by sidebar */}
 
-            {/* Theme toggle */}
+            {/* Theme toggle - Hidden on mobile, shown in sidebar */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+              className="hidden md:block p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
               title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
             >
               {theme === "light" ? <Moon size={20} /> : <Sun size={20} />}
             </button>
 
-            {/* Help / Pricing links */}
-            <div className="flex items-center gap-2">
+            {/* Help / Pricing links - Hidden on mobile, shown in sidebar */}
+            <div className="hidden md:flex items-center gap-2">
               <Link to="/help" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
                 <HelpCircle size={20} className="text-gray-600 dark:text-slate-300" />
               </Link>
@@ -364,7 +359,7 @@ export default function Navbar() {
               </Link>
             </div>        
 
-            {/* Notifications */}
+            {/* Notifications - Always visible */}
             <div className="relative" ref={notificationRef}>
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
@@ -439,17 +434,17 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* User Menu */}
+            {/* User Menu - Always visible */}
             <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                className="flex items-center gap-1 sm:gap-2 p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
               >
                 {getUserDisplay()}
-                <span className="hidden md:block text-sm font-medium text-gray-700 dark:text-slate-300">
+                <span className="hidden sm:block text-sm font-medium text-gray-700 dark:text-slate-300">
                   {user.name}
                 </span>
-                <ChevronDown size={16} className="text-gray-500" />
+                <ChevronDown size={16} className="hidden sm:block text-gray-500" />
               </button>
 
               {showUserMenu && (
