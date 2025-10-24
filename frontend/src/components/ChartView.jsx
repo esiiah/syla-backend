@@ -914,19 +914,19 @@ const getChartComponent = () => {
   return (
     <div className="rounded-2xl bg-white border shadow-sm dark:bg-ink/80 dark:border-white/5 p-5">
      {/* Header */}
-      <div className="flex justify-between items-start mb-4">
-        <div className="flex-1">
-          <h3 className="font-display text-lg font-medium mb-2 text-gray-800 dark:text-slate-200">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
+        <div className="flex-1 min-w-0">
+          <h3 className="font-display text-base sm:text-lg font-medium mb-2 text-gray-800 dark:text-slate-200 truncate">
             {chartTitle || "Data Visualization"}
           </h3>
 
           {/* Status indicators */}
 
-          <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-slate-400">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 dark:text-slate-400">
             <span>{data.length.toLocaleString()} data points</span>
             {options.logScale && <span>Log Scale</span>}
             {selectedBars.length > 0 && (
-              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
+              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs">
                 {selectedBars.length} selected
               </span>
             )}
@@ -940,41 +940,41 @@ const getChartComponent = () => {
 
         {/* Action buttons */}
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <button
             onClick={() => navigate('/editing')}
-            className="flex items-center gap-2 px-2.5 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg text-sm font-medium"
+            className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg text-xs sm:text-sm font-medium flex-1 sm:flex-initial justify-center"
             title="Edit Chart"
           >
-            <Edit3 size={16} />
-            Edit Chart
+            <Edit3 size={14} className="sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Edit Chart</span>
+            <span className="sm:hidden">Edit</span>
           </button>
 
           <button
             onClick={() => navigate('/forecast')}
-            className="flex items-center gap-2 px-2.5 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg text-sm font-medium"
+            className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg text-xs sm:text-sm font-medium flex-1 sm:flex-initial justify-center"
             title="Generate AI Forecast"
           >
-            <TrendingUp size={16} />
+            <TrendingUp size={14} className="sm:w-4 sm:h-4" />
             Forecast
           </button>
           
           <button
             onClick={() => setShowExportTool(!showExportTool)}
-            className="flex items-center gap-2 px-2.5 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 dark:border-white/20 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors text-sm font-medium"
+            className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 dark:border-white/20 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors text-xs sm:text-sm font-medium flex-1 sm:flex-initial justify-center"
             title="Export Chart"
           >
-            <Download size={16} />
+            <Download size={14} className="sm:w-4 sm:h-4" />
             Export
           </button>
         </div>
       </div>
 
       {/* Chart container */}
-
-      <div className="mt-4 rounded-xl p-4 bg-gradient-to-b from-gray-50 to-white border dark:from-black/20 dark:to-black/10 dark:border-white/10">
+      <div className="mt-4 rounded-xl p-2 sm:p-4 bg-gradient-to-b from-gray-50 to-white border dark:from-black/20 dark:to-black/10 dark:border-white/10">
         <div style={{ 
-          height: options.enable3D ? 500 : 450, 
+          height: window.innerWidth < 640 ? 300 : (options.enable3D ? 500 : 450), 
           position: 'relative', 
           overflow: 'visible', 
           padding: options.enable3D ? '30px 20px' : '20px 0' 
