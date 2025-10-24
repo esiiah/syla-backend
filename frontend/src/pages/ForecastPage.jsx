@@ -228,17 +228,17 @@ export default function ForecastPage() {
         />
 
         {/* Main Content */}
-        <div className="p-6 max-w-7xl mx-auto">
+        <div className="p-3 sm:p-6 max-w-7xl mx-auto">
           {/* Header */}
-          <div className="flex items-center gap-4 mb-8">
-            <div className="p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl text-white shadow-lg">
-              <Brain size={32} />
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
+            <div className="p-2 sm:p-3 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl sm:rounded-2xl text-white shadow-lg">
+              <Brain size={24} className="sm:w-8 sm:h-8" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-800 dark:text-slate-200">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 dark:text-slate-200">
                 AI Forecasting
               </h1>
-              <p className="text-gray-600 dark:text-slate-400">
+              <p className="text-sm sm:text-base text-gray-600 dark:text-slate-400">
                 Natural language scenario analysis • {chartData.data.length.toLocaleString()} data points
               </p>
             </div>
@@ -246,9 +246,9 @@ export default function ForecastPage() {
 
           {/* Error Display */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/50 rounded-xl flex items-start gap-3">
-              <AlertTriangle className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" size={20} />
-              <div className="text-sm text-red-700 dark:text-red-300">{error}</div>
+            <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/50 rounded-lg sm:rounded-xl flex items-start gap-2 sm:gap-3">
+              <AlertTriangle className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" size={16} />
+              <div className="text-xs sm:text-sm text-red-700 dark:text-red-300">{error}</div>
             </div>
           )}
 
