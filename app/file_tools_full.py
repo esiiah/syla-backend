@@ -629,12 +629,13 @@ async def pdf_to_word(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Only PDF files allowed")
     
     in_path = write_upload_to_temp(file, prefix="pdf2word_in_")
+    converted_file = None
+    
     try:
-        # Use LibreOffice to convert PDF to Word
-        out_name = f"pdf2word_{int(time.time() * 1000)}.docx"
-        temp_docx = os.path.join(TMP_DIR, out_name)
+        # Create output directory if it doesn't exist
+        os.makedirs(TMP_DIR, exist_ok=True)
         
-        # LibreOffice command to convert PDF to DOCX
+        # LibreOffice command
         cmd = [
             "libreoffice",
             "--headless",
@@ -646,29 +647,46 @@ async def pdf_to_word(file: UploadFile = File(...)):
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         
         if result.returncode != 0:
-            raise Exception(f"LibreOffice conversion failed: {result.stderr}")
+            raise Exception(f"LibreOffice failed: {result.stderr or 'Unknown error'}")
         
-        # Find the converted file (LibreOffice uses input filename)
-        base_name = Path(in_path).stem
+        # LibreOffice outputs: inputname.docx (not the full temp path stem)
+        # Get just the filename without path
+        input_filename = os.path.basename(in_path)
+        base_name = os.path.splitext(input_filename)[0]
         converted_file = os.path.join(TMP_DIR, f"{base_name}.docx")
         
-        if not os.path.exists(converted_file):
-            raise Exception("Converted file not found")
+        # Wait briefly for file system
+        time.sleep(0.5)
         
-        # Move to final location
+        if not os.path.exists(converted_file):
+            raise Exception(f"Converted file not found: {converted_file}")
+        
+        # Generate final filename and move
+        orig_name = Path(file.filename).stem if file.filename else "document"
+        out_name = unique_filename(f"{orig_name}_converted.docx")
         final_path = os.path.join(UPLOAD_DIR, out_name)
+        
         shutil.move(converted_file, final_path)
+        converted_file = None  # Mark as moved
         
         return {
             "message": "PDF successfully converted to Word",
             "download_url": f"/api/filetools/files/{out_name}",
             "filename": out_name
         }
+        
     except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=500, detail="Conversion timeout - PDF may be too large")
+        raise HTTPException(status_code=500, detail="Conversion timeout")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"PDF to Word conversion failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
     finally:
+        # Cleanup
+        for path in [in_path, converted_file]:
+            if path and os.path.exists(path):
+                try:
+                    os.remove(path)
+                except Exception:
+                    pass
         if os.path.exists(in_path):
             try:
                 os.remove(in_path)
