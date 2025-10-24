@@ -440,6 +440,59 @@ function ChartOptions({
                 </div>
               </div>
 
+              {/* Data Labels Configuration */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  Data Labels
+                </label>
+                <div className="space-y-3 p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={local.showLabels || false}
+                      onChange={e => commit({ showLabels: e.target.checked })}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Show Data Labels</span>
+                  </label>
+
+                  {local.showLabels && (
+                    <div>
+                      <label className="block text-xs text-gray-600 dark:text-slate-400 mb-2">
+                        Label Position
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => commit({ labelPosition: 'center' })}
+                          className={`py-2 px-3 rounded-lg text-sm transition-colors ${
+                            (local.labelPosition || 'center') === 'center'
+                              ? 'bg-blue-600 text-white shadow-md'
+                              : 'bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:border-blue-400'
+                          }`}
+                        >
+                          Centered
+                        </button>
+                        <button
+                          onClick={() => commit({ labelPosition: 'outside' })}
+                          className={`py-2 px-3 rounded-lg text-sm transition-colors ${
+                            local.labelPosition === 'outside'
+                              ? 'bg-blue-600 text-white shadow-md'
+                              : 'bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:border-blue-400'
+                          }`}
+                        >
+                          Outside
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        {local.labelPosition === 'outside' 
+                          ? 'Labels appear outside chart elements' 
+                          : 'Labels appear centered on chart elements'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                   Sort By
