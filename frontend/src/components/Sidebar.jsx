@@ -1,5 +1,6 @@
 // frontend/src/components/Sidebar.jsx
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
+import { UserContext } from "../context/UserContext";
 import { Link } from "react-router-dom";
 import {
   LayoutDashboard, FolderOpen, BarChart,
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 
 function Sidebar({ onReportChange, theme, setTheme }) {
+  const { user } = useContext(UserContext);
   const [collapsed, setCollapsed] = useState(true);
   const [reportType, setReportType] = useState("Bar");
   const [toolsOpen, setToolsOpen] = useState(false);
@@ -37,7 +39,7 @@ function Sidebar({ onReportChange, theme, setTheme }) {
       className={`${collapsed ? "w-16" : "w-64"} flex flex-col transition-all duration-300 relative
       bg-white text-gray-900 border-r border-gray-200
       dark:bg-ink/80 dark:text-slate-200 dark:border-white/5 rounded-r-2xl shadow-soft neon-border
-      hidden md:flex`}
+      hidden lg:flex`}
     >
       {/* Collapse toggle */}
       <button
@@ -52,6 +54,38 @@ function Sidebar({ onReportChange, theme, setTheme }) {
           <svg className="w-4 h-4 text-gray-700 dark:text-slate-300" viewBox="0 0 24 24"><path d="M16 19V5L5 12z" /></svg>
         )}
       </button>
+
+      </button>
+
+      {/* User Profile Section - Only show when logged in and expanded */}
+      {!collapsed && user && (
+        <div className="px-3 py-4 border-b border-gray-200 dark:border-white/10">
+          <div className="flex items-center gap-3">
+            {user.avatar_url ? (
+              <img 
+                src={user.avatar_url} 
+                alt={user.name} 
+                className="w-10 h-10 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white font-medium">
+                {user.name?.charAt(0)?.toUpperCase() || 'U'}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-800 dark:text-slate-200 truncate">
+                {user.name}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
+                {user.email}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Nav links */}
+      <div className="flex-1 px-3 py-5 space-y-2 overflow-y-auto">
 
       {/* Nav links */}
       <div className="flex-1 px-3 py-5 space-y-2 overflow-y-auto">
