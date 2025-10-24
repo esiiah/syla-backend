@@ -509,13 +509,29 @@ export default function ChartView({
             }
             return ctx.dataset?.datalabels?.display ?? !!options.showLabels;
           },
+          anchor: options.labelPosition === 'outside' ? 'end' : 'center',
+          align: options.labelPosition === 'outside' ? 'end' : 'center',
+          offset: options.labelPosition === 'outside' ? 8 : 0,
+          clip: false,
+          font: {
+            size: 11,
+            weight: options.labelPosition === 'outside' ? '600' : '500'
+          },
+          padding: options.labelPosition === 'outside' ? 4 : 2,
+          backgroundColor: options.labelPosition === 'outside' 
+            ? 'rgba(255, 255, 255, 0.9)' 
+            : 'transparent',
+          borderRadius: options.labelPosition === 'outside' ? 4 : 0,
           formatter: (value, ctx) => {
             if (options.type === CHART_TYPES.PIE || options.type === CHART_TYPES.DOUGHNUT) {
               const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
               const percentage = ((value / total) * 100).toFixed(1);
               return `${percentage}%`;
             }
-            return ctx.dataset.originalData ? ctx.dataset.originalData[ctx.dataIndex] : value;
+            const displayValue = ctx.dataset.originalData ? ctx.dataset.originalData[ctx.dataIndex] : value;
+            return options.labelPosition === 'outside' 
+              ? displayValue?.toLocaleString() || displayValue
+              : displayValue;
           }
         },
         tooltip: {
@@ -660,6 +676,16 @@ export default function ChartView({
           right: depthPadding,
           bottom: depthPadding,
           left: depthPadding
+        }
+      };
+    } else if (options.showLabels && options.labelPosition === 'outside') {
+      // Add padding for outside labels
+      opts.layout = {
+        padding: {
+          top: 30,
+          right: 20,
+          bottom: 10,
+          left: 20
         }
       };
     }
