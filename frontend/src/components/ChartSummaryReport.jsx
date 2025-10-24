@@ -231,8 +231,9 @@ export default function ChartSummaryReport({ summary = {}, data = [], chartTitle
       {!isMinimized && (
         <>
       {/* Table */}
-      <div className="p-5 overflow-x-auto">
-        <table className="min-w-full border-collapse">
+      <div className="p-3 sm:p-5 overflow-x-auto">
+        <div className="min-w-[600px]">
+        <table className="w-full border-collapse">
           <thead>
             <tr className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-b-2 border-blue-200 dark:border-blue-700">
             <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
@@ -300,6 +301,7 @@ export default function ChartSummaryReport({ summary = {}, data = [], chartTitle
             ))}
           </tbody>
         </table>
+        </div>
       </div>
       
       {/* Info Banner */}
