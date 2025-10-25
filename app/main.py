@@ -61,6 +61,17 @@ logger = logging.getLogger("syla-backend")
 # ------------------------------
 app = FastAPI(title="Syla Analytics")
 
+# ADD THIS BLOCK HERE ↓↓↓
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database tables on startup"""
+    try:
+        from .routers.password_recovery import Base, engine
+        Base.metadata.create_all(bind=engine)
+        logger.info("✅ Database tables created/verified")
+    except Exception as e:
+        logger.warning(f"⚠️ Database table creation failed (may already exist): {e}")
+
 # ------------------------------
 # CORS middleware
 # ------------------------------
