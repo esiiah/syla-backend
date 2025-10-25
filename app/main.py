@@ -26,6 +26,7 @@ from .routers import profile
 from .ai.router import router as forecast_router, forecast_service
 from .routers import chart_settings, notifications, search
 from .routers import help, pricing
+from app.routers import row_selection
 from . import visual
 from app import settings
 
@@ -251,6 +252,7 @@ app.include_router(search.router)
 app.include_router(help.router)
 app.include_router(pricing.router)
 app.include_router(file_tools_full_router)
+app.include_router(row_selection.router, prefix="/api", tags=["row_selection"])
 
 # ------------------------------
 # SSR Data Endpoint for Crawlers
