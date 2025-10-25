@@ -61,7 +61,8 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    chart_settings = relationship("ChartSettings", back_populates="user")    
+    chart_settings = relationship("ChartSettings", back_populates="user")
+    row_selections = relationship("ChartRowSelection", back_populates="user")
 
 
 # ⚠️ Do not auto-create tables in production.
