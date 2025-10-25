@@ -1,6 +1,8 @@
 # docker-compose.dev.yml
+version: '3.8'
+
 services:
-  sylabackend:
+  sylabackend-dev:  # Changed service name to avoid conflicts
     build:
       context: .
       dockerfile: Dockerfile
@@ -15,24 +17,26 @@ services:
     image: syla-backend:dev
     container_name: syla-backend-dev
     ports:
-      - "8081:8080"
+      - "8081:8080"  # Host:Container -访问 localhost:8081
     env_file:
       - .env
     environment:
-      ENVIRONMENT: ${ENVIRONMENT}
+      ENVIRONMENT: development
       DATABASE_URL: ${DATABASE_LOCAL_URL}
       DATABASE_LOCAL_URL: ${DATABASE_LOCAL_URL}
       DATABASE_PROD_URL: ${DATABASE_PROD_URL}
       DATABASE_PUBLIC_URL: ${DATABASE_PUBLIC_URL}
       FRONTEND_URL: ${FRONTEND_URL}
       BACKEND_URL: ${BACKEND_URL}
-      PORT: 8080
+      PORT: 8080  # Internal container port
     volumes:
       - uploads_data_dev:/app/uploads:delegated
     depends_on:
       - syla-db-dev
+    networks:
+      - syla-dev-network  # Separate network for dev
     user: "1000:1000"
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers 1
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers 1 --reload  # Added --reload for dev
     deploy:
       resources:
         limits:
@@ -60,9 +64,11 @@ services:
       POSTGRES_PASSWORD: 1234
       POSTGRES_DB: postgres_dev
     ports:
-      - "5433:5432"
+      - "5433:5432"  # Different host port to avoid conflict with prod
     volumes:
       - postgres_data_dev:/var/lib/postgresql/data
+    networks:
+      - syla-dev-network
     deploy:
       resources:
         limits:
@@ -78,3 +84,7 @@ services:
 volumes:
   postgres_data_dev:
   uploads_data_dev:
+
+networks:
+  syla-dev-network:
+    driver: bridge

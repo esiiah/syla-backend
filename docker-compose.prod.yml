@@ -1,6 +1,8 @@
 # docker-compose.prod.yml
+version: '3.8'
+
 services:
-  sylabackend:
+  sylabackend-prod:
     build:
       context: .
       dockerfile: Dockerfile
@@ -12,14 +14,14 @@ services:
         VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID}
         VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
-    image: syla-backend
-    container_name: syla-backend
+    image: syla-backend:prod
+    container_name: syla-backend-prod
     ports:
       - "8080:8080"
     env_file:
       - .env.production
     environment:
-      ENVIRONMENT: ${ENVIRONMENT}
+      ENVIRONMENT: production
       DATABASE_URL: ${DATABASE_URL}
       DATABASE_LOCAL_URL: ${DATABASE_LOCAL_URL}
       DATABASE_PROD_URL: ${DATABASE_PROD_URL}
@@ -28,9 +30,11 @@ services:
       BACKEND_URL: ${BACKEND_URL}
       PORT: 8080
     volumes:
-      - uploads_data:/app/uploads:delegated
+      - uploads_data_prod:/app/uploads:delegated
     depends_on:
-      - syla-db
+      - syla-db-prod
+    networks:
+      - syla-prod-network
     user: "1000:1000"
     command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers 4
     deploy:
@@ -51,9 +55,9 @@ services:
       retries: 3
       start_period: 40s
 
-  syla-db:
+  syla-db-prod:
     image: postgres:16
-    container_name: syla-db
+    container_name: syla-db-prod
     restart: always
     environment:
       POSTGRES_USER: postgres
@@ -63,6 +67,8 @@ services:
       - "5432:5432"
     volumes:
       - /mnt/ebs/postgres_data:/var/lib/postgresql/data
+    networks:
+      - syla-prod-network
     deploy:
       resources:
         limits:
@@ -76,5 +82,9 @@ services:
         max-file: "3"
 
 volumes:
-  postgres_data:
-  uploads_data:
+  postgres_data_prod:
+  uploads_data_prod:
+
+networks:
+  syla-prod-network:
+    driver: bridge
