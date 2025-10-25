@@ -8,6 +8,7 @@ import {
   Title, Tooltip, Legend, Filler
 } from "chart.js";
 import { Bar, Line, Pie, Scatter, Doughnut, PolarArea, Radar } from "react-chartjs-2";
+import { applyUserSelection, filterRowsByLimit, detectMobileViewport } from '../utils/rowSelectionUtils';
 import { 
   DoughnutChart, 
   RadarChart, 
@@ -125,8 +126,22 @@ export default function ChartView({
     if (!yAxis && columns[1]) setYAxis(columns[1]);
   }, [columns, xAxis, yAxis, setXAxis, setYAxis]);
 
-  const labels = useMemo(() => data.map((r, i) => r?.[xAxis] ?? `Row ${i + 1}`), [data, xAxis]);
-  const values = useMemo(() => data.map(r => parseNum(r?.[yAxis])), [data, yAxis]);
+// Apply row selection filtering
+  const filteredData = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    
+    // Apply user custom selection if exists
+    if (chartData?.selectedRowIndices && chartData.selectedRowIndices.length > 0) {
+      return applyUserSelection(data, chartData.selectedRowIndices);
+    }
+    
+    // Otherwise apply automatic limit
+    const isMobile = detectMobileViewport();
+    return filterRowsByLimit(data, isMobile);
+  }, [data, chartData?.selectedRowIndices]);
+
+  const labels = useMemo(() => filteredData.map((r, i) => r?.[xAxis] ?? `Row ${i + 1}`), [filteredData, xAxis]);
+  const values = useMemo(() => filteredData.map(r => parseNum(r?.[yAxis])), [filteredData, yAxis]);
   const compareVals = useMemo(() => 
     options.compareField ? data.map(r => parseNum(r?.[options.compareField])) : null, 
     [data, options.compareField]
@@ -946,6 +961,23 @@ const getChartComponent = () => {
             {chartTitle || "Data Visualization"}
           </h3>
 
+          {/* Row selection info banner */}
+          {data.length > (detectMobileViewport() ? 10 : 20) && (
+            <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-blue-700 dark:text-blue-300">
+                  Showing {filteredData.length} of {data.length} rows
+                  {chartData?.selectedRowIndices ? " (custom selection)" : " (auto-limited)"}
+                </span>
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('openRowSelectionModal'))}
+                  className="text-sm text-blue-600 hover:text-blue-700 underline"
+                >
+                  Customize
+                </button>
+              </div>
+            </div>
+          )}
           {/* Status indicators */}
 
           <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 dark:text-slate-400">
