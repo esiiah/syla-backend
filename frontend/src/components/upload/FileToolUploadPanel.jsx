@@ -1,24 +1,6 @@
 // FileToolUploadPanel.jsx
 import React, { useRef, useEffect, useState } from "react";
 
-/**
- * FileToolUploadPanel
- *
- * Props:
- *  - title, hint
- *  - accept (optional override)
- *  - multiple (boolean)
- *  - files (array) and setFiles callback
- *  - onUpload(files, opts) => Promise | void    (called when user clicks upload)
- *  - viewMode, setViewMode
- *  - uploadLabel, loading, toolType
- *
- * If onUpload is not provided, this component will perform a default upload to
- * backend endpoints determined by toolType and then return the response and call setFiles([]) optionally.
- *
- * Styling: sky-blue border.
- */
-
 export default function FileToolUploadPanel({
   title = "Upload File",
   hint = "",

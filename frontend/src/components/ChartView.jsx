@@ -126,32 +126,16 @@ export default function ChartView({
     if (!yAxis && columns[1]) setYAxis(columns[1]);
   }, [columns, xAxis, yAxis, setXAxis, setYAxis]);
 
-// Apply row selection filtering
-  const filteredData = useMemo(() => {
-    if (!data || data.length === 0) return [];
-    
-    // Apply user custom selection if exists
-    if (chartData?.selectedRowIndices && chartData.selectedRowIndices.length > 0) {
-      return applyUserSelection(data, chartData.selectedRowIndices);
-    }
-    
-    // Otherwise apply automatic limit
-    const isMobile = detectMobileViewport();
-    return filterRowsByLimit(data, isMobile);
-  }, [data, chartData?.selectedRowIndices]);
-
-  const labels = useMemo(() => filteredData.map((r, i) => r?.[xAxis] ?? `Row ${i + 1}`), [filteredData, xAxis]);
-  const values = useMemo(() => filteredData.map(r => parseNum(r?.[yAxis])), [filteredData, yAxis]);
   const compareVals = useMemo(() => 
     options.compareField ? data.map(r => parseNum(r?.[options.compareField])) : null, 
     [data, options.compareField]
   );
 
-  const pairs = labels.map((l, i) => ({
-    l, 
-    v: values[i], 
-    c: compareVals ? compareVals[i] : null, 
-    raw: data[i], 
+  const pairs = data.map((row, i) => ({
+    l: row?.[xAxis] ?? `Row ${i + 1}`,
+    v: parseNum(row?.[yAxis]),
+    c: compareVals ? compareVals[i] : null,
+    raw: row,
     i
   }));
 
@@ -470,6 +454,20 @@ export default function ChartView({
 
     return finalData;
   }, [options, lbls, vals, safeVals, perColor, yAxis, map, safeCmp, cmp, selectedBars, data]);
+
+  // Apply row selection filtering - MOVED AFTER chartData definition
+  const filteredData = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    
+    // Apply user custom selection if exists
+    if (chartData?.selectedRowIndices && chartData.selectedRowIndices.length > 0) {
+      return applyUserSelection(data, chartData.selectedRowIndices);
+    }
+    
+    // Otherwise apply automatic limit
+    const isMobile = detectMobileViewport();
+    return filterRowsByLimit(data, isMobile);
+  }, [data, chartData]);
 
   const chartOptions = useMemo(() => {
     const tc = themeText();
