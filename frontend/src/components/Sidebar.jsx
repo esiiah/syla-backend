@@ -55,8 +55,6 @@ function Sidebar({ onReportChange, theme, setTheme }) {
         )}
       </button>
 
-      </button>
-
       {/* User Profile Section - Only show when logged in and expanded */}
       {!collapsed && user && (
         <div className="px-3 py-4 border-b border-gray-200 dark:border-white/10">
@@ -83,9 +81,6 @@ function Sidebar({ onReportChange, theme, setTheme }) {
           </div>
         </div>
       )}
-
-      {/* Nav links */}
-      <div className="flex-1 px-3 py-5 space-y-2 overflow-y-auto">
 
       {/* Nav links */}
       <div className="flex-1 px-3 py-5 space-y-2 overflow-y-auto">

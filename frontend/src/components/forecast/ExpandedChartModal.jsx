@@ -409,7 +409,7 @@ export default function ExpandedChartModal({
             <div 
               className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg flex-shrink-0"
               style={{ 
-                background: `linear-gradient(135deg, rgb(${config.color}), rgba(${config.colorEnd || config.color}, 0.7))`` 
+                background: `linear-gradient(135deg, rgb(${config.color}), rgba(${config.colorEnd || config.color}, 0.7))`
               }}
             >
               <Maximize2 size={20} className="sm:w-6 sm:h-6 text-white" />
@@ -454,6 +454,7 @@ export default function ExpandedChartModal({
             >
               <Download size={14} className="sm:w-[18px] sm:h-[18px]" />
               <span>PNG</span>
+            </button>
             <button
               onClick={onClose}
               className="p-1.5 sm:p-2 hover:bg-gray-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
