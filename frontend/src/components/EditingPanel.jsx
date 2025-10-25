@@ -84,15 +84,15 @@ const EditableText = ({
 export default function EditingPanel({ 
   sidebarOpen, 
   onTitleEdit,
-  onExport,
-  onForecast,
-  selectedBars,
-  onBarClick,
-  onSelectionDelete,
-  onSelectionClear
+  selectedBars = [],
+  onBarClick = () => {},
+  onSelectionDelete = () => {},
+  onSelectionClear = () => {}
 }) {
   const { chartData, updateChartData } = useChartData();
   const [showRowSelectionModal, setShowRowSelectionModal] = useState(false);
+  const panelRef = useRef(null);
+  const [selectionMode, setSelectionMode] = useState(false);
 
   useEffect(() => {
     const handleOpenModal = () => setShowRowSelectionModal(true);

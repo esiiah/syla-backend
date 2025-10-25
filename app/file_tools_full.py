@@ -624,92 +624,41 @@ async def excel_to_pdf(file: UploadFile = File(...)):
 
 @router.post("/pdf-to-word")
 async def pdf_to_word(file: UploadFile = File(...)):
-    """Convert PDF to Word using LibreOffice"""
+    """Convert PDF to Word using pdf2docx"""
     if not (file.filename or "").lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files allowed")
     
-    in_path = None
-    converted_file = None
+    in_path = write_upload_to_temp(file, prefix="pdf2word_in_")
     
     try:
-        # Save uploaded file with a clean name (no spaces or special chars)
-        safe_name = sanitize_filename(file.filename or "document.pdf")
-        in_path = os.path.join(TMP_DIR, f"input_{int(time.time())}_{safe_name}")
+        from pdf2docx import Converter
         
-        with open(in_path, "wb") as f:
-            shutil.copyfileobj(file.file, f)
-        
-        try:
-            file.file.close()
-        except:
-            pass
-        
-        os.makedirs(TMP_DIR, exist_ok=True)
-        
-        # LibreOffice conversion
-        cmd = [
-            "libreoffice",
-            "--headless",
-            "--convert-to", "docx",
-            "--outdir", TMP_DIR,
-            in_path
-        ]
-        
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
-        
-        if result.returncode != 0:
-            raise Exception(f"LibreOffice error: {result.stderr or result.stdout or 'Unknown error'}")
-        
-        # LibreOffice creates: input_TIMESTAMP_filename.docx in TMP_DIR
-        input_basename = os.path.basename(in_path)
-        base_without_ext = os.path.splitext(input_basename)[0]
-        converted_file = os.path.join(TMP_DIR, f"{base_without_ext}.docx")
-        
-        # Wait for file with timeout
-        max_wait = 15
-        elapsed = 0
-        while elapsed < max_wait:
-            if os.path.exists(converted_file) and os.path.getsize(converted_file) > 0:
-                break
-            time.sleep(0.5)
-            elapsed += 0.5
-        
-        if not os.path.exists(converted_file):
-            # Debug info
-            docx_files = [f for f in os.listdir(TMP_DIR) if f.endswith('.docx')]
-            raise Exception(
-                f"Output file not found. Expected: {os.path.basename(converted_file)}. "
-                f"Found .docx files in TMP_DIR: {docx_files}"
-            )
-        
-        if os.path.getsize(converted_file) == 0:
-            raise Exception("Conversion produced empty file")
-        
-        # Move to uploads directory
+        # Generate output filename
         orig_name = Path(file.filename).stem if file.filename else "document"
-        final_name = unique_filename(f"{orig_name}_converted.docx")
+        out_name = f"{orig_name}_converted.docx"
+        final_name = unique_filename(out_name)
         final_path = os.path.join(UPLOAD_DIR, final_name)
         
-        shutil.move(converted_file, final_path)
-        converted_file = None
+        # Convert using pdf2docx
+        cv = Converter(in_path)
+        cv.convert(final_path)
+        cv.close()
+        
+        if not os.path.exists(final_path) or os.path.getsize(final_path) == 0:
+            raise Exception("Conversion produced no output")
         
         return {
             "message": "PDF successfully converted to Word",
             "download_url": f"/api/filetools/files/{final_name}",
             "filename": final_name
         }
-        
-    except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=500, detail="Conversion timeout (90s) - PDF may be too large or complex")
-    except HTTPException:
-        raise
+    except ImportError:
+        raise HTTPException(status_code=500, detail="pdf2docx not installed")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
     finally:
-        # Cleanup
-        for path in [in_path, converted_file]:
-            if path and os.path.exists(path):
-                try:
-                    os.remove(path)
-                except:
-                    pass
+        if os.path.exists(in_path):
+            try:
+                os.remove(in_path)
+            except Exception:
+                pass
