@@ -1,5 +1,6 @@
 // frontend/src/components/EditingPanel.jsx
 import React, { useState, useRef, useEffect } from "react";
+import RowSelectionModal from "./RowSelectionModal";
 import { Edit3, Trash2, Square } from "lucide-react";
 import ChartView from "./ChartView";
 import ChartOptions from "./ChartOptions";
@@ -91,8 +92,21 @@ export default function EditingPanel({
   onSelectionClear
 }) {
   const { chartData, updateChartData } = useChartData();
-  const [selectionMode, setSelectionMode] = useState(false);
-  const panelRef = useRef(null);
+  const [showRowSelectionModal, setShowRowSelectionModal] = useState(false);
+
+  useEffect(() => {
+    const handleOpenModal = () => setShowRowSelectionModal(true);
+    window.addEventListener('openRowSelectionModal', handleOpenModal);
+    return () => window.removeEventListener('openRowSelectionModal', handleOpenModal);
+  }, []);
+
+  const handleRowSelectionApply = (selectedIndices) => {
+    updateChartData({ 
+      selectedRowIndices: selectedIndices,
+      rowSelectionMode: "custom",
+      totalRowCount: chartData.data.length
+    });
+  };
 
   const updateAxes = (xAxis, yAxis) => {
     updateChartData({ xAxis, yAxis });
@@ -300,6 +314,16 @@ export default function EditingPanel({
           />
         </div>
       </div>
+      
+      <RowSelectionModal
+        isOpen={showRowSelectionModal}
+        onClose={() => setShowRowSelectionModal(false)}
+        data={chartData.data}
+        columns={chartData.columns}
+        chartData={chartData}
+        onApply={handleRowSelectionApply}
+      />
+      
     </div>
   );
 }
