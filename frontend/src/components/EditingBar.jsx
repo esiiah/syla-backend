@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CHART_TYPES } from "../utils/chartConfigs";
+import { useChartData } from "../context/ChartDataContext";
 import {
   Menu, Settings, Palette, BarChart3, LineChart, PieChart, Circle, AreaChart,
   TrendingUp, SortAsc, SortDesc, Grid, Layers, Eye, EyeOff, Download, Save,
@@ -15,6 +16,7 @@ export default function EditingBar({
 }) {
   const navigate = useNavigate();
   const [activeDropdown, setActiveDropdown] = useState(null);
+  const { chartData } = useChartData();
 
   const chartTypes = [
     { type: CHART_TYPES.BAR, icon: BarChart3, label: "Bar" },
@@ -348,6 +350,27 @@ export default function EditingBar({
             )}
           </div>
 
+          {/* Row Selection Button */}
+          <button
+            onClick={() => {
+              // Trigger modal open via context
+              window.dispatchEvent(new CustomEvent('openRowSelectionModal'));
+            }}
+            className={`p-2 rounded-lg transition-colors ${
+              chartData?.selectedRowIndices
+                ? "bg-green-100 text-green-600 dark:bg-green-900/30"
+                : "hover:bg-gray-100 dark:hover:bg-slate-700"
+            }`}
+            title="Select Rows"
+          >
+            <Grid size={18} />
+            {chartData?.selectedRowIndices && (
+              <span className="absolute -top-1 -right-1 bg-green-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                {chartData.selectedRowIndices.length}
+              </span>
+            )}
+          </button>
+          
           <div className="w-px h-6 bg-gray-300 dark:bg-slate-600 mx-2" />
 
           {/* Show Labels with Dropdown */}
