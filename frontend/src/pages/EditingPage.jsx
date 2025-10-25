@@ -10,12 +10,14 @@ import EditingBar from "../components/EditingBar";
 import EditingPanel from "../components/EditingPanel";
 import EditingPreviewPanel from "../components/EditingPreviewPanel";
 import ChartExportTool from "../components/export/ChartExportTool";
+import RowSelectionModal from "../components/RowSelectionModal";
 
 export default function EditingPage() {
   const navigate = useNavigate();
   const { user, theme, setTheme } = useContext(UserContext);
   const { chartData, updateChartOptions, updateChartData, hasData, isDataLoaded } = useChartData();
   
+  const [showRowSelectionModal, setShowRowSelectionModal] = useState(false);  
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showExportTool, setShowExportTool] = useState(false);
   const [showPreviewPanel, setShowPreviewPanel] = useState(false);
@@ -39,6 +41,20 @@ export default function EditingPage() {
       return;
     }
   }, [user, hasData, isDataLoaded, navigate]);
+
+  useEffect(() => {
+    const handleOpenModal = () => setShowRowSelectionModal(true);
+    window.addEventListener('openRowSelectionModal', handleOpenModal);
+    return () => window.removeEventListener('openRowSelectionModal', handleOpenModal);
+  }, []);
+
+  const handleRowSelectionApply = (selectedIndices) => {
+    updateChartData({ 
+      selectedRowIndices: selectedIndices,
+      rowSelectionMode: "custom",
+      totalRowCount: chartData.data.length
+    });
+  };
 
   // Initialize history with current state
   useEffect(() => {
@@ -373,6 +389,16 @@ export default function EditingPage() {
           />
         )}
       </div>
+
+      <RowSelectionModal
+          isOpen={showRowSelectionModal}
+          onClose={() => setShowRowSelectionModal(false)}
+          data={chartData.data}
+          columns={chartData.columns}
+          chartData={chartData}
+          onApply={handleRowSelectionApply}
+        />
+      
     </div>
   );
 }
