@@ -13,6 +13,16 @@ if ENVIRONMENT == "production":
     DATABASE_URL = os.getenv("DATABASE_PROD_URL")
 else:
     DATABASE_URL = os.getenv("DATABASE_LOCAL_URL")
+    
+    # Auto-detect if running outside Docker and replace syla-db with localhost
+    if DATABASE_URL and "syla-db" in DATABASE_URL:
+        import socket
+        try:
+            socket.gethostbyname("syla-db")
+            # syla-db is resolvable, we're inside Docker
+        except socket.gaierror:
+            # syla-db is NOT resolvable, we're on host machine
+            DATABASE_URL = DATABASE_URL.replace("syla-db", "localhost")
 
 # Validate that DATABASE_URL is set
 if not DATABASE_URL:
@@ -22,7 +32,6 @@ if not DATABASE_URL:
     )
 
 print(f"🔌 [db.py] Connecting to database for {ENVIRONMENT}: {DATABASE_URL[:30]}...")
-
 # Create engine with PostgreSQL-appropriate settings
 engine = create_engine(
     DATABASE_URL,

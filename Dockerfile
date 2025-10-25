@@ -1,4 +1,4 @@
-# ================================
+# Dockerfile
 # Stage 1: Build Frontend
 # ================================
 FROM node:20-slim AS frontend-builder
