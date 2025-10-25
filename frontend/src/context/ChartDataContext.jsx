@@ -13,20 +13,10 @@ export const useChartData = () => {
 
 export const ChartDataProvider = ({ children }) => {
   const [chartData, setChartData] = useState({
-    data: [],
-    columns: [],
-    types: {},
-    summary: {},
-    chartTitle: "",
-    xAxis: "",
-    yAxis: "",
-    chartOptions: {
-      type: "bar",
-      color: "#2563eb",
-      gradient: false,
-      showLabels: false,
-      sort: "none",
-      orientation: "vertical"
+    data: [], columns: [], types: {}, summary: {}, chartTitle: "", xAxis: "",
+    yAxis: "", chartOptions: { type: "bar", color: "#2563eb", gradient: false,
+      showLabels: false, sort: "none", orientation: "vertical", selectedRowIndices: null, rowSelectionMode: "auto",
+      totalRowCount: 0, isRowSelectionModalOpen: false,
     }
   });
 
@@ -122,6 +112,59 @@ export const ChartDataProvider = ({ children }) => {
     localStorage.removeItem("currentYAxis");
   };
 
+  const setSelectedRows = (indices) => {
+    setChartData(prev => ({ ...prev, selectedRowIndices: indices }));
+  };
+
+  const toggleRowSelectionModal = () => {
+    setChartData(prev => ({ 
+      ...prev, 
+      isRowSelectionModalOpen: !prev.isRowSelectionModalOpen 
+    }));
+  };
+
+  const loadSavedRowSelection = async (chartId) => {
+    try {
+      const response = await fetch(`/api/charts/${chartId}/row-selection`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const selection = await response.json();
+        setChartData(prev => ({
+          ...prev,
+          selectedRowIndices: selection.selected_row_indices,
+          rowSelectionMode: selection.selection_mode
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to load row selection:', error);
+    }
+  };
+
+  const saveRowSelection = async (chartId, selectionData) => {
+    try {
+      const response = await fetch(`/api/charts/${chartId}/row-selection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(selectionData)
+      });
+      if (!response.ok) throw new Error('Failed to save row selection');
+      return await response.json();
+    } catch (error) {
+      console.error('Failed to save row selection:', error);
+      throw error;
+    }
+  };
+
+  const resetRowSelection = () => {
+    setChartData(prev => ({
+      ...prev,
+      selectedRowIndices: null,
+      rowSelectionMode: "auto"
+    }));
+  };
+
   const hasData = chartData.data.length > 0;
 
   const contextValue = {
@@ -133,7 +176,12 @@ export const ChartDataProvider = ({ children }) => {
     updateAxes,
     clearData,
     hasData,
-    isDataLoaded
+    isDataLoaded,
+    setSelectedRows,
+    toggleRowSelectionModal,
+    loadSavedRowSelection,
+    saveRowSelection,
+    resetRowSelection
   };
 
   return (
