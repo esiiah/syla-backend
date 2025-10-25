@@ -30,15 +30,17 @@ database_url = getattr(settings, "DATABASE_PUBLIC_URL", None) or os.getenv("DATA
 if not database_url:
     raise RuntimeError("DATABASE_PUBLIC_URL is not set. Set it in your .env or platform environment variables.")
 
-# Auto-detect if running outside Docker and replace syla-db with localhost
-if "syla-db" in database_url:
+# Auto-detect if running outside Docker and replace syla-db-dev/syla-db-prod with localhost
+if "syla-db-dev" in database_url or "syla-db-prod" in database_url:
     try:
-        socket.gethostbyname("syla-db")
-        # syla-db is resolvable, we're inside Docker
+        # Try to resolve the container name
+        container_name = "syla-db-dev" if "syla-db-dev" in database_url else "syla-db-prod"
+        socket.gethostbyname(container_name)
+        # Container is resolvable, we're inside Docker
     except socket.gaierror:
-        # syla-db is NOT resolvable, we're on host machine
-        database_url = database_url.replace("syla-db", "localhost")
-        print(f"🔄 [env.py] Replaced syla-db with localhost for host execution")
+        # Container is NOT resolvable, we're on host machine
+        database_url = database_url.replace("syla-db-dev", "localhost").replace("syla-db-prod", "localhost")
+        print(f"🔄 [env.py] Replaced container name with localhost for host execution")
 
 config.set_main_option("sqlalchemy.url", database_url)
 

@@ -14,15 +14,17 @@ if ENVIRONMENT == "production":
 else:
     DATABASE_URL = os.getenv("DATABASE_LOCAL_URL")
     
-    # Auto-detect if running outside Docker and replace syla-db with localhost
-    if DATABASE_URL and "syla-db" in DATABASE_URL:
+    # Auto-detect if running outside Docker and replace syla-db-dev/syla-db-prod with localhost
+    if DATABASE_URL and ("syla-db-dev" in DATABASE_URL or "syla-db-prod" in DATABASE_URL):
         import socket
         try:
-            socket.gethostbyname("syla-db")
-            # syla-db is resolvable, we're inside Docker
+            # Try to resolve the container name
+            container_name = "syla-db-dev" if "syla-db-dev" in DATABASE_URL else "syla-db-prod"
+            socket.gethostbyname(container_name)
+            # Container is resolvable, we're inside Docker
         except socket.gaierror:
-            # syla-db is NOT resolvable, we're on host machine
-            DATABASE_URL = DATABASE_URL.replace("syla-db", "localhost")
+            # Container is NOT resolvable, we're on host machine
+            DATABASE_URL = DATABASE_URL.replace("syla-db-dev", "localhost").replace("syla-db-prod", "localhost")
 
 # Validate that DATABASE_URL is set
 if not DATABASE_URL:
