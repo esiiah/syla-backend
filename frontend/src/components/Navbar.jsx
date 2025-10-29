@@ -236,27 +236,28 @@ export default function Navbar() {
               </div>
             </Link>
 
-            <div className="flex items-center gap-2">
+            {/* Theme, Sign In, and Get Started - responsive layout */}
+            <div className="flex items-center justify-end gap-2 sm:gap-3">
               <button
                 onClick={toggleTheme}
-                className="p-1.5 md:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                className="p-1.5 sm:p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors flex items-center justify-center"
                 title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
               >
-                {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
+                {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
               </button>
-              
+
               <Link
                 to="/login"
-                className="px-3 py-1.5 text-sm text-gray-700 hover:text-gray-900 dark:text-slate-300 dark:hover:text-slate-100 transition-colors"
+                className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-slate-300 dark:hover:text-slate-100 transition-colors whitespace-nowrap rounded-md border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-800 flex-shrink-0"
               >
-                Sign In
+                Sign&nbsp;In
               </Link>
-              
+
               <Link
                 to="/signup"
-                className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors whitespace-nowrap"
+                className="px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors whitespace-nowrap flex-shrink-0"
               >
-                Get Started
+                Get&nbsp;Started
               </Link>
             </div>
           </div>

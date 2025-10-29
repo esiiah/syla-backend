@@ -624,37 +624,44 @@ async def excel_to_pdf(file: UploadFile = File(...)):
 
 @router.post("/pdf-to-word")
 async def pdf_to_word(file: UploadFile = File(...)):
-    """Convert PDF to Word using pdf2docx"""
+    """Convert PDF to Word using LibreOffice instead of pdf2docx"""
+    import subprocess
+    from pathlib import Path
+
     if not (file.filename or "").lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files allowed")
-    
+
     in_path = write_upload_to_temp(file, prefix="pdf2word_in_")
-    
-    try:
-        from pdf2docx import Converter
-    except ImportError:
-        raise HTTPException(status_code=500, detail="pdf2docx not installed: pip install pdf2docx")
-    
     try:
         orig_name = Path(file.filename).stem if file.filename else "document"
-        out_name = f"{orig_name}_converted.docx"
+        out_dir = TMP_DIR
+        # LibreOffice command to convert PDF to DOCX
+        cmd = [
+            "libreoffice",
+            "--headless",
+            "--convert-to", "docx",
+            "--outdir", out_dir,
+            in_path,
+        ]
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        # Find the converted file
+        out_name = f"{orig_name}.docx"
+        converted_path = os.path.join(out_dir, out_name)
+        if not os.path.exists(converted_path):
+            raise HTTPException(status_code=500, detail="LibreOffice conversion failed")
+
         final_name = unique_filename(out_name)
         final_path = os.path.join(UPLOAD_DIR, final_name)
-        
-        cv = Converter(in_path)
-        cv.convert(final_path)
-        cv.close()
-        
-        if not os.path.exists(final_path) or os.path.getsize(final_path) == 0:
-            raise Exception("Conversion produced no output")
-        
+        shutil.move(converted_path, final_path)
+
         return {
-            "message": "PDF successfully converted to Word",
+            "message": "PDF successfully converted to Word (LibreOffice)",
             "download_url": f"/api/filetools/files/{final_name}",
-            "filename": final_name
+            "filename": final_name,
         }
-    except ImportError:
-        raise HTTPException(status_code=500, detail="pdf2docx not installed")
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=f"LibreOffice failed: {e.stderr.decode(errors='ignore')}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
     finally:

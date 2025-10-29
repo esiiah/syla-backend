@@ -17,12 +17,21 @@ function Sidebar({ onReportChange, theme, setTheme }) {
 
   // Initialize ads when component mounts
   useEffect(() => {
-    try {
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-    } catch (e) {
-      console.error('Ad initialization error:', e);
-    }
-  }, []);
+  const timer = setTimeout(() => {
+    const ads = document.querySelectorAll("ins.adsbygoogle");
+    ads.forEach((ad) => {
+      if (!ad.classList.contains("adsbygoogle-initialized")) {
+        try {
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+          ad.classList.add("adsbygoogle-initialized");
+        } catch (err) {
+          console.warn("Sidebar ad init failed:", err.message);
+        }
+      }
+    });
+  }, 1000);
+  return () => clearTimeout(timer);
+}, []);
 
   // Updated tool ordering
   const tools = [

@@ -85,10 +85,22 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
-  try {
-    (window.adsbygoogle = window.adsbygoogle || []).push({});
-  } catch (e) {}
+  const timer = setTimeout(() => {
+    const ads = document.querySelectorAll("ins.adsbygoogle");
+    ads.forEach((ad) => {
+      if (!ad.classList.contains("adsbygoogle-initialized")) {
+        try {
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+          ad.classList.add("adsbygoogle-initialized");
+        } catch (err) {
+          console.warn("Ad init failed:", err.message);
+        }
+      }
+    });
+  }, 1000);
+  return () => clearTimeout(timer);
 }, []);
+
 
   const handleSignupNavigation = () => {
     navigate("/signup");
