@@ -1,5 +1,5 @@
 // frontend/src/components/Sidebar.jsx
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { UserContext } from "../context/UserContext";
 import { Link } from "react-router-dom";
 import {
@@ -14,6 +14,15 @@ function Sidebar({ onReportChange, theme, setTheme }) {
   const [collapsed, setCollapsed] = useState(true);
   const [reportType, setReportType] = useState("Bar");
   const [toolsOpen, setToolsOpen] = useState(false);
+
+  // Initialize ads when component mounts
+  useEffect(() => {
+    try {
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    } catch (e) {
+      console.error('Ad initialization error:', e);
+    }
+  }, []);
 
   // Updated tool ordering
   const tools = [
@@ -169,6 +178,18 @@ function Sidebar({ onReportChange, theme, setTheme }) {
           </div>
         </div>
       </div>
+
+      {/* Ad Section - Only show when expanded */}
+      {!collapsed && (
+        <div className="px-3 py-3 border-t border-gray-200 dark:border-white/10">
+          <ins className="adsbygoogle"
+               style={{display:'block'}}
+               data-ad-client="ca-pub-8690159120607552"
+               data-ad-slot="4212240615"
+               data-ad-format="auto"
+               data-full-width-responsive="true"></ins>
+        </div>
+      )}
 
       {/* Footer buttons */}
       <div className="px-3 py-4 border-t border-gray-200 dark:border-white/10 space-y-2">

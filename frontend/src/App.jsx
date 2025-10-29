@@ -84,6 +84,12 @@ function App() {
     document.body.classList.add(theme === "light" ? "light" : "dark");
   }, [theme]);
 
+  useEffect(() => {
+  try {
+    (window.adsbygoogle = window.adsbygoogle || []).push({});
+  } catch (e) {}
+}, []);
+
   const handleSignupNavigation = () => {
     navigate("/signup");
     setShowLoginModal(false);
@@ -177,6 +183,16 @@ function App() {
             </div>
           </div>
 
+          {/* Banner Ad */}
+          <div className="my-8 flex justify-center">
+            <ins className="adsbygoogle"
+                style={{display:'block'}}
+                data-ad-client="ca-pub-8690159120607552"
+                data-ad-slot="8700675186"
+                data-ad-format="auto"
+                data-full-width-responsive="true"></ins>
+          </div>
+
           {/* Dashboard Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mt-6">
             <section className="lg:col-span-1 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
@@ -266,6 +282,17 @@ function App() {
             />
           )}
           
+          {/* Between Sections Ad */}
+          <div className="my-8 flex justify-center">
+            <ins className="adsbygoogle"
+                style={{display:'block'}}
+                data-ad-client="ca-pub-8690159120607552"
+                data-ad-slot="8700675186"
+                data-ad-format="auto"
+                data-full-width-responsive="true"></ins>
+          </div>
+
+          {/* Features Section */}
           <div className="mt-12">
             <Features />
           </div>
