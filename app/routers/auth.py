@@ -4,8 +4,11 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from typing import Optional, Dict, Any
 import os
+import logging
 from datetime import datetime, timedelta
 from pydantic import BaseModel
+import firebase_admin
+from firebase_admin import credentials, auth as firebase_auth
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -15,7 +18,6 @@ from google.auth.transport import requests as grequests
 from app.routers.notifications import create_notification_for_user, NotificationType, NotificationCategory, NotificationPriority
 from app.routers.db import get_db
 
-
 from .db import (
     get_user_by_contact, 
     get_user_with_hash_by_contact,
@@ -23,9 +25,26 @@ from .db import (
     create_local_user,
     get_user_by_google_id,
     create_google_user,
-    link_google_to_user
+    link_google_to_user,
+    update_user_profile
 )
 
+# Initialize logger
+logger = logging.getLogger(__name__)
+
+# Initialize Firebase Admin SDK
+try:
+    firebase_service_account = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
+    if firebase_service_account and os.path.exists(firebase_service_account):
+        cred = credentials.Certificate(firebase_service_account)
+        firebase_admin.initialize_app(cred)
+        logger.info("✅ Firebase Admin initialized")
+    else:
+        logger.warning("⚠️ Firebase service account not found - phone auth will not be verified")
+except Exception as e:
+    logger.error(f"❌ Firebase Admin initialization failed: {e}")
+
+# Router initialization
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 security = HTTPBearer(auto_error=False)
 
@@ -434,8 +453,18 @@ class FirebasePhoneSignupRequest(BaseModel):
 @router.post("/firebase-phone-login")
 async def firebase_phone_login(payload: FirebasePhoneLoginRequest):
     """Login with Firebase-verified phone number"""
-    # In production, verify the Firebase token here
-    # For now, we trust the frontend verification
+    try:
+        # Verify Firebase token
+        decoded_token = firebase_auth.verify_id_token(payload.firebase_token)
+        phone_from_token = decoded_token.get('phone_number')
+        
+        if not phone_from_token:
+            raise HTTPException(status_code=400, detail="Phone number not in token")
+        
+        if phone_from_token != payload.phone:
+            raise HTTPException(status_code=400, detail="Phone number mismatch")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Invalid Firebase token: {str(e)}")
     
     user = get_user_with_hash_by_contact(payload.phone)
     if not user or not user.get("_password_hash"):
@@ -451,6 +480,18 @@ async def firebase_phone_login(payload: FirebasePhoneLoginRequest):
         )
     
     user_data = {k: v for k, v in user.items() if k != "_password_hash"}
+    
+    # Notification
+    db = next(get_db())
+    create_notification_for_user(
+        db=db,
+        user_id=user_data["id"],
+        title="Welcome to Syla Analytics",
+        message="Clean, Analyse, Visualise, Convert and Forecast in just few minutes. Enjoy your easy work with SYLA.",
+        type=NotificationType.INFO,
+        category=NotificationCategory.SYSTEM,
+        priority=NotificationPriority.MEDIUM
+    )
     
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
@@ -479,6 +520,19 @@ async def firebase_phone_login(payload: FirebasePhoneLoginRequest):
 @router.post("/firebase-phone-signup")
 async def firebase_phone_signup(payload: FirebasePhoneSignupRequest):
     """Signup with Firebase-verified phone number"""
+    try:
+        # Verify Firebase token
+        decoded_token = firebase_auth.verify_id_token(payload.firebase_token)
+        phone_from_token = decoded_token.get('phone_number')
+        
+        if not phone_from_token:
+            raise HTTPException(status_code=400, detail="Phone number not in token")
+        
+        if phone_from_token != payload.phone:
+            raise HTTPException(status_code=400, detail="Phone number mismatch")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Invalid Firebase token: {str(e)}")
+    
     if payload.password != payload.confirm_password:
         raise HTTPException(status_code=400, detail="Passwords do not match")
     
@@ -500,6 +554,18 @@ async def firebase_phone_signup(payload: FirebasePhoneSignupRequest):
     user = get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=500, detail="Failed to create user")
+    
+    # Notification
+    db = next(get_db())
+    create_notification_for_user(
+        db=db,
+        user_id=user["id"],
+        title="Welcome to Syla Analytics",
+        message="Clean, Analyse, Visualise, Convert and Forecast in just few minutes. Enjoy your easy work with SYLA.",
+        type=NotificationType.INFO,
+        category=NotificationCategory.SYSTEM,
+        priority=NotificationPriority.MEDIUM
+    )
     
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(

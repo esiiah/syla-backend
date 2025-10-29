@@ -65,6 +65,9 @@ COPY app/ ./app/
 # Copy frontend build artifacts (clean copy)
 COPY --from=frontend-builder /app/frontend/dist ./app/dist
 
+# Copy Firebase service account (add after COPY app/ ./app/)
+COPY firebase-service-account.json /app/firebase-service-account.json
+
 # Create unprivileged user FIRST
 RUN useradd -m -u 1000 appuser
 
@@ -77,7 +80,7 @@ RUN mkdir -p \
     /app/app/models \
     /app/app/tmp \
     /app/app/stash \
-    && chown -R appuser:appuser /app
+    && chown -R appuser:appuser /app /app/firebase-service-account.json
 
 # Switch to unprivileged user
 USER appuser

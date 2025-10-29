@@ -77,7 +77,7 @@ async def startup_event():
 # ------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL],
+    allow_origins=settings.CORS_ORIGINS.split(',') if ',' in settings.CORS_ORIGINS else [settings.CORS_ORIGINS],
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=True,
