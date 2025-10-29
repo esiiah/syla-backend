@@ -632,14 +632,15 @@ async def pdf_to_word(file: UploadFile = File(...)):
     
     try:
         from pdf2docx import Converter
-        
-        # Generate output filename
+    except ImportError:
+        raise HTTPException(status_code=500, detail="pdf2docx not installed: pip install pdf2docx")
+    
+    try:
         orig_name = Path(file.filename).stem if file.filename else "document"
         out_name = f"{orig_name}_converted.docx"
         final_name = unique_filename(out_name)
         final_path = os.path.join(UPLOAD_DIR, final_name)
         
-        # Convert using pdf2docx
         cv = Converter(in_path)
         cv.convert(final_path)
         cv.close()
