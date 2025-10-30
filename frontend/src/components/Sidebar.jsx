@@ -15,24 +15,6 @@ function Sidebar({ onReportChange, theme, setTheme }) {
   const [reportType, setReportType] = useState("Bar");
   const [toolsOpen, setToolsOpen] = useState(false);
 
-  // Initialize ads when component mounts
-  useEffect(() => {
-  const timer = setTimeout(() => {
-    const ads = document.querySelectorAll("ins.adsbygoogle");
-    ads.forEach((ad) => {
-      if (!ad.classList.contains("adsbygoogle-initialized")) {
-        try {
-          (window.adsbygoogle = window.adsbygoogle || []).push({});
-          ad.classList.add("adsbygoogle-initialized");
-        } catch (err) {
-          console.warn("Sidebar ad init failed:", err.message);
-        }
-      }
-    });
-  }, 1000);
-  return () => clearTimeout(timer);
-}, []);
-
   // Updated tool ordering
   const tools = [
     { title: "PDF → Word", path: "/tools/pdf-to-word", icon: FileText },

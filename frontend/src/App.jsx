@@ -84,24 +84,6 @@ function App() {
     document.body.classList.add(theme === "light" ? "light" : "dark");
   }, [theme]);
 
-  useEffect(() => {
-  const timer = setTimeout(() => {
-    const ads = document.querySelectorAll("ins.adsbygoogle");
-    ads.forEach((ad) => {
-      if (!ad.classList.contains("adsbygoogle-initialized")) {
-        try {
-          (window.adsbygoogle = window.adsbygoogle || []).push({});
-          ad.classList.add("adsbygoogle-initialized");
-        } catch (err) {
-          console.warn("Ad init failed:", err.message);
-        }
-      }
-    });
-  }, 1000);
-  return () => clearTimeout(timer);
-}, []);
-
-
   const handleSignupNavigation = () => {
     navigate("/signup");
     setShowLoginModal(false);

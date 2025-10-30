@@ -624,7 +624,7 @@ async def excel_to_pdf(file: UploadFile = File(...)):
 
 @router.post("/pdf-to-word")
 async def pdf_to_word(file: UploadFile = File(...)):
-    """Convert PDF to Word using LibreOffice instead of pdf2docx"""
+    """Convert PDF to Word using LibreOffice"""
     import subprocess
     from pathlib import Path
 
@@ -633,9 +633,10 @@ async def pdf_to_word(file: UploadFile = File(...)):
 
     in_path = write_upload_to_temp(file, prefix="pdf2word_in_")
     try:
-        orig_name = Path(file.filename).stem if file.filename else "document"
+        # Get the actual temp filename stem
+        temp_stem = Path(in_path).stem
         out_dir = TMP_DIR
-        # LibreOffice command to convert PDF to DOCX
+        
         cmd = [
             "libreoffice",
             "--headless",
@@ -643,25 +644,32 @@ async def pdf_to_word(file: UploadFile = File(...)):
             "--outdir", out_dir,
             in_path,
         ]
-        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        
+        if result.returncode != 0:
+            raise HTTPException(status_code=500, detail=f"LibreOffice failed: {result.stderr}")
 
-        # Find the converted file
-        out_name = f"{orig_name}.docx"
-        converted_path = os.path.join(out_dir, out_name)
+        # LibreOffice creates: {temp_stem}.docx
+        converted_path = os.path.join(out_dir, f"{temp_stem}.docx")
+        
         if not os.path.exists(converted_path):
-            raise HTTPException(status_code=500, detail="LibreOffice conversion failed")
+            raise HTTPException(status_code=500, detail=f"Output not found: {temp_stem}.docx")
 
+        orig_name = Path(file.filename).stem if file.filename else "document"
+        out_name = f"{orig_name}_converted.docx"
         final_name = unique_filename(out_name)
         final_path = os.path.join(UPLOAD_DIR, final_name)
         shutil.move(converted_path, final_path)
 
         return {
-            "message": "PDF successfully converted to Word (LibreOffice)",
+            "message": "PDF successfully converted to Word",
             "download_url": f"/api/filetools/files/{final_name}",
             "filename": final_name,
         }
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=500, detail="Conversion timeout")
     except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=500, detail=f"LibreOffice failed: {e.stderr.decode(errors='ignore')}")
+        raise HTTPException(status_code=500, detail=f"LibreOffice error: {e.stderr}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
     finally:
