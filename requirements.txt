@@ -23,7 +23,6 @@ reportlab==4.2.5
 openpyxl==3.1.5
 pdf2docx==0.5.8
 xlrd>=2.0.1
-pymupdf==1.21.1
 
 # NOTE: LibreOffice installed via apt-get in Dockerfile, not pip
 # NOTE: Removed docx2pdf - using LibreOffice instead
