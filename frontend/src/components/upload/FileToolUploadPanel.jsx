@@ -118,7 +118,7 @@ export default function FileToolUploadPanel({
         "csv-to-pdf": { url: "/api/filetools/convert/csv-to-pdf", multi: false, formFileKey: "file" },
         "pdf-to-excel": { url: "/api/filetools/convert/pdf-to-excel", multi: false, formFileKey: "file" },
         "excel-to-pdf": { url: "/api/filetools/convert/excel-to-pdf", multi: false, formFileKey: "file" },
-        "pdf-to-word": { url: "/api/filetools/pdf-to-word", multi: false, formFileKey: "file" },
+        "pdf-to-word": { url: "/api/filetools/convert/pdf-to-word", multi: false, formFileKey: "file" },
         "word-to-pdf": { url: "/api/filetools/convert/word-to-pdf", multi: false, formFileKey: "file" },
         "image-to-pdf": { url: "/api/filetools/convert/image-to-pdf", multi: false, formFileKey: "file" },
       };
