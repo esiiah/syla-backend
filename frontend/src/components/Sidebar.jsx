@@ -174,7 +174,7 @@ function Sidebar({ onReportChange, theme, setTheme }) {
       {/* Ad Section - Only show when expanded */}
       {!collapsed && (
         <div className="px-3 py-3 border-t border-gray-200 dark:border-white/10">
-          <AdSenseAd adSlot="4212240615" />
+          <AdSenseAd key={collapsed ? 'collapsed' : 'expanded'} adSlot="4212240615" />
         </div>
       )}
 
