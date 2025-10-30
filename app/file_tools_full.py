@@ -624,81 +624,41 @@ async def excel_to_pdf(file: UploadFile = File(...)):
 
 @router.post("/pdf-to-word")
 async def pdf_to_word(file: UploadFile = File(...)):
-    """Convert PDF to Word using LibreOffice"""
-    import subprocess
+    import tempfile
+    from pdf2docx import Converter
+    import os, shutil
     from pathlib import Path
 
     if not (file.filename or "").lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files allowed")
 
     in_path = write_upload_to_temp(file, prefix="pdf2word_in_")
-    converted_path = None
+    out_path = os.path.join(TMP_DIR, f"{Path(in_path).stem}.docx")
 
     try:
-        import shutil as _shutil
-        libre_bin = _shutil.which("libreoffice") or _shutil.which("soffice")
-        if not libre_bin:
-            raise HTTPException(status_code=500, detail="LibreOffice not found on server")
+        cv = Converter(in_path)
+        cv.convert(out_path, start=0, end=None)
+        cv.close()
 
-        out_dir = TMP_DIR
-        temp_stem = Path(in_path).stem
+        if not os.path.exists(out_path):
+            raise HTTPException(status_code=500, detail="Conversion failed")
 
-        cmd = [
-            libre_bin,
-            "--headless",
-            "--convert-to", "docx",
-            "--outdir", out_dir,
-            in_path,
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-
-        if result.returncode != 0:
-            msg = (result.stderr or result.stdout or "").strip()
-            raise HTTPException(status_code=500, detail=f"LibreOffice failed: {msg}")
-
-        # Look for any possible converted output file (.docx, .doc, .odt)
-        candidates = [
-            os.path.join(out_dir, fn)
-            for fn in os.listdir(out_dir)
-            if fn.startswith(temp_stem) and os.path.splitext(fn)[1].lower() in (".docx", ".doc", ".odt")
-        ]
-
-        if not candidates:
-            # Helpful debug output to know why no file was created
-            raise HTTPException(
-                status_code=500,
-                detail=(
-                    f"Conversion failed - no output file created. "
-                    f"LibreOffice stdout: {result.stdout[:1000]} stderr: {result.stderr[:1000]}"
-                ),
-            )
-
-        # Pick the newest generated file
-        converted_path = max(candidates, key=lambda p: os.path.getmtime(p))
-
-        # Move to uploads directory
-        orig_name = Path(file.filename).stem if file.filename else "document"
-        out_name = f"{orig_name}_converted{Path(converted_path).suffix}"
-        final_name = unique_filename(out_name)
+        final_name = unique_filename(f"{Path(file.filename).stem}_converted.docx")
         final_path = os.path.join(UPLOAD_DIR, final_name)
-        shutil.move(converted_path, final_path)
-        converted_path = None
+        shutil.move(out_path, final_path)
 
         return {
             "message": "PDF successfully converted to Word",
             "download_url": f"/api/filetools/files/{final_name}",
-            "filename": final_name,
+            "filename": final_name
         }
-
-    except subprocess.TimeoutExpired:
-        raise HTTPException(status_code=500, detail="Conversion timeout")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
     finally:
-        for path in [in_path, converted_path]:
-            if path and os.path.exists(path):
-                try:
-                    os.remove(path)
-                except Exception:
-                    pass
+        if os.path.exists(in_path):
+            try:
+                os.remove(in_path)
+            except Exception:
+                pass
+
 # End of file_tools_full.py
