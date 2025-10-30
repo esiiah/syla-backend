@@ -66,6 +66,22 @@ class SignupRequest(BaseModel):
     confirm_password: str
     contact_type: str
 
+class GoogleLoginRequest(BaseModel):
+    credential: str
+
+class FirebasePhoneLoginRequest(BaseModel):
+    firebase_token: str
+    phone: str
+    password: str
+
+class FirebasePhoneSignupRequest(BaseModel):
+    firebase_token: str
+    name: str
+    phone: str
+    password: str
+    confirm_password: str
+
+# ------------------- Helper Functions -------------------
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
@@ -129,8 +145,10 @@ def require_auth(request: Request) -> Dict[str, Any]:
         )
     return user
 
+# ------------------- Auth Endpoints -------------------
 @router.post("/signup")
 async def signup(payload: SignupRequest):
+    """Register a new user with email/phone and password"""
     name = payload.name
     contact = payload.contact
     password = payload.password
@@ -171,7 +189,7 @@ async def signup(payload: SignupRequest):
     if not user:
         raise HTTPException(status_code=500, detail="Failed to create user")
     
-    # --- WELCOME NOTIFICATION ---
+    # Send welcome notification
     db = next(get_db())
     create_notification_for_user(
         db=db,
@@ -182,7 +200,6 @@ async def signup(payload: SignupRequest):
         category=NotificationCategory.SYSTEM,
         priority=NotificationPriority.MEDIUM
     )
-
 
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -209,10 +226,10 @@ async def signup(payload: SignupRequest):
 
 @router.post("/login")
 async def login(payload: LoginRequest):
+    """Login with email/phone and password"""
     contact = payload.contact
     password = payload.password
 
-    """Login with email/phone and password"""
     user = get_user_with_hash_by_contact(contact)
     if not user or not user.get("_password_hash"):
         raise HTTPException(
@@ -228,18 +245,6 @@ async def login(payload: LoginRequest):
     
     # Remove password hash from user data
     user_data = {k: v for k, v in user.items() if k != "_password_hash"}
-
-    # --- WELCOME NOTIFICATION ---
-    db = next(get_db())
-    create_notification_for_user(
-        db=db,
-        user_id=user_data["id"],
-        title="Welcome to Syla Analytics",
-        message="Clean, Analyse, Visualise, Convert and Forecast in just few minutes. Enjoy your easy work with SYLA.",
-        type=NotificationType.INFO,
-        category=NotificationCategory.SYSTEM,
-        priority=NotificationPriority.MEDIUM
-    )
        
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -268,13 +273,9 @@ async def login(payload: LoginRequest):
     
     return response
 
-class GoogleLoginRequest(BaseModel):
-    credential: str
-
-# Replace your @router.post("/google") endpoint with this:
 @router.post("/google")
 async def google_signin(body: GoogleLoginRequest):
-    """Sign in or sign up with Google - FIXED VERSION"""
+    """Sign in or sign up with Google"""
     token = body.credential
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     
@@ -285,7 +286,6 @@ async def google_signin(body: GoogleLoginRequest):
         )
     
     try:
-        # Verify Google token
         idinfo = id_token.verify_oauth2_token(token, grequests.Request(), client_id)
         
         google_id = idinfo["sub"]
@@ -293,33 +293,25 @@ async def google_signin(body: GoogleLoginRequest):
         name = idinfo.get("name", "Google User")
         avatar_url = idinfo.get("picture")
         
-        # Check if user exists with this Google ID
         user = get_user_by_google_id(google_id)
+        is_new_user = False
         
         if user:
-            # User exists - check if avatar needs updating
             if avatar_url and user.get("avatar_url") != avatar_url:
-                # Update avatar URL if it changed
-                user_data = update_user_profile(
-                    user_id=user["id"],
-                    avatar_url=avatar_url
-                )
+                user_data = update_user_profile(user_id=user["id"], avatar_url=avatar_url)
             else:
                 user_data = user
         else:
-            # Check if user exists with this email
+            is_new_user = True
             if email:
                 existing_user = get_user_by_contact(email)
                 if existing_user:
-                    # Link Google account to existing user
                     link_google_to_user(existing_user["id"], google_id, avatar_url)
                     user_data = get_user_by_id(existing_user["id"])
                 else:
-                    # Create new user
                     user_id = create_google_user(name, email, google_id, avatar_url)
                     user_data = get_user_by_id(user_id)
             else:
-                # Create new user without email
                 user_id = create_google_user(name, None, google_id, avatar_url)
                 user_data = get_user_by_id(user_id)
         
@@ -329,7 +321,8 @@ async def google_signin(body: GoogleLoginRequest):
                 detail="Failed to create or retrieve user"
             )
 
-            # --- WELCOME NOTIFICATION ---
+        # Send welcome notification only for new users
+        if is_new_user:
             db = next(get_db())
             create_notification_for_user(
                 db=db,
@@ -341,34 +334,25 @@ async def google_signin(body: GoogleLoginRequest):
                 priority=NotificationPriority.MEDIUM
             )
 
-        if not user_data:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create or retrieve user"
-            )
-
-        # Create access token
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"sub": str(user_data["id"])}, 
             expires_delta=access_token_expires
         )
         
-        # Create response with cookie
         response = JSONResponse(content={
             "message": "Google sign-in successful",
-            "user": user_data,  # ENSURE full user data is returned
+            "user": user_data,
             "access_token": access_token,
             "token_type": "bearer"
         })
         
-        # Set cookie
         response.set_cookie(
             key="auth_token",
             value=access_token,
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             httponly=True,
-            secure=False,  # Set to True in production with HTTPS
+            secure=False,
             samesite="lax"
         )
         
@@ -379,76 +363,6 @@ async def google_signin(body: GoogleLoginRequest):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid Google token: {str(e)}"
         )
-
-@router.get("/me")
-async def get_current_user_endpoint(request: Request):
-    """Get current authenticated user"""
-    user = get_current_user(request)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
-        )
-    return user
-
-@router.post("/logout")
-async def logout():
-    """Logout user by clearing cookie"""
-    response = JSONResponse(content={"message": "Logged out successfully"})
-    response.delete_cookie(key="auth_token")
-    return response
-
-@router.post("/refresh")
-async def refresh_token(request: Request):
-    """Refresh access token"""
-    payload = get_current_user_payload(request)
-    if not payload:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
-        )
-    
-    user_id = payload.get("sub")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload"
-        )
-    
-    # Create new access token
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user_id}, 
-        expires_delta=access_token_expires
-    )
-    
-    # Create response with cookie
-    response = JSONResponse(content={
-        "access_token": access_token,
-        "token_type": "bearer"
-    })
-    
-    # Set cookie
-    response.set_cookie(
-        key="auth_token",
-        value=access_token,
-        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        httponly=True,
-        secure=False,  # Set to True in production with HTTPS
-        samesite="lax"
-    )
-    
-class FirebasePhoneLoginRequest(BaseModel):
-    firebase_token: str
-    phone: str
-    password: str
-
-class FirebasePhoneSignupRequest(BaseModel):
-    firebase_token: str
-    name: str
-    phone: str
-    password: str
-    confirm_password: str
 
 @router.post("/firebase-phone-login")
 async def firebase_phone_login(payload: FirebasePhoneLoginRequest):
@@ -479,20 +393,8 @@ async def firebase_phone_login(payload: FirebasePhoneLoginRequest):
             detail="Invalid credentials"
         )
     
-    user_data = {k: v for k, v in user.items() if k != "_password_hash"}
-    
-    # Notification
-    db = next(get_db())
-    create_notification_for_user(
-        db=db,
-        user_id=user_data["id"],
-        title="Welcome to Syla Analytics",
-        message="Clean, Analyse, Visualise, Convert and Forecast in just few minutes. Enjoy your easy work with SYLA.",
-        type=NotificationType.INFO,
-        category=NotificationCategory.SYSTEM,
-        priority=NotificationPriority.MEDIUM
-    )
-    
+    user_data = {k: v for k, v in user.items() if k != "_password_hash"}  
+  
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": str(user_data["id"])}, 
@@ -555,7 +457,7 @@ async def firebase_phone_signup(payload: FirebasePhoneSignupRequest):
     if not user:
         raise HTTPException(status_code=500, detail="Failed to create user")
     
-    # Notification
+    # Send welcome notification
     db = next(get_db())
     create_notification_for_user(
         db=db,
@@ -566,7 +468,7 @@ async def firebase_phone_signup(payload: FirebasePhoneSignupRequest):
         category=NotificationCategory.SYSTEM,
         priority=NotificationPriority.MEDIUM
     )
-    
+   
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": str(user["id"])}, 
@@ -585,6 +487,66 @@ async def firebase_phone_signup(payload: FirebasePhoneSignupRequest):
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         httponly=True,
         secure=False,
+        samesite="lax"
+    )
+    
+    return response
+
+@router.get("/me")
+async def get_current_user_endpoint(request: Request):
+    """Get current authenticated user"""
+    user = get_current_user(request)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+    return user
+
+@router.post("/logout")
+async def logout():
+    """Logout user by clearing cookie"""
+    response = JSONResponse(content={"message": "Logged out successfully"})
+    response.delete_cookie(key="auth_token")
+    return response
+
+@router.post("/refresh")
+async def refresh_token(request: Request):
+    """Refresh access token"""
+    payload = get_current_user_payload(request)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token"
+        )
+    
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload"
+        )
+    
+    # Create new access token
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user_id}, 
+        expires_delta=access_token_expires
+    )
+    
+    # Create response with cookie
+    response = JSONResponse(content={
+        "access_token": access_token,
+        "token_type": "bearer"
+    })
+    
+    # Set cookie
+    response.set_cookie(
+        key="auth_token",
+        value=access_token,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        secure=False,  # Set to True in production with HTTPS
         samesite="lax"
     )
     

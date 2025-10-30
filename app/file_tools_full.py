@@ -632,10 +632,15 @@ async def pdf_to_word(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Only PDF files allowed")
 
     in_path = write_upload_to_temp(file, prefix="pdf2word_in_")
+    converted_path = None
+    
     try:
-        # Get the actual temp filename stem
+        # Get the stem of the temp file that LibreOffice will use for output
         temp_stem = Path(in_path).stem
         out_dir = TMP_DIR
+        
+        # LibreOffice will create: {temp_stem}.docx in out_dir
+        converted_path = os.path.join(out_dir, f"{temp_stem}.docx")
         
         cmd = [
             "libreoffice",
@@ -649,17 +654,15 @@ async def pdf_to_word(file: UploadFile = File(...)):
         if result.returncode != 0:
             raise HTTPException(status_code=500, detail=f"LibreOffice failed: {result.stderr}")
 
-        # LibreOffice creates: {temp_stem}.docx
-        converted_path = os.path.join(out_dir, f"{temp_stem}.docx")
-        
         if not os.path.exists(converted_path):
-            raise HTTPException(status_code=500, detail=f"Output not found: {temp_stem}.docx")
+            raise HTTPException(status_code=500, detail=f"Conversion failed - no output file created")
 
         orig_name = Path(file.filename).stem if file.filename else "document"
         out_name = f"{orig_name}_converted.docx"
         final_name = unique_filename(out_name)
         final_path = os.path.join(UPLOAD_DIR, final_name)
         shutil.move(converted_path, final_path)
+        converted_path = None
 
         return {
             "message": "PDF successfully converted to Word",
@@ -673,8 +676,9 @@ async def pdf_to_word(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
     finally:
-        if os.path.exists(in_path):
-            try:
-                os.remove(in_path)
-            except Exception:
-                pass
+        for path in [in_path, converted_path]:
+            if path and os.path.exists(path):
+                try:
+                    os.remove(path)
+                except Exception:
+                    pass

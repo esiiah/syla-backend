@@ -8,6 +8,7 @@ import {
   FilePlus, FileText, FileSpreadsheet,
   FileArchive, Cpu, BookOpen, DollarSign
 } from "lucide-react";
+import AdSenseAd from './AdSenseAd';
 
 function Sidebar({ onReportChange, theme, setTheme }) {
   const { user } = useContext(UserContext);
@@ -173,12 +174,7 @@ function Sidebar({ onReportChange, theme, setTheme }) {
       {/* Ad Section - Only show when expanded */}
       {!collapsed && (
         <div className="px-3 py-3 border-t border-gray-200 dark:border-white/10">
-          <ins className="adsbygoogle"
-               style={{display:'block'}}
-               data-ad-client="ca-pub-8690159120607552"
-               data-ad-slot="4212240615"
-               data-ad-format="auto"
-               data-full-width-responsive="true"></ins>
+          <AdSenseAd adSlot="4212240615" />
         </div>
       )}
 

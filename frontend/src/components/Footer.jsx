@@ -21,23 +21,23 @@ function Footer() {
       <div className="mx-auto max-w-7xl px-4">
 
         {/* Logo + Navigation Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:flex lg:items-start lg:justify-between gap-10 text-sm">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 text-sm">
 
           {/* Logo + Title */}
-          <div className="flex flex-col items-center sm:items-start text-center sm:text-left">
-            <div className="flex items-center gap-3 justify-center sm:justify-start">
+          <div className="col-span-2 sm:col-span-2 md:col-span-3 lg:col-span-1 flex flex-col items-start">
+            <div className="flex items-center gap-3">
               <img src="/favicon.png" alt="Syla logo" className="w-8 h-8" />
               <span className="font-display text-lg tracking-wide text-white">
                 Syla <span className="text-neonBlue">Analytics</span>
               </span>
             </div>
-            <p className="mt-3 text-gray-400 max-w-xs text-center sm:text-left">
+            <p className="mt-3 text-gray-400 max-w-xs text-left">
               Transform your data into insights with our modern AI and file tools.
             </p>
           </div>
 
           {/* General */}
-          <div className="text-center sm:text-left">
+          <div className="text-left">
             <h3 className="font-semibold text-gray-200 mb-3">General</h3>
             <ul className="space-y-2">
               <li><Link to="/help" className="text-gray-300 hover:text-neonYellow transition">Help</Link></li>
@@ -47,7 +47,7 @@ function Footer() {
           </div>
 
           {/* Account */}
-          <div className="text-center sm:text-left">
+          <div className="text-left">
             <h3 className="font-semibold text-gray-200 mb-3">Account</h3>
             <ul className="space-y-2">
               <li><Link to="/settings" className="text-gray-300 hover:text-neonYellow transition">Settings</Link></li>
@@ -57,7 +57,7 @@ function Footer() {
           </div>
 
           {/* PDF Tools */}
-          <div className="text-center sm:text-left">
+          <div className="text-left">
             <h3 className="font-semibold text-gray-200 mb-3">PDF Tools</h3>
             <ul className="space-y-2">
               <li><Link to="/tools/pdf-to-word" className="text-gray-300 hover:text-neonYellow transition">PDF → Word</Link></li>
@@ -69,7 +69,7 @@ function Footer() {
           </div>
 
           {/* Converters */}
-          <div className="text-center sm:text-left">
+          <div className="text-left">
             <h3 className="font-semibold text-gray-200 mb-3">Converters</h3>
             <ul className="space-y-2">
               <li><Link to="/tools/csv-to-excel" className="text-gray-300 hover:text-neonYellow transition">CSV → Excel</Link></li>

@@ -17,6 +17,7 @@ import './styles/forecast-animations.css';
 import './styles/chart-themes.css'; 
 import { Link } from "react-router-dom";
 import { Settings, Brain } from "lucide-react";
+import AdSenseAd from './components/AdSenseAd';
 
 const LoginRequiredModal = ({ onClose, onSignup, onLogin }) => (
   <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -179,12 +180,7 @@ function App() {
 
           {/* Banner Ad */}
           <div className="my-8 flex justify-center">
-            <ins className="adsbygoogle"
-                style={{display:'block'}}
-                data-ad-client="ca-pub-8690159120607552"
-                data-ad-slot="8700675186"
-                data-ad-format="auto"
-                data-full-width-responsive="true"></ins>
+            <AdSenseAd adSlot="8700675186" />
           </div>
 
           {/* Dashboard Grid */}
@@ -276,14 +272,9 @@ function App() {
             />
           )}
           
-          {/* Between Sections Ad */}
+          {/* Banner Ad */}
           <div className="my-8 flex justify-center">
-            <ins className="adsbygoogle"
-                style={{display:'block'}}
-                data-ad-client="ca-pub-8690159120607552"
-                data-ad-slot="8700675186"
-                data-ad-format="auto"
-                data-full-width-responsive="true"></ins>
+            <AdSenseAd adSlot="8700675186" />
           </div>
 
           {/* Features Section */}

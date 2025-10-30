@@ -84,6 +84,81 @@ app.add_middleware(
 )
 
 # ------------------------------
+# Source Code API for AI Assistant
+# ------------------------------
+@app.get("/api/source/{file_path:path}")
+async def get_source_code(file_path: str):
+    """Serve source code files for AI assistant reading"""
+    try:
+        # Security: only allow specific directories
+        allowed_dirs = ["frontend/src", "app"]
+        
+        # Check if path starts with allowed directory
+        if not any(file_path.startswith(d) for d in allowed_dirs):
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Prevent directory traversal
+        if ".." in file_path or file_path.startswith("/"):
+            raise HTTPException(status_code=403, detail="Invalid path")
+        
+        # Build full path relative to project root
+        base_dir = Path(__file__).parent.parent
+        full_path = base_dir / file_path
+        
+        # Check file exists and is a file
+        if not full_path.exists() or not full_path.is_file():
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        # Only serve text files
+        allowed_extensions = {'.js', '.jsx', '.py', '.json', '.css', '.html', '.md', '.txt'}
+        if full_path.suffix.lower() not in allowed_extensions:
+            raise HTTPException(status_code=403, detail="File type not allowed")
+        
+        # Read and return file content
+        return FileResponse(
+            full_path,
+            media_type="text/plain",
+            headers={"Content-Type": "text/plain; charset=utf-8"}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Source code retrieval failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+        
+
+@app.get("/api/source-index")
+async def get_source_index():
+    """List available source files for AI assistant"""
+    try:
+        base_dir = Path(__file__).parent.parent
+        frontend_src = base_dir / "frontend" / "src"
+        app_dir = base_dir / "app"
+        
+        files = []
+        
+        # Frontend files
+        if frontend_src.exists():
+            for ext in ['.jsx', '.js', '.css']:
+                files.extend([
+                    f"frontend/src/{f.relative_to(frontend_src)}"
+                    for f in frontend_src.rglob(f"*{ext}")
+                ])
+        
+        # Backend files
+        if app_dir.exists():
+            for ext in ['.py']:
+                files.extend([
+                    f"app/{f.relative_to(app_dir)}"
+                    for f in app_dir.rglob(f"*{ext}")
+                    if not f.name.startswith('__')
+                ])
+        
+        return {"files": sorted(files), "total": len(files)}
+    except Exception as e:
+        logger.error(f"Source index failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+# ------------------------------
 # Pydantic Models
 # ------------------------------
 class ChartPayloadRequest(BaseModel):
