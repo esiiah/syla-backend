@@ -39,9 +39,9 @@ export default function MiniChartPreview({
     <div 
       className={`fixed ${
         window.innerWidth < 640 
-          ? (isMinimized ? 'top-2 right-2 w-12 h-12' : 'top-2 right-2 left-2 h-48')
-          : (isMinimized ? 'top-4 right-4 w-14 h-14' : 'top-4 right-4 w-80 h-56')
-      } bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-700 transition-all duration-300 ease-in-out z-40 overflow-hidden`}
+          ? (isMinimized ? 'top-2 right-2 w-10 h-10' : 'top-2 right-2 left-2 h-40')
+          : (isMinimized ? 'top-4 right-4 w-12 h-12' : 'top-4 right-4 w-80 h-56')
+      } bg-white dark:bg-slate-900 rounded-lg sm:rounded-xl shadow-2xl border border-gray-200 dark:border-slate-700 transition-all duration-300 ease-in-out z-40 overflow-hidden`}
       style={{
         transform: isMinimized ? 'scale(1)' : 'scale(1)',
         opacity: 1
@@ -54,7 +54,7 @@ export default function MiniChartPreview({
           className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 rounded-lg sm:rounded-xl cursor-pointer group"
           title="Expand chart preview"
         >
-          <BarChart3 size={window.innerWidth < 640 ? 20 : 24} className="text-white group-hover:scale-110 transition-transform" />
+          <BarChart3 size={window.innerWidth < 640 ? 16 : 24} className="text-white group-hover:scale-110 transition-transform" />
         </button>
       ) : (
         <>
@@ -76,7 +76,7 @@ export default function MiniChartPreview({
           </div>
 
           {/* Chart Content */}
-          <div className="p-2 sm:p-4 h-36 sm:h-44 bg-gradient-to-br from-blue-50/30 to-indigo-50/30 dark:from-slate-800/50 dark:to-slate-900/50">
+          <div className="p-2 sm:p-4 h-28 sm:h-44 bg-gradient-to-br from-blue-50/30 to-indigo-50/30 dark:from-slate-800/50 dark:to-slate-900/50">
             {chartData.values && chartData.values.length > 0 ? (
               <Bar data={miniChartData} options={miniOptions} />
             ) : (

@@ -475,6 +475,30 @@ export default function ChartView({
     return finalData;
   }, [options, xAxis, yAxis, perColor, selectedBars, filteredData, data]);
 
+  // Extract labels and minPos for chartOptions
+  const lbls = useMemo(() => {
+    const displayData = filteredData.length > 0 ? filteredData : data;
+    const pairs = displayData.map((row, i) => ({
+      l: row?.[xAxis] ?? `Row ${i + 1}`,
+      v: parseNum(row?.[yAxis])
+    }));
+    
+    if (options.sort === "asc") pairs.sort((a, b) => a.v - b.v);
+    if (options.sort === "desc") pairs.sort((a, b) => b.v - a.v);
+    
+    return pairs.map(p => p.l);
+  }, [filteredData, data, xAxis, yAxis, options.sort]);
+
+  const minPos = useMemo(() => {
+    const displayData = filteredData.length > 0 ? filteredData : data;
+    const vals = displayData.map(r => parseNum(r?.[yAxis]));
+    const compareVals = options.compareField 
+      ? displayData.map(r => parseNum(r?.[options.compareField])) 
+      : [];
+    
+    return Math.max(1e-6, Math.min(...[...vals, ...compareVals].filter(v => v > 0)) || 1);
+  }, [filteredData, data, yAxis, options.compareField]);
+
   const chartOptions = useMemo(() => {
     const tc = themeText();
     const ys = options.logScale ? "logarithmic" : "linear";
@@ -784,6 +808,8 @@ export default function ChartView({
 
   // Render special chart types
   if (options.type === CHART_TYPES.GAUGE) {
+    const displayData = filteredData.length > 0 ? filteredData : data;
+    const vals = displayData.map(r => parseNum(r?.[yAxis]));
     const avgValue = vals.reduce((a, b) => a + b, 0) / (vals.length || 1);
     return (
       <div className="rounded-2xl bg-white border shadow-sm dark:bg-ink/80 dark:border-white/5 p-5">
@@ -929,7 +955,11 @@ const getChartComponent = () => {
   const handleBarClick = (seriesKey, label) => {
     const index = lbls.indexOf(label);
     if (index !== -1) {
-      const originalIndex = map[index];
+      // Find original index in full dataset
+      const displayData = filteredData.length > 0 ? filteredData : data;
+      const originalIndex = data.findIndex(row => 
+        displayData[index] && row[xAxis] === displayData[index][xAxis]
+      );
       if (!selectionMode) {
         setEditing({ index: originalIndex, label });
       }

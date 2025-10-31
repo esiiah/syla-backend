@@ -256,13 +256,13 @@ export default function ForecastPage() {
           {forecastResult && (
             <div className="mb-6">
               {/* Sorting Toggle */}
-                <div className="flex items-center justify-between mb-4">
-                <div className="text-sm text-gray-600 dark:text-slate-400">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+                <div className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">
                   Showing {sortedForecastData?.forecast?.length || 0} forecast periods
                 </div>
       
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600 dark:text-slate-400">Sort:</span>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <span className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">Sort:</span>
                   <div className="flex bg-white dark:bg-slate-800 rounded-lg border border-gray-300 dark:border-slate-600 p-1">
                     <button
                       onClick={() => setSortOrder('none')}
@@ -276,25 +276,27 @@ export default function ForecastPage() {
                     </button>
                     <button
                       onClick={() => setSortOrder('asc')}
-                      className={`px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-1 ${
+                      className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 flex-1 sm:flex-initial justify-center ${
                         sortOrder === 'asc'
                           ? 'bg-blue-600 text-white'
                           : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
                       }`}
                     >
-                      <ArrowUpDown size={14} />
-                      Ascending
+                      <ArrowUpDown size={12} className="sm:w-3.5 sm:h-3.5" />
+                      <span className="hidden sm:inline">Ascending</span>
+                      <span className="sm:hidden">Asc</span>
                     </button>
                     <button
                       onClick={() => setSortOrder('desc')}
-                      className={`px-3 py-1.5 rounded text-sm font-medium transition-colors flex items-center gap-1 ${
+                      className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded text-xs sm:text-sm font-medium transition-colors flex items-center gap-1 flex-1 sm:flex-initial justify-center ${
                         sortOrder === 'desc'
                           ? 'bg-blue-600 text-white'
                           : 'text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700'
                       }`}
                     >
-                      <ArrowUpDown size={14} className="rotate-180" />
-                      Descending
+                      <ArrowUpDown size={12} className="sm:w-3.5 sm:h-3.5 rotate-180" />
+                      <span className="hidden sm:inline">Descending</span>
+                      <span className="sm:hidden">Desc</span>
                     </button>
                   </div>
                 </div>

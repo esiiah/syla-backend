@@ -622,7 +622,7 @@ async def excel_to_pdf(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-@router.post("/convert/pdf-to-word")
+@router.post("/pdf-to-word")
 async def pdf_to_word(file: UploadFile = File(...)):
     """Convert PDF to Word using PyMuPDF"""
     try:

@@ -1,4 +1,4 @@
-// frontend/src/components/Navbar.jsx - FIXED CLOSING TAGS
+// frontend/src/components/Navbar.jsx
 import React, { useState, useRef, useEffect, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { 
@@ -8,13 +8,12 @@ import {
 import { UserContext } from "../context/UserContext";
 import Sidebar from "./Sidebar";
 
-// Logo component with error handling
 const Logo = () => {
   const [imageError, setImageError] = useState(false);
   
   if (imageError) {
     return (
-      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-sm sm:text-lg">
+      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
         SA
       </div>
     );
@@ -24,7 +23,7 @@ const Logo = () => {
     <img
       src="/favicon.png"
       alt="Syla Analytics Logo"
-      className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl"
+      className="w-8 h-8 rounded-xl flex-shrink-0"
       onError={() => setImageError(true)}
     />
   );
@@ -46,7 +45,6 @@ export default function Navbar() {
   const notificationRef = useRef(null);
   const searchRef = useRef(null);
 
-  // Fetch notifications from backend
   const fetchNotifications = async () => {
     if (!user) return;
     
@@ -69,14 +67,12 @@ export default function Navbar() {
     }
   };
 
-  // Initial notification fetch
   useEffect(() => {
     if (user) {
       fetchNotifications();
     }
   }, [user]);
 
-  // Fetch search results
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
@@ -111,7 +107,6 @@ export default function Navbar() {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
-  // Close menus when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
@@ -187,10 +182,8 @@ export default function Navbar() {
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  // FIXED: Get user avatar/initial with proper URL handling
   const getUserDisplay = () => {
     if (user?.avatar_url) {
-      // Handle both relative and absolute URLs
       const avatarUrl = user.avatar_url.startsWith('http') 
         ? user.avatar_url 
         : user.avatar_url;
@@ -199,10 +192,9 @@ export default function Navbar() {
         <img 
           src={avatarUrl} 
           alt={user.name || 'User'} 
-          className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover"
-          key={user.avatar_url} // Force re-render when avatar changes
+          className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+          key={user.avatar_url}
           onError={(e) => {
-            // Fallback to initial if image fails to load
             console.error("Avatar failed to load:", avatarUrl);
             e.target.style.display = 'none';
             if (e.target.nextSibling) {
@@ -215,7 +207,7 @@ export default function Navbar() {
     
     const initial = user?.name?.charAt(0)?.toUpperCase() || 'U';
     return (
-      <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white text-xs sm:text-sm font-medium">
+      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
         {initial}
       </div>
     );
@@ -226,40 +218,39 @@ export default function Navbar() {
       <nav className="bg-white dark:bg-slate-900 shadow-sm" style={{ zIndex: 'var(--z-navbar)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/" className="flex items-center gap-2 min-w-0 flex-1">
               <Logo />
-              <div className="hidden sm:block">
-                <h1 className="text-base md:text-xl font-bold text-gray-800 dark:text-slate-200 leading-tight">
+              <div className="min-w-0">
+                <h1 className="text-xs sm:text-sm md:text-base font-bold text-gray-800 dark:text-slate-200 leading-tight truncate">
                   Syla Analytics
                 </h1>
-                <p className="text-[10px] md:text-xs text-gray-500 dark:text-slate-400 leading-tight">
+                <p className="text-[9px] sm:text-[10px] text-gray-500 dark:text-slate-400 leading-tight truncate">
                   Futuristic Data Intelligence
                 </p>
               </div>
             </Link>
 
-            {/* Theme, Sign In, and Get Started - responsive layout */}
-            <div className="flex items-center justify-end gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={toggleTheme}
-                className="p-1.5 sm:p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors flex items-center justify-center"
+                className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                 title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
               >
-                {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
+                {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
               </button>
 
               <Link
                 to="/login"
-                className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-slate-300 dark:hover:text-slate-100 transition-colors whitespace-nowrap rounded-md border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-800 flex-shrink-0"
+                className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-slate-300 dark:hover:text-slate-100 transition-colors rounded-md border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-800"
               >
-                Sign&nbsp;In
+                Sign In
               </Link>
 
               <Link
                 to="/signup"
-                className="px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors whitespace-nowrap flex-shrink-0"
+                className="px-3 py-2 text-sm font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors whitespace-nowrap"
               >
-                Get&nbsp;Started
+                Get Started
               </Link>
             </div>
           </div>
@@ -273,19 +264,18 @@ export default function Navbar() {
       <nav className="bg-white dark:bg-slate-900 shadow-sm" style={{ zIndex: 'var(--z-navbar)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/" className="flex items-center gap-2 min-w-0 flex-1">
               <Logo />
-              <div className="hidden sm:block">
-                <h1 className="text-base md:text-xl font-bold text-gray-800 dark:text-slate-200 leading-tight">
+              <div className="min-w-0 hidden xs:block">
+                <h1 className="text-xs sm:text-sm md:text-base font-bold text-gray-800 dark:text-slate-200 leading-tight truncate">
                   Syla Analytics
                 </h1>
-                <p className="text-[10px] md:text-xs text-gray-500 dark:text-slate-400 leading-tight">
+                <p className="text-[9px] sm:text-[10px] text-gray-500 dark:text-slate-400 leading-tight truncate">
                   Futuristic Data Intelligence
                 </p>
               </div>
             </Link>
 
-            {/* Search Bar - Hidden on mobile */}
             <div className="hidden lg:flex flex-1 max-w-md mx-8 relative" ref={searchRef}>
               <div className="relative w-full">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
@@ -338,45 +328,40 @@ export default function Navbar() {
               </div>
             </div>
 
-            {/* Right side */}
-            <div className="flex items-center gap-1 sm:gap-2">
-              {/* Hamburger Menu - Mobile only */}
+            <div className="flex items-center gap-3 flex-shrink-0">
               <button
                 onClick={() => setShowSidebar(!showSidebar)}
-                className="md:hidden p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                 title="Menu"
               >
-                <Menu size={18} />
+                <Menu size={20} />
               </button>
 
-              {/* Theme toggle - Hidden on mobile, shown in sidebar */}
               <button
                 onClick={toggleTheme}
-                className="hidden md:block p-1.5 md:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                className="hidden md:block p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                 title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
               >
                 {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
               </button>
 
-              {/* Help / Pricing links - Hidden on mobile, shown in sidebar */}
               <div className="hidden md:flex items-center gap-1">
-                <Link to="/help" className="p-1.5 md:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                <Link to="/help" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
                   <HelpCircle size={18} className="text-gray-600 dark:text-slate-300" />
                 </Link>
 
-                <Link to="/pricing" className="p-1.5 md:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                <Link to="/pricing" className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
                   <DollarSign size={18} className="text-gray-600 dark:text-slate-300" />
                 </Link>
               </div>        
 
-              {/* Notifications - Always visible */}
               <div className="relative" ref={notificationRef}>
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className="relative p-1.5 md:p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                  className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                   title="Notifications"
                 >
-                  <Bell size={18} />
+                  <Bell size={20} />
                   {unreadCount > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center font-medium">
                       {unreadCount > 9 ? '9+' : unreadCount}
@@ -444,17 +429,16 @@ export default function Navbar() {
                 )}
               </div>
 
-              {/* User Menu - Always visible */}
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center gap-1 sm:gap-2 p-1 sm:p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                  className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                 >
                   {getUserDisplay()}
                   <span className="hidden sm:block text-sm font-medium text-gray-700 dark:text-slate-300 max-w-[100px] truncate">
                     {user.name}
                   </span>
-                  <ChevronDown size={14} className="hidden sm:block text-gray-500" />
+                  <ChevronDown size={14} className="hidden sm:block text-gray-500 flex-shrink-0" />
                 </button>
 
                 {showUserMenu && (
@@ -504,17 +488,14 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Mobile Sidebar Overlay */}
       {showSidebar && (
         <>
-          {/* Backdrop */}
           <div 
-            className="fixed inset-0 bg-black/50 z-40 md:hidden"
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
             onClick={() => setShowSidebar(false)}
           />
           
-          {/* Sidebar */}
-          <div className="fixed top-0 left-0 h-full w-64 bg-white dark:bg-slate-900 z-50 md:hidden shadow-xl transform transition-transform duration-300">
+          <div className="fixed top-0 left-0 h-full w-64 bg-white dark:bg-slate-900 z-50 lg:hidden shadow-xl transform transition-transform duration-300">
             <Sidebar 
               onReportChange={() => {}} 
               theme={theme} 

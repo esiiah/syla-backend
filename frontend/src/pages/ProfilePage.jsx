@@ -340,9 +340,9 @@ useEffect(() => {
                         </div>
                         <button
                           onClick={() => fileInputRef.current?.click()}
-                          className="absolute bottom-0 right-0 p-2 bg-neonBlue text-white rounded-full shadow-lg hover:bg-blue-600 transition-colors duration-200"
+                          className="absolute bottom-0 right-0 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center bg-neonBlue text-white rounded-full shadow-lg hover:bg-blue-600 transition-colors duration-200"
                         >
-                          <Camera className="w-4 h-4" />
+                          <Camera className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
                       </div>
                       

@@ -6,7 +6,7 @@ import {
   LayoutDashboard, FolderOpen, BarChart,
   Settings, HelpCircle, Sun, Moon,
   FilePlus, FileText, FileSpreadsheet,
-  FileArchive, Cpu, BookOpen, DollarSign
+  FileArchive, Cpu, BookOpen, DollarSign, X
 } from "lucide-react";
 import AdSenseAd from './AdSenseAd';
 
@@ -16,8 +16,6 @@ function Sidebar({ onReportChange, theme, setTheme, isMobile, onClose }) {
   const [reportType, setReportType] = useState("Bar");
   const [toolsOpen, setToolsOpen] = useState(false);
 
-
-  // Updated tool ordering
   const tools = [
     { title: "PDF → Word", path: "/tools/pdf-to-word", icon: FileText },
     { title: "PDF → Excel", path: "/tools/pdf-to-excel", icon: FileSpreadsheet },
@@ -37,13 +35,12 @@ function Sidebar({ onReportChange, theme, setTheme, isMobile, onClose }) {
   };
 
   return (
-      <aside
-        className={`${collapsed ? (isMobile ? "w-64" : "w-16") : "w-64"} flex flex-col transition-all duration-300 relative
-        bg-white text-gray-900 border-r border-gray-200
-        dark:bg-ink/80 dark:text-slate-200 dark:border-white/5 rounded-r-2xl shadow-soft neon-border
-        ${isMobile ? 'flex h-full' : 'hidden lg:flex'}`}
-      >
-      {/* Collapse toggle - Hidden on mobile */}
+    <aside
+      className={`${collapsed ? (isMobile ? "w-64" : "w-16") : "w-64"} flex flex-col transition-all duration-300 relative
+      bg-white text-gray-900 border-r border-gray-200
+      dark:bg-ink/80 dark:text-slate-200 dark:border-white/5 rounded-r-2xl shadow-soft neon-border
+      ${isMobile ? 'flex h-full' : 'hidden lg:flex'}`}
+    >
       {!isMobile && (
         <button
           onClick={() => setCollapsed(!collapsed)}
@@ -59,23 +56,19 @@ function Sidebar({ onReportChange, theme, setTheme, isMobile, onClose }) {
         </button>
       )}
 
-      {/* Mobile Close Button */}
       {isMobile && (
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-2 rounded-full
+          className="absolute top-4 right-4 z-10 p-1.5 rounded-full
           bg-gray-200 dark:bg-black/50 border border-gray-300 dark:border-white/10
-          hover:bg-gray-300 dark:hover:bg-white/10 transition"
+          hover:bg-gray-300 dark:hover:bg-white/10 transition flex items-center justify-center"
         >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <X size={16} />
         </button>
       )}
 
-      {/* User Profile Section - Only show when logged in and expanded */}
       {!collapsed && user && (
-        <div className="px-3 py-4 border-b border-gray-200 dark:border-white/10">
+        <div className="px-3 py-4 pt-12 border-b border-gray-200 dark:border-white/10">
           <div className="flex items-center gap-3">
             {user.avatar_url ? (
               <img 
@@ -100,7 +93,6 @@ function Sidebar({ onReportChange, theme, setTheme, isMobile, onClose }) {
         </div>
       )}
 
-      {/* Nav links */}
       <div className="flex-1 px-3 py-5 space-y-2 overflow-y-auto">
         <Link to="/" className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 group">
           <LayoutDashboard className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300" />
@@ -139,7 +131,6 @@ function Sidebar({ onReportChange, theme, setTheme, isMobile, onClose }) {
           )}
         </div>
 
-        {/* File Tools Section */}
         <div className="mt-3 px-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -165,7 +156,6 @@ function Sidebar({ onReportChange, theme, setTheme, isMobile, onClose }) {
           )}
         </div>
 
-        {/* Settings + Help - Fixed with proper Links */}
         <div className="mt-4 px-3">
           <Link to="/settings" className="flex items-center px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 group">
             <Settings className="w-4 h-4 mr-2 text-gray-600 dark:text-slate-300" />
@@ -188,16 +178,13 @@ function Sidebar({ onReportChange, theme, setTheme, isMobile, onClose }) {
         </div>
       </div>
 
-      {/* Ad Section - Only show when expanded */}
       {!collapsed && (
         <div className="px-3 py-3 border-t border-gray-200 dark:border-white/10">
           <AdSenseAd key={collapsed ? 'collapsed' : 'expanded'} adSlot="4212240615" />
         </div>
       )}
 
-      {/* Footer buttons */}
       <div className="px-3 py-4 border-t border-gray-200 dark:border-white/10 space-y-2">
-        {/* Theme toggle */}
         <button
           onClick={handleThemeToggle}
           className="w-full flex items-center justify-center px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm text-gray-800 dark:bg-black/40 dark:hover:bg-white/5 dark:text-slate-200 transition"
@@ -215,7 +202,6 @@ function Sidebar({ onReportChange, theme, setTheme, isMobile, onClose }) {
           )}
         </button>
 
-        {/* Login / Signup */}
         <Link
           to="/login"
           className="w-full flex items-center justify-center px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm text-gray-800 dark:bg-black/40 dark:hover:bg-white/5 dark:text-slate-200 transition"

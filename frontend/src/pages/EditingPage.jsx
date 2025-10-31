@@ -354,10 +354,10 @@ export default function EditingPage() {
         {/* Floating Preview Button */}
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="fixed bottom-6 right-6 p-3 bg-green-600 text-white rounded-full shadow-lg hover:bg-green-700 transition-colors z-10"
+          className="fixed bottom-6 right-6 w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center bg-green-600 text-white rounded-full shadow-lg hover:bg-green-700 transition-colors z-10"
           title="Upload File for Preview"
         >
-          <Eye size={20} />
+          <Eye size={18} className="sm:w-5 sm:h-5" />
         </button>
 
         <input
