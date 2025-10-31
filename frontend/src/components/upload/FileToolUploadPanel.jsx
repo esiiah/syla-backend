@@ -174,23 +174,23 @@ export default function FileToolUploadPanel({
 
   return (
     <section
-      className="rounded-2xl bg-white dark:bg-slate-900 border-2 shadow-lg p-6 max-w-6xl fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50"
+      className="rounded-2xl bg-white dark:bg-slate-900 border-2 shadow-lg p-4 md:p-6 w-full max-w-6xl mx-auto"
       style={{ borderColor: "rgba(14,165,233,0.35)" }}
     >
-      <h3 className="font-display text-lg mb-2 text-gray-800 dark:text-slate-200">{getTitle()}</h3>
-      {hint && <p className="text-sm text-gray-500 dark:text-slate-400 mb-6">{hint}</p>}
+      <h3 className="font-display text-base md:text-lg mb-2 text-gray-800 dark:text-slate-200">{getTitle()}</h3>
+      {hint && <p className="text-xs md:text-sm text-gray-500 dark:text-slate-400 mb-4 md:mb-6">{hint}</p>}
 
-      <div className="flex flex-col lg:flex-row gap-6 items-center">
+      <div className="flex flex-col gap-4 md:gap-6">
         {/* Dropzone */}
         <div
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
-          className="flex-1 rounded-xl p-6 text-center transition-all duration-300 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-dashed hover:border-sky-400"
-          style={{ minHeight: "140px", display: "flex", flexDirection: "column", justifyContent: "center", boxShadow: "0 8px 32px rgba(59, 130, 246, 0.08)" }}
+          className="rounded-xl p-4 md:p-6 text-center transition-all duration-300 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-dashed hover:border-sky-400"
+          style={{ minHeight: "120px", display: "flex", flexDirection: "column", justifyContent: "center", boxShadow: "0 8px 32px rgba(59, 130, 246, 0.08)" }}
         >
-          <div className="mb-3">
+          <div className="mb-2 md:mb-3">
             <svg
-              className="mx-auto h-10 w-10 text-sky-400"
+              className="mx-auto h-8 w-8 md:h-10 md:w-10 text-sky-400"
               stroke="currentColor"
               fill="none"
               viewBox="0 0 48 48"
@@ -203,14 +203,14 @@ export default function FileToolUploadPanel({
               />
             </svg>
           </div>
-          <p className="mb-2 font-medium text-gray-700 dark:text-slate-300">Drag & drop your file here</p>
-          <p className="text-xs mb-4 text-gray-500 dark:text-slate-400">
+          <p className="mb-1 md:mb-2 font-medium text-sm md:text-base text-gray-700 dark:text-slate-300">Drag & drop your file here</p>
+          <p className="text-[10px] md:text-xs mb-3 md:mb-4 text-gray-500 dark:text-slate-400">
             Accepted: <span className="font-mono text-sky-500">{getAccept()}</span>
           </p>
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            className="px-4 py-2 rounded-lg border-2 bg-white text-sky-500 hover:bg-sky-500 hover:text-white transition-all duration-300 font-medium shadow-md"
+            className="px-3 md:px-4 py-1.5 md:py-2 text-sm rounded-lg border-2 bg-white text-sky-500 hover:bg-sky-500 hover:text-white transition-all duration-300 font-medium shadow-md"
           >
             Choose File
           </button>
@@ -224,23 +224,23 @@ export default function FileToolUploadPanel({
           />
         </div>
 
-        {/* Right-hand side */}
-        <div className="lg:w-80 w-full space-y-4">
+        {/* Selected Files Section */}
+        <div className="space-y-3 md:space-y-4">
           {/* Selected Files */}
-          <div className="p-4 rounded-lg bg-gray-50 dark:bg-slate-800/50 border border-gray-200">
-            <div className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Selected Files:</div>
+          <div className="p-3 md:p-4 rounded-lg bg-gray-50 dark:bg-slate-800/50 border border-gray-200">
+            <div className="text-xs md:text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Selected Files:</div>
             {files.length ? (
               <div className="space-y-1">
                 {files.map((f, i) => (
-                  <div key={i} className="flex items-center justify-between p-2 bg-white dark:bg-slate-700 rounded border">
+                  <div key={i} className="flex items-center justify-between p-2 bg-white dark:bg-slate-700 rounded border text-xs md:text-sm">
                     <span className="truncate flex-1 mr-2">{f.name || f.filename}</span>
-                    {f.size && <span className="text-xs text-gray-500 dark:text-slate-400">{Math.round(f.size / 1024)} KB</span>}
-                    <button onClick={() => handleRemoveFile(i)} className="ml-2 px-2 py-1 text-xs rounded bg-red-100 text-red-700">X</button>
+                    {f.size && <span className="text-[10px] md:text-xs text-gray-500 dark:text-slate-400 mr-2">{Math.round(f.size / 1024)} KB</span>}
+                    <button onClick={() => handleRemoveFile(i)} className="px-2 py-1 text-xs rounded bg-red-100 text-red-700">X</button>
                   </div>
                 ))}
               </div>
             ) : (
-              <span className="text-gray-500 dark:text-slate-500">No file selected</span>
+              <span className="text-xs md:text-sm text-gray-500 dark:text-slate-500">No file selected</span>
             )}
           </div>
 
@@ -249,7 +249,7 @@ export default function FileToolUploadPanel({
             <button
               onClick={handleUpload}
               disabled={loading || internalLoading}
-              className={`w-full px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
+              className={`w-full px-4 md:px-6 py-2 md:py-3 text-sm md:text-base rounded-lg font-medium transition-all duration-300 ${
                 loading || internalLoading
                   ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                   : "bg-sky-500 text-white hover:bg-sky-600 shadow-lg"
@@ -261,13 +261,13 @@ export default function FileToolUploadPanel({
 
           {/* View mode switcher */}
           {files.length > 0 && (
-            <div className="flex items-center justify-center gap-2 mt-2">
-              <span className="text-xs text-gray-600 dark:text-slate-400 mr-2">View:</span>
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-[10px] md:text-xs text-gray-600 dark:text-slate-400 mr-2">View:</span>
               {["grid", "details", "list"].map((mode) => (
                 <button
                   key={mode}
                   onClick={() => setViewMode(mode)}
-                  className={`px-3 py-1.5 rounded text-xs font-medium transition-all duration-200 ${
+                  className={`px-2 md:px-3 py-1 md:py-1.5 rounded text-[10px] md:text-xs font-medium transition-all duration-200 ${
                     viewMode === mode
                       ? "bg-sky-500 text-white shadow-sm"
                       : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -281,7 +281,7 @@ export default function FileToolUploadPanel({
 
           {/* Internal error */}
           {internalError && (
-            <div className="mt-2 p-2 text-xs text-red-600 bg-red-50 rounded border border-red-200">{internalError}</div>
+            <div className="p-2 text-[10px] md:text-xs text-red-600 bg-red-50 rounded border border-red-200">{internalError}</div>
           )}
         </div>
       </div>

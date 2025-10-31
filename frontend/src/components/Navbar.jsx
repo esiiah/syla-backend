@@ -266,7 +266,7 @@ export default function Navbar() {
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center gap-2 min-w-0 flex-1">
               <Logo />
-              <div className="min-w-0 hidden xs:block">
+              <div className="min-w-0">
                 <h1 className="text-xs sm:text-sm md:text-base font-bold text-gray-800 dark:text-slate-200 leading-tight truncate">
                   Syla Analytics
                 </h1>

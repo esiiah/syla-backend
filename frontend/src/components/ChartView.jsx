@@ -1066,17 +1066,20 @@ const getChartComponent = () => {
       {/* Chart container */}
       <div className="mt-4 rounded-xl p-2 sm:p-3 md:p-4 bg-gradient-to-b from-gray-50 to-white border dark:from-black/20 dark:to-black/10 dark:border-white/10 overflow-hidden">
         <div style={{ 
-          height: window.innerWidth < 640 ? 280 : window.innerWidth < 768 ? 320 : (options.enable3D ? 500 : 450), 
+          height: window.innerWidth < 640 ? 250 : window.innerWidth < 768 ? 300 : (options.enable3D ? 500 : 450), 
           position: 'relative', 
-          overflow: 'hidden',
-          padding: window.innerWidth < 640 ? '10px 5px' : (options.enable3D ? '30px 20px' : '20px 0'),
-          maxWidth: '100%'
+          overflow: 'visible',
+          padding: window.innerWidth < 640 ? '5px' : (options.enable3D ? '30px 20px' : '20px 0'),
+          maxWidth: '100%',
+          width: '100%'
         }}>
           <ChartComponent
             ref={ref}
             data={chartData}
             options={{
               ...chartOptions,
+              responsive: true,
+              maintainAspectRatio: false,
               onClick: (event, elements) => {
                 if (elements.length > 0) {
                   const element = elements[0];

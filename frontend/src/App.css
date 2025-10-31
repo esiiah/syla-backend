@@ -390,3 +390,87 @@ main,
     grid-column: span 1 !important;
   }
 }
+
+/* Mobile Chart Constraints */
+@media (max-width: 639px) {
+  /* Force chart containers to respect mobile width */
+  canvas {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+  
+  /* Constrain all chart-related divs */
+  [class*="chart"],
+  [class*="Chart"] {
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+  }
+  
+  /* Summary table mobile optimization */
+  table {
+    font-size: 0.75rem !important;
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  table thead {
+    display: none;
+  }
+  
+  table tr {
+    display: block;
+    margin-bottom: 1rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+  }
+  
+  table td {
+    display: block;
+    text-align: left !important;
+    padding: 0.25rem 0.5rem !important;
+  }
+  
+  table td:first-child {
+    font-weight: 600;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 0.5rem !important;
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Nested tables in summary */
+  table table {
+    margin: 0.5rem 0;
+    border: 1px solid #d1d5db;
+  }
+  
+  table table td {
+    font-size: 0.7rem;
+    padding: 0.25rem !important;
+  }
+}
+
+/* Prevent horizontal scroll on mobile */
+@media (max-width: 639px) {
+  body, html {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+  }
+  
+  #root, .App {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+  }
+  
+  main {
+    overflow-x: hidden !important;
+    max-width: 100vw !important;
+  }
+  
+  /* Force all sections to respect viewport */
+  section, div[class*="col-span"] {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+}

@@ -184,11 +184,11 @@ function App() {
           </div>
 
           {/* Dashboard Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mt-6">
-            <section className="lg:col-span-1 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
-              <div className="p-5">
-                <h2 className="font-display text-lg mb-1">Upload Data</h2>
-                <p className="text-gray-500 text-sm mb-4 dark:text-slate-400">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mt-6 max-w-full overflow-hidden">
+            <section className="lg:col-span-1 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border max-w-full">
+              <div className="p-3 sm:p-5">
+                <h2 className="font-display text-base sm:text-lg mb-1">Upload Data</h2>
+                <p className="text-gray-500 text-xs sm:text-sm mb-4 dark:text-slate-400">
                   CSV / Excel only. Preview & progress included.
                 </p>
                 <FileUpload
@@ -202,10 +202,10 @@ function App() {
               </div>
             </section>
 
-            <section className="lg:col-span-2 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
-              <div className="p-5">
+            <section className="lg:col-span-2 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border max-w-full overflow-hidden">
+              <div className="p-3 sm:p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-display text-lg">Visualization</h2>
+                  <h2 className="font-display text-base sm:text-lg">Visualization</h2>
                   <button
                     className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-black/30 transition"
                     onClick={() => setShowOptions((prev) => !prev)}
@@ -215,7 +215,7 @@ function App() {
                 </div>
 
                 {showOptions && (
-                  <div className="mb-4">
+                  <div className="mb-4 max-w-full overflow-x-hidden">
                     <ChartOptions 
                       options={chartData.chartOptions} 
                       setOptions={updateChartOptions} 
@@ -225,53 +225,56 @@ function App() {
                   </div>
                 )}
 
-                {user && hasData ? (
-                  <ChartView
-                    data={chartData.data}
-                    columns={chartData.columns}
-                    types={chartData.types}
-                    options={chartData.chartOptions}
-                    chartTitle={chartData.chartTitle}
-                    xAxis={chartData.xAxis}
-                    yAxis={chartData.yAxis}
-                    setXAxis={(xAxis) => updateChartData({ xAxis })}
-                    setYAxis={(yAxis) => updateChartData({ yAxis })}
-                  />
-                ) : !user ? (
-                  <div className="rounded-2xl p-8 bg-gray-50 dark:bg-black/20 text-center text-gray-500">
-                    <div className="text-lg font-medium mb-2">Sign in to visualize</div>
-                    <div className="text-sm">Create an account or sign in to unlock visualization features.</div>
-                    <div className="mt-4">
-                      <button
-                        onClick={() => setShowLoginModal(true)}
-                        className="px-6 py-2 bg-neonBlue text-white rounded-lg hover:bg-blue-600 transition-colors duration-200"
-                      >
-                        Sign In
-                      </button>
+                <div className="max-w-full overflow-hidden">
+                  {user && hasData ? (
+                    <ChartView
+                      data={chartData.data}
+                      columns={chartData.columns}
+                      types={chartData.types}
+                      options={chartData.chartOptions}
+                      chartTitle={chartData.chartTitle}
+                      xAxis={chartData.xAxis}
+                      yAxis={chartData.yAxis}
+                      setXAxis={(xAxis) => updateChartData({ xAxis })}
+                      setYAxis={(yAxis) => updateChartData({ yAxis })}
+                    />
+                  ) : !user ? (
+                    <div className="rounded-2xl p-6 sm:p-8 bg-gray-50 dark:bg-black/20 text-center text-gray-500">
+                      <div className="text-base sm:text-lg font-medium mb-2">Sign in to visualize</div>
+                      <div className="text-xs sm:text-sm">Create an account or sign in to unlock visualization features.</div>
+                      <div className="mt-4">
+                        <button
+                          onClick={() => setShowLoginModal(true)}
+                          className="px-4 sm:px-6 py-2 bg-neonBlue text-white rounded-lg hover:bg-blue-600 transition-colors duration-200 text-sm sm:text-base"
+                        >
+                          Sign In
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl p-8 bg-gray-50 dark:bg-black/20 text-center text-gray-500">
-                    <div className="text-lg font-medium">Upload to visualize</div>
-                    <div className="text-sm mt-2">
-                      Upload a CSV / Excel file on the left to enable the visualization tools.
+                  ) : (
+                    <div className="rounded-2xl p-6 sm:p-8 bg-gray-50 dark:bg-black/20 text-center text-gray-500">
+                      <div className="text-base sm:text-lg font-medium">Upload to visualize</div>
+                      <div className="text-xs sm:text-sm mt-2">
+                        Upload a CSV / Excel file on the left to enable the visualization tools.
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </section>
           </div>
           
-          {/* Summary Section */}
-
+          {/* Summary Section with Mobile Collapse */}
           {Object.keys(chartData.summary || {}).length > 0 && user && (
-            <ChartSummaryReport 
-              summary={chartData.summary}
-              data={chartData.data}
-              chartTitle={chartData.chartTitle}
-            />
+            <div className="max-w-full overflow-hidden mt-6">
+              <ChartSummaryReport 
+                summary={chartData.summary}
+                data={chartData.data}
+                chartTitle={chartData.chartTitle}
+              />
+            </div>
           )}
-          
+                  
           {/* Banner Ad */}
           <div className="my-8 flex justify-center">
             <AdSenseAd adSlot="8700675186" />

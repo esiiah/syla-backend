@@ -1,9 +1,8 @@
-
 // FileToolExportPanel.jsx
 import React, { useState, useEffect, useRef } from "react";
 
 export default function FileToolExportPanel({
-  files = [], // files[] should be File objects (from input) OR metadata returned by upload
+  files = [],
   onUpload = null,
   uploadLabel = "Process",
   downloadUrl = "",
@@ -253,8 +252,8 @@ export default function FileToolExportPanel({
         left: position ? position.x : "auto",
         transform: position ? "none" : (window.innerWidth < 768 ? "none" : "translateY(-50%)"),
         ...(position && { top: position.y }),
-        width: window.innerWidth < 768 ? "calc(100vw - 16px)" : panelWidth,
-        maxHeight: "calc(100vh - 72px)",
+        width: window.innerWidth < 768 ? "280px" : panelWidth,
+        maxHeight: window.innerWidth < 768 ? "auto" : "calc(100vh - 72px)",
         zIndex: 1000,
         display: "flex",
         flexDirection: "column",
@@ -262,40 +261,41 @@ export default function FileToolExportPanel({
         borderRadius: "1rem",
         boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
         overflow: "hidden",
-        maxWidth: window.innerWidth < 768 ? "calc(100vw - 16px)" : "none",
+        maxWidth: window.innerWidth < 768 ? "280px" : "none",
         border: "2px solid rgba(14,165,233,0.35)", // sky-blue border
       }}
     >
       {/* Header */}
       <div
         onMouseDown={handleMouseDown}
-        className="p-3 border-b border-gray-200 bg-sky-50 cursor-grab"
+        className="p-2.5 md:p-3 border-b border-gray-200 bg-sky-50 cursor-grab"
       >
-        <div className="text-sm font-semibold text-gray-800 flex items-center">
+        <div className="text-xs md:text-sm font-semibold text-gray-800 flex items-center">
           {getProcessingTitle()}
         </div>
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto px-5 py-4">
+      <div className="flex-1 overflow-y-auto px-3 py-3 md:px-5 md:py-4">
         {/* Compression controls */}
         {toolType === "compress" && !conversionComplete && (
-          <div className="mb-4 flex gap-2">
+          <div className="mb-3 md:mb-4 flex gap-1.5 md:gap-2">
             {[
               { value: "light", label: "Light", reduction: "~25%" },
-              { value: "medium", label: "Medium", reduction: "~50%" },
+              { value: "medium", label: "Med", reduction: "~50%" },
               { value: "strong", label: "Strong", reduction: "~75%" },
             ].map((opt) => (
               <button
                 key={opt.value}
                 onClick={() => handleCompressionChange(opt.value)}
-                className={`flex-1 px-3 py-2 text-xs rounded border transition-all duration-150 ${
+                className={`flex-1 px-2 py-1.5 md:px-3 md:py-2 text-[10px] md:text-xs rounded border transition-all duration-150 ${
                   compressionLevel === opt.value
                     ? "border-sky-500 bg-sky-100 text-sky-700"
                     : "border-gray-300 text-gray-700 hover:border-gray-400"
                 }`}
               >
-                {opt.label} {opt.reduction}
+                <div className="font-medium">{opt.label}</div>
+                <div className="text-[8px] md:text-[9px]">{opt.reduction}</div>
               </button>
             ))}
           </div>
@@ -303,16 +303,16 @@ export default function FileToolExportPanel({
 
         {/* Status */}
         <div
-          className={`mb-4 p-3 rounded-lg ${
+          className={`mb-3 md:mb-4 p-2 md:p-3 rounded-lg ${
             conversionComplete
               ? "bg-green-50 border border-green-200 text-green-700"
               : "bg-sky-50 border border-sky-200 text-sky-700"
           }`}
         >
-          <span className="text-sm font-medium">
+          <span className="text-xs md:text-sm font-medium">
             {conversionComplete ? `${getProcessingTitle()} Complete!` : "Ready to process"}
           </span>
-          {fileName && conversionComplete && <p className="text-xs mt-1 break-all">{fileName}</p>}
+          {fileName && conversionComplete && <p className="text-[10px] md:text-xs mt-1 break-all">{fileName}</p>}
         </div>
 
         {/* Upload / Process Button */}
@@ -320,7 +320,7 @@ export default function FileToolExportPanel({
           <button
             onClick={handleUpload}
             disabled={loading || internalLoading}
-            className={`w-full px-4 py-2 rounded-lg text-sm font-semibold mb-3 transition-all duration-300 ${
+            className={`w-full px-3 py-2 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-semibold mb-2 md:mb-3 transition-all duration-300 ${
               loading || internalLoading
                 ? "bg-gray-200 text-gray-500 cursor-not-allowed"
                 : "bg-sky-500 text-white hover:bg-sky-600 shadow-md"
@@ -335,7 +335,7 @@ export default function FileToolExportPanel({
           <button
             onClick={handleDownload}
             disabled={!downloadUrl}
-            className={`w-full px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${
+            className={`w-full px-3 py-2 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-semibold transition-all duration-300 ${
               downloadUrl
                 ? "bg-green-500 text-white hover:bg-green-600"
                 : "bg-gray-100 text-gray-500 cursor-not-allowed"
@@ -347,7 +347,7 @@ export default function FileToolExportPanel({
 
         {/* Internal error */}
         {(internalError || error) && (
-          <div className="mt-3 p-3 text-xs text-red-600 bg-red-50 rounded-lg border border-red-200">
+          <div className="mt-2 md:mt-3 p-2 md:p-3 text-[10px] md:text-xs text-red-600 bg-red-50 rounded-lg border border-red-200">
             {internalError || error}
           </div>
         )}
