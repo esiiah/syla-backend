@@ -126,37 +126,58 @@ export default function ChartView({
     if (!yAxis && columns[1]) setYAxis(columns[1]);
   }, [columns, xAxis, yAxis, setXAxis, setYAxis]);
 
-  const compareVals = useMemo(() => 
-    options.compareField ? data.map(r => parseNum(r?.[options.compareField])) : null, 
-    [data, options.compareField]
-  );
-
-  const pairs = data.map((row, i) => ({
-    l: row?.[xAxis] ?? `Row ${i + 1}`,
-    v: parseNum(row?.[yAxis]),
-    c: compareVals ? compareVals[i] : null,
-    raw: row,
-    i
-  }));
-
-  if (options.sort === "asc") pairs.sort((a, b) => a.v - b.v);
-  if (options.sort === "desc") pairs.sort((a, b) => b.v - a.v);
-
-  const lbls = pairs.map(p => p.l);
-  const vals = pairs.map(p => p.v);
-  const cmp = compareVals ? pairs.map(p => p.c) : null;
-  const map = pairs.map(p => p.i);
-
-  const minPos = Math.max(1e-6, Math.min(...[...vals, ...(cmp || [])].filter(v => v > 0)) || 1);
-  const safeVals = options.logScale ? vals.map(v => v > 0 ? v : minPos * 0.01) : vals;
-  const safeCmp = cmp ? (options.logScale ? cmp.map(v => v > 0 ? v : minPos * 0.01) : cmp) : null;
-
   // MUST define isHorizontal BEFORE chartData useMemo (used in 3D shadow logic)
   const isHorizontal = options.type === CHART_TYPES.COLUMN || 
                        options.type === CHART_TYPES.COMPARISON || 
                        options.type === CHART_TYPES.STACKED_BAR;
 
+   const filteredData = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    
+    // Apply user custom selection if exists
+    if (options?.selectedRowIndices && options.selectedRowIndices.length > 0) {
+      return data.filter((_, index) => options.selectedRowIndices.includes(index));
+    }
+    
+    // Otherwise apply automatic limit
+    const isMobile = detectMobileViewport();
+    return filterRowsByLimit(data, isMobile);
+  }, [data, options?.selectedRowIndices]);
+
   const chartData = useMemo(() => {
+    // STEP 1: Determine which data to use
+    const displayData = filteredData.length > 0 ? filteredData : data;
+    
+    // STEP 2: Calculate compareVals from displayData
+    const compareVals = options.compareField 
+      ? displayData.map(r => parseNum(r?.[options.compareField])) 
+      : null;
+
+    // STEP 3: Create pairs from displayData
+    const pairs = displayData.map((row, i) => ({
+      l: row?.[xAxis] ?? `Row ${i + 1}`,
+      v: parseNum(row?.[yAxis]),
+      c: compareVals ? compareVals[i] : null,
+      raw: row,
+      i
+    }));
+
+    // STEP 4: Sort if needed
+    if (options.sort === "asc") pairs.sort((a, b) => a.v - b.v);
+    if (options.sort === "desc") pairs.sort((a, b) => b.v - a.v);
+
+    // STEP 5: Extract arrays
+    const lbls = pairs.map(p => p.l);
+    const vals = pairs.map(p => p.v);
+    const cmp = compareVals ? pairs.map(p => p.c) : null;
+    const map = pairs.map(p => p.i);
+
+    // STEP 6: Calculate safe values for log scale
+    const minPos = Math.max(1e-6, Math.min(...[...vals, ...(cmp || [])].filter(v => v > 0)) || 1);
+    const safeVals = options.logScale ? vals.map(v => v > 0 ? v : minPos * 0.01) : vals;
+    const safeCmp = cmp ? (options.logScale ? cmp.map(v => v > 0 ? v : minPos * 0.01) : cmp) : null;
+
+    // STEP 7: Generate colors
     const base = options.color || "#2563eb";
     const N = lbls.length || 1;
     
@@ -352,8 +373,8 @@ export default function ChartView({
 
     // Handle Compare Mode
     if (options.compareMode && options.compareParam1 && options.compareParam2) {
-      const param1Values = data.map(r => parseNum(r?.[options.compareParam1]));
-      const param2Values = data.map(r => parseNum(r?.[options.compareParam2]));
+      const param1Values = displayData.map(r => parseNum(r?.[options.compareParam1]));
+      const param2Values = displayData.map(r => parseNum(r?.[options.compareParam2]));
       
       ds.length = 0;
       
@@ -430,14 +451,13 @@ export default function ChartView({
         pointHoverRadius: 0,
         borderWidth: 2,
         borderDash: [5, 5],
-        order: 0  // Render on top
+        order: 0
       });
     }
 
     // Apply 3D transformation for bar/column charts ONLY
     let finalData = { labels: lbls, datasets: ds };
     
-    // Check if current chart type supports 3D
     const supports3DBars = [
       CHART_TYPES.BAR,
       CHART_TYPES.COLUMN,
@@ -453,21 +473,7 @@ export default function ChartView({
     }
 
     return finalData;
-  }, [options, lbls, vals, safeVals, perColor, yAxis, map, safeCmp, cmp, selectedBars, data]);
-
-  // Apply row selection filtering - MOVED AFTER chartData definition
-  const filteredData = useMemo(() => {
-    if (!data || data.length === 0) return [];
-    
-    // Apply user custom selection if exists
-    if (chartData?.selectedRowIndices && chartData.selectedRowIndices.length > 0) {
-      return applyUserSelection(data, chartData.selectedRowIndices);
-    }
-    
-    // Otherwise apply automatic limit
-    const isMobile = detectMobileViewport();
-    return filterRowsByLimit(data, isMobile);
-  }, [data, chartData]);
+  }, [options, xAxis, yAxis, perColor, selectedBars, filteredData, data]);
 
   const chartOptions = useMemo(() => {
     const tc = themeText();
@@ -953,9 +959,9 @@ const getChartComponent = () => {
   return (
     <div className="rounded-2xl bg-white border shadow-sm dark:bg-ink/80 dark:border-white/5 p-5">
      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-4">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-display text-base sm:text-lg font-medium mb-2 text-gray-800 dark:text-slate-200 truncate">
+      <div className="flex flex-col gap-3 mb-4">
+        <div className="w-full">
+          <h3 className="font-display text-sm sm:text-base md:text-lg font-medium mb-2 text-gray-800 dark:text-slate-200 break-words">
             {chartTitle || "Data Visualization"}
           </h3>
 
@@ -1028,12 +1034,13 @@ const getChartComponent = () => {
       </div>
 
       {/* Chart container */}
-      <div className="mt-4 rounded-xl p-2 sm:p-4 bg-gradient-to-b from-gray-50 to-white border dark:from-black/20 dark:to-black/10 dark:border-white/10">
+      <div className="mt-4 rounded-xl p-2 sm:p-3 md:p-4 bg-gradient-to-b from-gray-50 to-white border dark:from-black/20 dark:to-black/10 dark:border-white/10 overflow-hidden">
         <div style={{ 
-          height: window.innerWidth < 640 ? 300 : (options.enable3D ? 500 : 450), 
+          height: window.innerWidth < 640 ? 280 : window.innerWidth < 768 ? 320 : (options.enable3D ? 500 : 450), 
           position: 'relative', 
-          overflow: 'visible', 
-          padding: options.enable3D ? '30px 20px' : '20px 0' 
+          overflow: 'hidden',
+          padding: window.innerWidth < 640 ? '10px 5px' : (options.enable3D ? '30px 20px' : '20px 0'),
+          maxWidth: '100%'
         }}>
           <ChartComponent
             ref={ref}

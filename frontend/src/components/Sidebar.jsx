@@ -10,11 +10,12 @@ import {
 } from "lucide-react";
 import AdSenseAd from './AdSenseAd';
 
-function Sidebar({ onReportChange, theme, setTheme }) {
+function Sidebar({ onReportChange, theme, setTheme, isMobile, onClose }) {
   const { user } = useContext(UserContext);
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(isMobile ? false : true);
   const [reportType, setReportType] = useState("Bar");
   const [toolsOpen, setToolsOpen] = useState(false);
+
 
   // Updated tool ordering
   const tools = [
@@ -36,25 +37,41 @@ function Sidebar({ onReportChange, theme, setTheme }) {
   };
 
   return (
-    <aside
-      className={`${collapsed ? "w-16" : "w-64"} flex flex-col transition-all duration-300 relative
-      bg-white text-gray-900 border-r border-gray-200
-      dark:bg-ink/80 dark:text-slate-200 dark:border-white/5 rounded-r-2xl shadow-soft neon-border
-      hidden lg:flex`}
-    >
-      {/* Collapse toggle */}
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="absolute top-4 -right-3 z-10 p-1.5 rounded-full
-        bg-gray-200 dark:bg-black/50 border border-gray-300 dark:border-white/10
-        hover:bg-gray-300 dark:hover:bg-white/10 transition"
+      <aside
+        className={`${collapsed ? (isMobile ? "w-64" : "w-16") : "w-64"} flex flex-col transition-all duration-300 relative
+        bg-white text-gray-900 border-r border-gray-200
+        dark:bg-ink/80 dark:text-slate-200 dark:border-white/5 rounded-r-2xl shadow-soft neon-border
+        ${isMobile ? 'flex h-full' : 'hidden lg:flex'}`}
       >
-        {collapsed ? (
-          <svg className="w-4 h-4 text-gray-700 dark:text-slate-300" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-        ) : (
-          <svg className="w-4 h-4 text-gray-700 dark:text-slate-300" viewBox="0 0 24 24"><path d="M16 19V5L5 12z" /></svg>
-        )}
-      </button>
+      {/* Collapse toggle - Hidden on mobile */}
+      {!isMobile && (
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="absolute top-4 -right-3 z-10 p-1.5 rounded-full
+          bg-gray-200 dark:bg-black/50 border border-gray-300 dark:border-white/10
+          hover:bg-gray-300 dark:hover:bg-white/10 transition"
+        >
+          {collapsed ? (
+            <svg className="w-4 h-4 text-gray-700 dark:text-slate-300" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+          ) : (
+            <svg className="w-4 h-4 text-gray-700 dark:text-slate-300" viewBox="0 0 24 24"><path d="M16 19V5L5 12z" /></svg>
+          )}
+        </button>
+      )}
+
+      {/* Mobile Close Button */}
+      {isMobile && (
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-10 p-2 rounded-full
+          bg-gray-200 dark:bg-black/50 border border-gray-300 dark:border-white/10
+          hover:bg-gray-300 dark:hover:bg-white/10 transition"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
 
       {/* User Profile Section - Only show when logged in and expanded */}
       {!collapsed && user && (

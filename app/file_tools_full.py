@@ -622,31 +622,45 @@ async def excel_to_pdf(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-@router.post("/pdf-to-word")
+@router.post("/convert/pdf-to-word")
 async def pdf_to_word(file: UploadFile = File(...)):
-    import tempfile
-    from pdf2docx import Converter
-    import os, shutil
-    from pathlib import Path
+    """Convert PDF to Word using PyMuPDF"""
+    try:
+        import fitz  # PyMuPDF
+        from docx import Document
+        from docx.shared import Pt, Inches
+    except ImportError:
+        raise HTTPException(status_code=500, detail="PyMuPDF or python-docx not installed")
 
     if not (file.filename or "").lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files allowed")
 
     in_path = write_upload_to_temp(file, prefix="pdf2word_in_")
-    out_path = os.path.join(TMP_DIR, f"{Path(in_path).stem}.docx")
-
+    
     try:
-        cv = Converter(in_path)
-        cv.convert(out_path, start=0, end=None)
-        cv.close()
-
-        if not os.path.exists(out_path):
-            raise HTTPException(status_code=500, detail="Conversion failed")
-
+        doc = Document()
+        pdf_doc = fitz.open(in_path)
+        
+        for page_num in range(len(pdf_doc)):
+            page = pdf_doc[page_num]
+            text = page.get_text()
+            
+            if text.strip():
+                paragraph = doc.add_paragraph(text)
+                paragraph.style.font.size = Pt(11)
+            
+            if page_num < len(pdf_doc) - 1:
+                doc.add_page_break()
+        
+        pdf_doc.close()
+        
         final_name = unique_filename(f"{Path(file.filename).stem}_converted.docx")
         final_path = os.path.join(UPLOAD_DIR, final_name)
-        shutil.move(out_path, final_path)
-
+        doc.save(final_path)
+        
+        if not os.path.exists(final_path) or os.path.getsize(final_path) == 0:
+            raise Exception("Output file is empty")
+        
         return {
             "message": "PDF successfully converted to Word",
             "download_url": f"/api/filetools/files/{final_name}",

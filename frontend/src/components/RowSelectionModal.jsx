@@ -69,8 +69,13 @@ export default function RowSelectionModal({
       alert("Please select at least one row");
       return;
     }
+    console.log('Applying selection:', selectedIndices.length, 'rows selected');
     onApply(selectedIndices);
     onClose();
+    // Force a small delay to ensure state updates propagate
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('rowSelectionChanged'));
+    }, 100);
   };
 
   // Prepare preview data

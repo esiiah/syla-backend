@@ -142,7 +142,7 @@ function ChartOptions({
   const features = chartConfig.features || {};
  
   return (
-    <div className="mt-4 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5">
+    <div className="mt-4 mx-2 sm:mx-0 rounded-xl sm:rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 max-w-full overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-white/10">
         <h3 className="font-display text-sm flex items-center gap-2 font-medium">
@@ -168,12 +168,12 @@ function ChartOptions({
       </div>
 
       {/* Tab navigation */}
-      <div className="flex border-b border-gray-200 dark:border-white/10">
+      <div className="flex overflow-x-auto border-b border-gray-200 dark:border-white/10 -mx-2 px-2 sm:mx-0 sm:px-0">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
+            className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
               activeTab === tab.id
                 ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50 dark:bg-blue-900/20 dark:text-blue-400"
                 : "text-gray-600 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700"

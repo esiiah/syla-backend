@@ -100,11 +100,26 @@ export default function EditingPanel({
     return () => window.removeEventListener('openRowSelectionModal', handleOpenModal);
   }, []);
 
+  // Force re-render when row selection changes
+  useEffect(() => {
+    if (chartData.selectedRowIndices) {
+      console.log('Row selection updated:', chartData.selectedRowIndices.length, 'rows selected');
+    }
+  }, [chartData.selectedRowIndices]);
+
   const handleRowSelectionApply = (selectedIndices) => {
+    // Filter the data based on selected indices
+    const filteredData = chartData.data.filter((_, index) => 
+      selectedIndices.includes(index)
+    );
+    
+    // Update both the selection metadata AND the displayed data
     updateChartData({ 
+      data: filteredData,  // Update the actual data being displayed
       selectedRowIndices: selectedIndices,
       rowSelectionMode: "custom",
-      totalRowCount: chartData.data.length
+      totalRowCount: chartData.data.length,
+      originalData: chartData.originalData || chartData.data  // Preserve original
     });
   };
 

@@ -199,16 +199,16 @@ export default function ChartSummaryReport({ summary = {}, data = [], chartTitle
   };
   
   return (
-    <div className="mt-6 rounded-2xl bg-white border border-gray-200 shadow-lg dark:bg-slate-900 dark:border-slate-700 overflow-hidden">
+    <div className="mt-6 mx-2 sm:mx-0 rounded-xl sm:rounded-2xl bg-white border border-gray-200 shadow-lg dark:bg-slate-900 dark:border-slate-700 overflow-hidden max-w-full">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-5 text-white flex items-center justify-between">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-3 sm:p-5 text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <button
           onClick={() => setIsMinimized(!isMinimized)}
-          className="flex items-center gap-3 text-left hover:opacity-90 transition-opacity flex-1"
+          className="flex items-center gap-2 sm:gap-3 text-left hover:opacity-90 transition-opacity flex-1 w-full sm:w-auto"
         >
-          <FileText size={24} className="flex-shrink-0" />
-          <div>
-            <h2 className="text-xl font-bold flex items-center gap-2">
+          <FileText size={20} className="sm:w-6 sm:h-6 flex-shrink-0" />
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base sm:text-xl font-bold flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
               Data Summary
               <span className="text-sm font-normal text-blue-100">
                 {isMinimized ? '(Click to expand)' : '(Click to minimize)'}
@@ -231,15 +231,15 @@ export default function ChartSummaryReport({ summary = {}, data = [], chartTitle
       {!isMinimized && (
         <>
       {/* Table */}
-      <div className="p-3 sm:p-5 overflow-x-auto">
-        <div className="min-w-[600px]">
-        <table className="w-full border-collapse">
+      <div className="p-2 sm:p-3 md:p-5 overflow-x-auto -mx-2 sm:mx-0">
+        <div className="min-w-full sm:min-w-[600px]">
+        <table className="w-full border-collapse text-xs sm:text-sm">
           <thead>
             <tr className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-b-2 border-blue-200 dark:border-blue-700">
-            <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+            <th className="px-2 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 text-left text-xs sm:text-sm font-bold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
                 Column
               </th>
-              <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
+              <th className="px-2 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 text-left text-xs sm:text-sm font-bold text-gray-700 dark:text-slate-200 uppercase tracking-wider">
                 Details
               </th>
             </tr>
@@ -252,10 +252,10 @@ export default function ChartSummaryReport({ summary = {}, data = [], chartTitle
                   i % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-gray-50 dark:bg-slate-900/50'
                 }`}
               >
-                <td className="px-6 py-4 text-sm font-semibold text-gray-800 dark:text-slate-200 align-top">
+                <td className="px-2 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 text-xs sm:text-sm font-semibold text-gray-800 dark:text-slate-200 align-top break-words max-w-[100px] sm:max-w-none">
                   {col}
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-600 dark:text-slate-300">
+                <td className="px-2 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4 text-xs sm:text-sm text-gray-600 dark:text-slate-300">
                   {details && typeof details === "object" && !Array.isArray(details) ? (
                     <table className="min-w-[300px] border border-gray-300 dark:border-slate-600 rounded-lg overflow-hidden shadow-sm">
                       <tbody>
