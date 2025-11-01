@@ -733,6 +733,20 @@ async def serve_ads():
         raise HTTPException(status_code=404, detail="ads.txt not found")
     return FileResponse(ads_path, media_type="text/plain")
 
+@app.get("/robots.txt")
+async def serve_robots():
+    robots_path = os.path.join(FRONTEND_DIR, "robots.txt")
+    if not os.path.exists(robots_path):
+        raise HTTPException(status_code=404, detail="robots.txt not found")
+    return FileResponse(robots_path, media_type="text/plain")
+
+@app.get("/sitemap.xml")
+async def serve_sitemap():
+    sitemap_path = os.path.join(FRONTEND_DIR, "sitemap.xml")
+    if not os.path.exists(sitemap_path):
+        raise HTTPException(status_code=404, detail="sitemap.xml not found")
+    return FileResponse(sitemap_path, media_type="application/xml")
+    
 # ------------------------------
 # SPA Fallback (MUST BE LAST)
 # ------------------------------
