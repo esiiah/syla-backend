@@ -20,7 +20,7 @@ const AdSenseAd = ({ adSlot, adFormat = "auto", fullWidthResponsive = true, clas
     <ins
       ref={adRef}
       className={`adsbygoogle ${className}`}
-      style={{ display: 'block', minHeight: '100px' }}
+      style={{ display: 'block', minHeight: '100px', width: '100%', minWidth: '300px' }}
       data-ad-client="ca-pub-8690159120607552"
       data-ad-slot={adSlot}
       data-ad-format={adFormat}

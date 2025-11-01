@@ -12,8 +12,7 @@ from pathlib import Path
 
 import pandas as pd
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request
-from fastapi.responses import HTMLResponse
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -30,8 +29,8 @@ from app.routers import row_selection
 from . import visual
 from app import settings
 
-
 PORT = int(os.getenv("PORT", "8080"))
+
 # ------------------------------
 # Environment validation
 # ------------------------------
@@ -61,7 +60,9 @@ logger = logging.getLogger("syla-backend")
 # ------------------------------
 app = FastAPI(title="Syla Analytics")
 
-# ADD THIS BLOCK HERE ↓↓↓
+# ------------------------------
+# Startup event
+# ------------------------------
 @app.on_event("startup")
 async def startup_event():
     """Initialize database tables on startup"""
@@ -84,80 +85,15 @@ app.add_middleware(
 )
 
 # ------------------------------
-# Source Code API for AI Assistant
+# FRONTEND DIRECTORY - MUST BE DEFINED EARLY
 # ------------------------------
-@app.get("/api/source/{file_path:path}")
-async def get_source_code(file_path: str):
-    """Serve source code files for AI assistant reading"""
-    try:
-        # Security: only allow specific directories
-        allowed_dirs = ["frontend/src", "app"]
-        
-        # Check if path starts with allowed directory
-        if not any(file_path.startswith(d) for d in allowed_dirs):
-            raise HTTPException(status_code=403, detail="Access denied")
-        
-        # Prevent directory traversal
-        if ".." in file_path or file_path.startswith("/"):
-            raise HTTPException(status_code=403, detail="Invalid path")
-        
-        # Build full path relative to project root
-        base_dir = Path(__file__).parent.parent
-        full_path = base_dir / file_path
-        
-        # Check file exists and is a file
-        if not full_path.exists() or not full_path.is_file():
-            raise HTTPException(status_code=404, detail="File not found")
-        
-        # Only serve text files
-        allowed_extensions = {'.js', '.jsx', '.py', '.json', '.css', '.html', '.md', '.txt'}
-        if full_path.suffix.lower() not in allowed_extensions:
-            raise HTTPException(status_code=403, detail="File type not allowed")
-        
-        # Read and return file content
-        return FileResponse(
-            full_path,
-            media_type="text/plain",
-            headers={"Content-Type": "text/plain; charset=utf-8"}
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Source code retrieval failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-        
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "dist")
+FRONTEND_DIR = os.path.abspath(FRONTEND_DIR)
 
-@app.get("/api/source-index")
-async def get_source_index():
-    """List available source files for AI assistant"""
-    try:
-        base_dir = Path(__file__).parent.parent
-        frontend_src = base_dir / "frontend" / "src"
-        app_dir = base_dir / "app"
-        
-        files = []
-        
-        # Frontend files
-        if frontend_src.exists():
-            for ext in ['.jsx', '.js', '.css']:
-                files.extend([
-                    f"frontend/src/{f.relative_to(frontend_src)}"
-                    for f in frontend_src.rglob(f"*{ext}")
-                ])
-        
-        # Backend files
-        if app_dir.exists():
-            for ext in ['.py']:
-                files.extend([
-                    f"app/{f.relative_to(app_dir)}"
-                    for f in app_dir.rglob(f"*{ext}")
-                    if not f.name.startswith('__')
-                ])
-        
-        return {"files": sorted(files), "total": len(files)}
-    except Exception as e:
-        logger.error(f"Source index failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+logger.info(f"📁 Looking for frontend at: {FRONTEND_DIR}")
+logger.info(f"📁 __file__ is: {__file__}")
+logger.info(f"📁 dirname is: {os.path.dirname(__file__)}")
+
 # ------------------------------
 # Pydantic Models
 # ------------------------------
@@ -210,17 +146,154 @@ def unique_filename(name: str) -> str:
     return f"{ts}_{safe}"
 
 # ------------------------------
-# FRONTEND DIRECTORY - MUST BE DEFINED EARLY
+# API ROUTES - MUST COME BEFORE SPA FALLBACK
 # ------------------------------
-FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "dist")
-FRONTEND_DIR = os.path.abspath(FRONTEND_DIR)
 
-logger.info(f"🔍 Looking for frontend at: {FRONTEND_DIR}")
-logger.info(f"🔍 __file__ is: {__file__}")
-logger.info(f"🔍 dirname is: {os.path.dirname(__file__)}")
+# Health Check
+@app.get("/api/health")
+def health_check():
+    return {"message": "Backend is running", "ai_enabled": True, "status": "ok"}
 
 # ------------------------------
-# PRIMARY UPLOAD ENDPOINT (MUST BE FIRST)
+# Source Code API for AI Assistant
+# ------------------------------
+@app.get("/api/source/{file_path:path}")
+async def get_source_code(file_path: str):
+    """Serve source code files for AI assistant reading"""
+    try:
+        # Security: only allow specific directories
+        allowed_dirs = ["frontend/src", "app"]
+        
+        # Check if path starts with allowed directory
+        if not any(file_path.startswith(d) for d in allowed_dirs):
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Prevent directory traversal
+        if ".." in file_path or file_path.startswith("/"):
+            raise HTTPException(status_code=403, detail="Invalid path")
+        
+        # Build full path relative to project root
+        base_dir = Path(__file__).parent.parent
+        full_path = base_dir / file_path
+        
+        # Check file exists and is a file
+        if not full_path.exists() or not full_path.is_file():
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        # Only serve text files
+        allowed_extensions = {'.js', '.jsx', '.py', '.json', '.css', '.html', '.md', '.txt'}
+        if full_path.suffix.lower() not in allowed_extensions:
+            raise HTTPException(status_code=403, detail="File type not allowed")
+        
+        # Read and return file content
+        return FileResponse(
+            full_path,
+            media_type="text/plain",
+            headers={"Content-Type": "text/plain; charset=utf-8"}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Source code retrieval failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/source-index")
+async def get_source_index():
+    """List available source files for AI assistant"""
+    try:
+        base_dir = Path(__file__).parent.parent
+        frontend_src = base_dir / "frontend" / "src"
+        app_dir = base_dir / "app"
+        
+        files = []
+        
+        # Frontend files
+        if frontend_src.exists():
+            for ext in ['.jsx', '.js', '.css']:
+                files.extend([
+                    f"frontend/src/{f.relative_to(frontend_src)}"
+                    for f in frontend_src.rglob(f"*{ext}")
+                ])
+        
+        # Backend files
+        if app_dir.exists():
+            for ext in ['.py']:
+                files.extend([
+                    f"app/{f.relative_to(app_dir)}"
+                    for f in app_dir.rglob(f"*{ext}")
+                    if not f.name.startswith('__')
+                ])
+        
+        return {"files": sorted(files), "total": len(files)}
+    except Exception as e:
+        logger.error(f"Source index failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ------------------------------
+# SSR Data Endpoint for Crawlers
+# ------------------------------
+@app.get("/api/ssr-meta")
+def get_ssr_meta(path: str = "/"):
+    """Provide metadata for SSR/crawlers based on route"""
+    routes = {
+        "/": {
+            "title": "Syla Analytics – AI Data Forecasting & Visualization",
+            "description": "Clean, visualize, and convert your data with intelligent AI automation. Upload CSV/Excel files for instant analysis.",
+            "keywords": "AI forecasting, data visualization, CSV analysis, Excel tools, data cleaning"
+        },
+        "/forecast": {
+            "title": "AI Forecasting - Syla Analytics",
+            "description": "Generate accurate AI-powered forecasts from your data. Prophet and GPT-based models available.",
+            "keywords": "AI forecasting, predictive analytics, time series, Prophet, GPT forecasting"
+        },
+        "/tools/compress": {
+            "title": "File Compression Tools - Syla Analytics",
+            "description": "Compress images, PDFs, and documents with smart AI-powered optimization.",
+            "keywords": "file compression, image optimization, PDF compression"
+        },
+        "/tools/convert": {
+            "title": "File Conversion Tools - Syla Analytics",
+            "description": "Convert between CSV, Excel, PDF, and other formats instantly.",
+            "keywords": "file conversion, CSV to Excel, PDF conversion, format converter"
+        },
+        "/tools/merge": {
+            "title": "PDF Merge Tool - Syla Analytics",
+            "description": "Merge multiple PDF files into a single document.",
+            "keywords": "PDF merge, combine PDFs, PDF tools"
+        },
+        "/editing": {
+            "title": "Chart Editing - Syla Analytics",
+            "description": "Advanced chart editing and customization tools for data visualization.",
+            "keywords": "chart editing, data visualization, chart customization"
+        },
+        "/pricing": {
+            "title": "Pricing - Syla Analytics",
+            "description": "View our pricing plans for advanced AI forecasting and data analysis features.",
+            "keywords": "pricing, plans, subscription, AI tools"
+        },
+        "/help": {
+            "title": "Help & Support - Syla Analytics",
+            "description": "Get help with using Syla Analytics features and tools.",
+            "keywords": "help, support, documentation, FAQ"
+        },
+        "/docs": {
+            "title": "Documentation - Syla Analytics",
+            "description": "Complete documentation for Syla Analytics API and features.",
+            "keywords": "documentation, API docs, guides, tutorials"
+        }
+    }
+    
+    meta = routes.get(path, routes["/"])
+    return {
+        "title": meta["title"],
+        "description": meta["description"],
+        "keywords": meta["keywords"],
+        "url": f"https://sylaanalytics.com{path}",
+        "image": "https://sylaanalytics.com/favicon.png"
+    }
+
+# ------------------------------
+# PRIMARY UPLOAD ENDPOINT
 # ------------------------------
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):
@@ -318,90 +391,6 @@ async def upload_file(file: UploadFile = File(...)):
         except Exception:
             pass
 
-# ------------------------------
-# Health Check
-# ------------------------------
-@app.get("/api/health")
-def health_check():
-    return {"message": "Backend is running", "ai_enabled": True, "status": "ok"}
-
-# ------------------------------
-# Include routers AFTER primary endpoints
-# ------------------------------
-app.include_router(auth_router.router)
-app.include_router(password_recovery.router)
-app.include_router(profile.router)
-app.include_router(forecast_router)
-app.include_router(chart_settings.router)
-app.include_router(notifications.router)
-app.include_router(search.router)
-app.include_router(help.router)
-app.include_router(pricing.router)
-app.include_router(file_tools_full_router)
-app.include_router(row_selection.router, prefix="/api", tags=["row_selection"])
-
-# ------------------------------
-# SSR Data Endpoint for Crawlers
-# ------------------------------
-@app.get("/api/ssr-meta")
-def get_ssr_meta(path: str = "/"):
-    """Provide metadata for SSR/crawlers based on route"""
-    routes = {
-        "/": {
-            "title": "Syla Analytics – AI Data Forecasting & Visualization",
-            "description": "Clean, visualize, and convert your data with intelligent AI automation. Upload CSV/Excel files for instant analysis.",
-            "keywords": "AI forecasting, data visualization, CSV analysis, Excel tools, data cleaning"
-        },
-        "/forecast": {
-            "title": "AI Forecasting - Syla Analytics",
-            "description": "Generate accurate AI-powered forecasts from your data. Prophet and GPT-based models available.",
-            "keywords": "AI forecasting, predictive analytics, time series, Prophet, GPT forecasting"
-        },
-        "/tools/compress": {
-            "title": "File Compression Tools - Syla Analytics",
-            "description": "Compress images, PDFs, and documents with smart AI-powered optimization.",
-            "keywords": "file compression, image optimization, PDF compression"
-        },
-        "/tools/convert": {
-            "title": "File Conversion Tools - Syla Analytics",
-            "description": "Convert between CSV, Excel, PDF, and other formats instantly.",
-            "keywords": "file conversion, CSV to Excel, PDF conversion, format converter"
-        },
-        "/tools/merge": {
-            "title": "PDF Merge Tool - Syla Analytics",
-            "description": "Merge multiple PDF files into a single document.",
-            "keywords": "PDF merge, combine PDFs, PDF tools"
-        },
-        "/editing": {
-            "title": "Chart Editing - Syla Analytics",
-            "description": "Advanced chart editing and customization tools for data visualization.",
-            "keywords": "chart editing, data visualization, chart customization"
-        },
-        "/pricing": {
-            "title": "Pricing - Syla Analytics",
-            "description": "View our pricing plans for advanced AI forecasting and data analysis features.",
-            "keywords": "pricing, plans, subscription, AI tools"
-        },
-        "/help": {
-            "title": "Help & Support - Syla Analytics",
-            "description": "Get help with using Syla Analytics features and tools.",
-            "keywords": "help, support, documentation, FAQ"
-        },
-        "/docs": {
-            "title": "Documentation - Syla Analytics",
-            "description": "Complete documentation for Syla Analytics API and features.",
-            "keywords": "documentation, API docs, guides, tutorials"
-        }
-    }
-    
-    meta = routes.get(path, routes["/"])
-    return {
-        "title": meta["title"],
-        "description": meta["description"],
-        "keywords": meta["keywords"],
-        "url": f"https://sylaanalytics.com{path}",
-        "image": "https://sylaanalytics.com/favicon.png"
-    }
 # ------------------------------
 # Chart & Data Processing Endpoints
 # ------------------------------
@@ -646,6 +635,21 @@ async def serve_uploaded_file(saved_filename: str):
                         filename=os.path.basename(path))
 
 # ------------------------------
+# Include routers - ALL API ROUTES
+# ------------------------------
+app.include_router(auth_router.router, prefix="/api")
+app.include_router(password_recovery.router, prefix="/api")
+app.include_router(profile.router, prefix="/api")
+app.include_router(forecast_router, prefix="/api")
+app.include_router(chart_settings.router, prefix="/api")
+app.include_router(notifications.router, prefix="/api")
+app.include_router(search.router, prefix="/api")
+app.include_router(help.router, prefix="/api")
+app.include_router(pricing.router, prefix="/api")
+app.include_router(file_tools_full_router, prefix="/api")
+app.include_router(row_selection.router, prefix="/api", tags=["row_selection"])
+
+# ------------------------------
 # Upload directory mount
 # ------------------------------
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -672,7 +676,7 @@ if os.path.exists(FRONTEND_DIR):
     
     # Check service worker
     sw_path = os.path.join(FRONTEND_DIR, "service-worker.js")
-    logger.info(f"🔍 Checking service worker at: {sw_path}")
+    logger.info(f"📁 Checking service worker at: {sw_path}")
     if os.path.exists(sw_path):
         logger.info(f"✅ service-worker.js EXISTS at {sw_path}")
     else:
@@ -693,7 +697,7 @@ else:
 @app.get("/service-worker.js")
 async def serve_service_worker():
     sw_path = os.path.join(FRONTEND_DIR, "service-worker.js")
-    logger.info(f"🔍 Service worker requested. Looking at: {sw_path}")
+    logger.info(f"📁 Service worker requested. Looking at: {sw_path}")
     
     if not os.path.exists(sw_path):
         logger.error(f"❌ service-worker.js NOT FOUND at {sw_path}")
@@ -746,23 +750,24 @@ async def serve_sitemap():
     if not os.path.exists(sitemap_path):
         raise HTTPException(status_code=404, detail="sitemap.xml not found")
     return FileResponse(sitemap_path, media_type="application/xml")
-    
+
 # ------------------------------
-# SPA Fallback (MUST BE LAST)
+# SPA Fallback (MUST BE ABSOLUTE LAST)
 # ------------------------------
 @app.get("/{full_path:path}")
 async def spa_fallback(request: Request, full_path: str):
-    logger.info(f"🔍 SPA fallback triggered for: {full_path}")
+    """Catch-all route for SPA - serves index.html with SSR meta tags"""
+    logger.info(f"📁 SPA fallback triggered for: {full_path}")
     
-    if full_path.startswith("api/"):
-        logger.warning(f"❌ API route not found: {full_path}")
-        raise HTTPException(status_code=404, detail="API endpoint not found")
+    # Explicitly reject API routes that somehow made it here
+    if full_path.startswith("api/") or full_path.startswith("api"):
+        logger.error(f"❌ API route reached SPA fallback: {full_path}")
+        raise HTTPException(status_code=404, detail=f"API endpoint not found: /{full_path}")
     
-    if full_path.startswith("assets/"):
-        raise HTTPException(status_code=404, detail="Asset not found")
-    
-    if full_path.startswith("uploads/"):
-        raise HTTPException(status_code=404, detail="Upload not found")
+    # Reject other mounted paths
+    if any(full_path.startswith(p) for p in ["assets/", "uploads/"]):
+        logger.warning(f"❌ Static resource not found: {full_path}")
+        raise HTTPException(status_code=404, detail="Resource not found")
 
     index_path = os.path.join(FRONTEND_DIR, "index.html")
     
@@ -776,10 +781,11 @@ async def spa_fallback(request: Request, full_path: str):
     
     # Get meta data for this route
     path_for_meta = f"/{full_path}" if full_path else "/"
-    meta = get_ssr_meta(path_for_meta)
-    
-    # Inject meta tags
-    meta_tags = f'''
+    try:
+        meta = get_ssr_meta(path_for_meta)
+        
+        # Inject meta tags
+        meta_tags = f'''
     <title>{meta["title"]}</title>
     <meta name="description" content="{meta["description"]}" />
     <meta name="keywords" content="{meta["keywords"]}" />
@@ -792,13 +798,13 @@ async def spa_fallback(request: Request, full_path: str):
     <meta name="twitter:image" content="{meta["image"]}" />
     <link rel="canonical" href="{meta["url"]}" />
     '''
-    
-    # Replace existing title and inject meta
-    import re
-    html_content = re.sub(r'<title>.*?</title>', '', html_content)
-    html_content = html_content.replace('</head>', f'{meta_tags}</head>')
+        
+        # Replace existing title and inject meta
+        html_content = re.sub(r'<title>.*?</title>', '', html_content)
+        html_content = html_content.replace('</head>', f'{meta_tags}</head>')
+    except Exception as e:
+        logger.warning(f"⚠️ Meta injection failed for {full_path}: {e}")
     
     logger.info(f"✅ Serving index.html with SSR meta for: {full_path}")
     
-    from fastapi.responses import HTMLResponse
     return HTMLResponse(content=html_content)

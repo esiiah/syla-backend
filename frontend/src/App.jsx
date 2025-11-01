@@ -179,8 +179,10 @@ function App() {
           </div>
 
           {/* Banner Ad */}
-          <div className="my-8 flex justify-center">
-            <AdSenseAd adSlot="8700675186" />
+          <div className="my-8 flex justify-center w-full">
+            <div className="w-full max-w-4xl">
+              <AdSenseAd adSlot="8700675186" />
+            </div>
           </div>
 
           {/* Dashboard Grid */}
@@ -276,8 +278,10 @@ function App() {
           )}
                   
           {/* Banner Ad */}
-          <div className="my-8 flex justify-center">
-            <AdSenseAd adSlot="8700675186" />
+          <div className="my-8 flex justify-center w-full">
+            <div className="w-full max-w-4xl">
+              <AdSenseAd adSlot="8700675186" />
+            </div>
           </div>
 
           {/* Features Section */}
