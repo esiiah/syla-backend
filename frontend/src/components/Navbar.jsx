@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { 
   User, Settings, LogOut, Bell, Search, Menu, 
-  ChevronDown, Sun, Moon, HelpCircle, Zap, DollarSign
+  ChevronDown, HelpCircle, Zap, DollarSign
 } from "lucide-react";
 import { UserContext } from "../context/UserContext";
 import Sidebar from "./Sidebar";
@@ -134,10 +134,6 @@ export default function Navbar() {
     setShowUserMenu(false);
   };
 
-  const toggleTheme = () => {
-    setTheme(theme === "light" ? "dark" : "light");
-  };
-
   const markNotificationAsRead = async (notificationId) => {
     try {
       await fetch(`/api/notifications/${notificationId}`, {
@@ -231,14 +227,6 @@ export default function Navbar() {
             </Link>
 
             <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                onClick={toggleTheme}
-                className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
-                title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-              >
-                {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
-              </button>
-
               <Link
                 to="/login"
                 className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-slate-300 dark:hover:text-slate-100 transition-colors rounded-md border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-800"
@@ -289,7 +277,7 @@ export default function Navbar() {
                 
                 {showSearchResults && (
                   <div 
-                    className="absolute top-full left-0 mt-2 w-full bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg max-h-64 overflow-y-auto"
+                    className="absolute top-full left-0 mt-2 w-full max-w-md bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg max-h-64 overflow-y-auto"
                     style={{ zIndex: 'var(--z-dropdowns)' }}
                   >
                     {loading ? (
@@ -328,21 +316,13 @@ export default function Navbar() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
               <button
                 onClick={() => setShowSidebar(!showSidebar)}
                 className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                 title="Menu"
               >
                 <Menu size={20} />
-              </button>
-
-              <button
-                onClick={toggleTheme}
-                className="hidden md:block p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
-                title={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
-              >
-                {theme === "light" ? <Moon size={18} /> : <Sun size={18} />}
               </button>
 
               <div className="hidden md:flex items-center gap-1">
@@ -371,7 +351,7 @@ export default function Navbar() {
 
                 {showNotifications && (
                   <div 
-                    className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg" 
+                    className="absolute right-0 mt-2 w-[calc(100vw-2rem)] max-w-80 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg"  
                     style={{ zIndex: 'var(--z-dropdowns)' }}
                   >
                     <div className="p-3 border-b border-gray-200 dark:border-slate-600 flex items-center justify-between">
@@ -435,7 +415,7 @@ export default function Navbar() {
                   className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
                 >
                   {getUserDisplay()}
-                  <span className="hidden sm:block text-sm font-medium text-gray-700 dark:text-slate-300 max-w-[100px] truncate">
+                  <span className="hidden sm:block text-sm font-medium text-gray-700 dark:text-slate-300 max-w-[80px] sm:max-w-[100px] truncate">
                     {user.name}
                   </span>
                   <ChevronDown size={14} className="hidden sm:block text-gray-500 flex-shrink-0" />
