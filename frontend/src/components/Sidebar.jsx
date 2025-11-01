@@ -178,12 +178,6 @@ function Sidebar({ onReportChange, theme, setTheme, isMobile, onClose }) {
         </div>
       </div>
 
-      {!collapsed && (
-        <div className="px-3 py-3 border-t border-gray-200 dark:border-white/10">
-          <AdSenseAd key={collapsed ? 'collapsed' : 'expanded'} adSlot="4212240615" />
-        </div>
-      )}
-
       <div className="px-3 py-4 border-t border-gray-200 dark:border-white/10 space-y-2">
         <button
           onClick={handleThemeToggle}
