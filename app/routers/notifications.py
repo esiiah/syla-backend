@@ -11,7 +11,7 @@ from app.routers.db import get_db, Base  # Import Base from your db module
 from app.models.user import User
 # ⛔ Removed: from app.routers.auth import get_current_user  ← circular import fix
 
-router = APIRouter(prefix="/api/notifications", tags=["notifications"])
+router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 # Use string type for enums in database to match PostgreSQL enum values
 class NotificationType(str, enum.Enum):

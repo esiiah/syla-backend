@@ -172,22 +172,29 @@ export default function FileToolUploadPanel({
     }
   };
 
-  return (
-    <section
-      className="rounded-2xl bg-white dark:bg-slate-900 border-2 shadow-lg p-4 md:p-6 w-full max-w-6xl mx-auto"
-      style={{ borderColor: "rgba(14,165,233,0.35)" }}
-    >
+  return (    
+      <section
+        className="rounded-2xl bg-white dark:bg-slate-900 border-2 shadow-lg p-4 md:p-6 w-full max-w-6xl mx-auto"
+        style={{ borderColor: "rgba(14,165,233,0.35)" }}
+      >
       <h3 className="font-display text-base md:text-lg mb-2 text-gray-800 dark:text-slate-200">{getTitle()}</h3>
       {hint && <p className="text-xs md:text-sm text-gray-500 dark:text-slate-400 mb-4 md:mb-6">{hint}</p>}
 
-      <div className="flex flex-col gap-4 md:gap-6">
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6">
         {/* Dropzone */}
-        <div
-          onDrop={handleDrop}
-          onDragOver={(e) => e.preventDefault()}
-          className="rounded-xl p-4 md:p-6 text-center transition-all duration-300 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-dashed hover:border-sky-400"
-          style={{ minHeight: "120px", display: "flex", flexDirection: "column", justifyContent: "center", boxShadow: "0 8px 32px rgba(59, 130, 246, 0.08)" }}
-        >
+        <div className="md:flex-1">
+          <div
+            onDrop={handleDrop}
+            onDragOver={(e) => e.preventDefault()}
+            className="rounded-xl p-4 md:p-6 text-center transition-all duration-300 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-dashed hover:border-sky-400 h-full"
+            style={{ 
+              minHeight: window.innerWidth < 768 ? "120px" : "100%",
+              display: "flex", 
+              flexDirection: "column", 
+              justifyContent: "center", 
+              boxShadow: "0 8px 32px rgba(59, 130, 246, 0.08)" 
+            }}
+          >
           <div className="mb-2 md:mb-3">
             <svg
               className="mx-auto h-8 w-8 md:h-10 md:w-10 text-sky-400"
@@ -222,10 +229,11 @@ export default function FileToolUploadPanel({
             onChange={handleSelect}
             className="hidden"
           />
+          </div>
         </div>
 
         {/* Selected Files Section */}
-        <div className="space-y-3 md:space-y-4">
+        <div className="space-y-3 md:space-y-4 md:flex-1">
           {/* Selected Files */}
           <div className="p-3 md:p-4 rounded-lg bg-gray-50 dark:bg-slate-800/50 border border-gray-200">
             <div className="text-xs md:text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">Selected Files:</div>

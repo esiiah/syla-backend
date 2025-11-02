@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from .services.file_compression import FileCompressionService
 
-router = APIRouter(prefix="/api/filetools", tags=["filetools"])
+router = APIRouter(prefix="/filetools", tags=["filetools"])
 
 # ---------- Directories ----------
 BASE_DIR = os.path.dirname(__file__)
@@ -159,6 +159,17 @@ async def pdf_compress_preview(file: UploadFile = File(...)):
                 os.remove(in_path)
             except Exception:
                 pass
+
+# ---------- Generic compression endpoint for frontend ----------
+@router.post("/compress")
+async def generic_compress(file: UploadFile = File(...), level: str = Form("medium")):
+    """Auto-detect file type and compress accordingly"""
+    filename = (file.filename or "").lower()
+    
+    if filename.endswith(".pdf"):
+        return await pdf_compress(file, level)
+    else:
+        return await file_compress(file, level)
 
 # ---------- Generic file compress ----------
 @router.post("/file/compress")
@@ -311,7 +322,7 @@ async def pdf_merge(files: List[UploadFile] = File(...)):
                     pass
 
 # ---------- Word/Image to PDF (LibreOffice) ----------
-@router.post("/word-to-pdf")
+@router.post("/convert/word-to-pdf")
 async def word_to_pdf(file: UploadFile = File(...)):
     """Convert Word document to PDF using LibreOffice"""
     ext = (file.filename or "").lower()
@@ -342,7 +353,7 @@ async def word_to_pdf(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-@router.post("/image-to-pdf")
+@router.post("/convert/image-to-pdf")
 async def image_to_pdf(file: UploadFile = File(...)):
     """Convert image to PDF using LibreOffice"""
     ext = (file.filename or "").lower()
@@ -375,7 +386,7 @@ async def image_to_pdf(file: UploadFile = File(...)):
                 pass
 
 # ---------- Other Conversions ----------
-@router.post("/csv-to-excel")
+@router.post("/convert/csv-to-excel")
 async def csv_to_excel(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files allowed")
@@ -399,7 +410,7 @@ async def csv_to_excel(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
 
-@router.post("/excel-to-csv")
+@router.post("/convert/excel-to-csv")
 async def excel_to_csv(file: UploadFile = File(...)):
     ext = (file.filename or "").lower()
     if not (ext.endswith(".xls") or ext.endswith(".xlsx")):
@@ -424,7 +435,7 @@ async def excel_to_csv(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
 
-@router.post("/pdf-to-csv")
+@router.post("/convert/pdf-to-csv")
 async def pdf_to_csv(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files allowed")
@@ -476,7 +487,7 @@ async def pdf_to_csv(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-@router.post("/csv-to-pdf")
+@router.post("/convert/csv-to-pdf")
 async def csv_to_pdf(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files allowed")
@@ -527,7 +538,7 @@ async def csv_to_pdf(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-@router.post("/pdf-to-excel")
+@router.post("/convert/pdf-to-excel")
 async def pdf_to_excel(file: UploadFile = File(...)):
     try:
         import pdfplumber
@@ -590,7 +601,7 @@ async def pdf_to_excel(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-@router.post("/excel-to-pdf")
+@router.post("/convert/excel-to-pdf")
 async def excel_to_pdf(file: UploadFile = File(...)):
     try:
         import pandas as pd
@@ -622,7 +633,7 @@ async def excel_to_pdf(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-@router.post("/pdf-to-word")
+@router.post("/convert/pdf-to-word")
 async def pdf_to_word(file: UploadFile = File(...)):
     """Convert PDF to Word using PyMuPDF"""
     try:
