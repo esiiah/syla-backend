@@ -68,10 +68,15 @@ async def startup_event():
     """Initialize database tables on startup"""
     try:
         from .routers.password_recovery import Base, engine
+        import sqlalchemy
+        # Test connection with timeout
+        with engine.connect() as conn:
+            conn.execute(sqlalchemy.text("SELECT 1"))
         Base.metadata.create_all(bind=engine)
         logger.info("✅ Database tables created/verified")
     except Exception as e:
-        logger.warning(f"⚠️ Database table creation failed (may already exist): {e}")
+        logger.error(f"❌ Database connection failed: {e}")
+        logger.warning("⚠️ Continuing without database - some features may not work")
 
 # ------------------------------
 # CORS middleware
@@ -756,16 +761,16 @@ async def serve_sitemap():
 # ------------------------------
 @app.get("/{full_path:path}")
 async def spa_fallback(request: Request, full_path: str):
-    """Catch-all route for SPA - serves index.html with SSR meta tags"""
+    """Catch-all route for SPA"""
     logger.info(f"📁 SPA fallback triggered for: {full_path}")
     
-    # Explicitly reject API routes that somehow made it here
-    if full_path.startswith("api/") or full_path.startswith("api"):
+    # Reject API routes
+    if full_path.startswith("api"):
         logger.error(f"❌ API route reached SPA fallback: {full_path}")
         raise HTTPException(status_code=404, detail=f"API endpoint not found: /{full_path}")
     
-    # Reject other mounted paths
-    if any(full_path.startswith(p) for p in ["assets/", "uploads/"]):
+    # Reject static resources
+    if any(full_path.startswith(p) for p in ["assets", "uploads"]):
         logger.warning(f"❌ Static resource not found: {full_path}")
         raise HTTPException(status_code=404, detail="Resource not found")
 
@@ -773,38 +778,8 @@ async def spa_fallback(request: Request, full_path: str):
     
     if not os.path.isfile(index_path):
         logger.error(f"❌ index.html NOT FOUND at {index_path}")
-        raise HTTPException(status_code=404, detail="Frontend not found - index.html missing")
+        raise HTTPException(status_code=404, detail="Frontend not found")
     
-    # Read and inject meta tags
-    with open(index_path, 'r', encoding='utf-8') as f:
-        html_content = f.read()
-    
-    # Get meta data for this route
-    path_for_meta = f"/{full_path}" if full_path else "/"
-    try:
-        meta = get_ssr_meta(path_for_meta)
-        
-        # Inject meta tags
-        meta_tags = f'''
-    <title>{meta["title"]}</title>
-    <meta name="description" content="{meta["description"]}" />
-    <meta name="keywords" content="{meta["keywords"]}" />
-    <meta property="og:title" content="{meta["title"]}" />
-    <meta property="og:description" content="{meta["description"]}" />
-    <meta property="og:url" content="{meta["url"]}" />
-    <meta property="og:image" content="{meta["image"]}" />
-    <meta name="twitter:title" content="{meta["title"]}" />
-    <meta name="twitter:description" content="{meta["description"]}" />
-    <meta name="twitter:image" content="{meta["image"]}" />
-    <link rel="canonical" href="{meta["url"]}" />
-    '''
-        
-        # Replace existing title and inject meta
-        html_content = re.sub(r'<title>.*?</title>', '', html_content)
-        html_content = html_content.replace('</head>', f'{meta_tags}</head>')
-    except Exception as e:
-        logger.warning(f"⚠️ Meta injection failed for {full_path}: {e}")
-    
-    logger.info(f"✅ Serving index.html with SSR meta for: {full_path}")
-    
-    return HTMLResponse(content=html_content)
+    logger.info(f"✅ Serving index.html for: {full_path}")
+    return FileResponse(index_path)
+# ------------------------------

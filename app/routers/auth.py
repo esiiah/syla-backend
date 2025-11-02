@@ -45,7 +45,7 @@ except Exception as e:
     logger.error(f"❌ Firebase Admin initialization failed: {e}")
 
 # Router initialization
-router = APIRouter(tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer(auto_error=False)
 
 # Security configuration
