@@ -115,8 +115,8 @@ export default function FileToolExportPanel({
         "pdf-to-excel": { url: "/api/filetools/convert/pdf-to-excel", method: "POST", form: (fd, f) => fd.append("file", f) },
         "excel-to-pdf": { url: "/api/filetools/convert/excel-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
         "pdf-to-word": { url: "/api/filetools/convert/pdf-to-word", method: "POST", form: (fd, f) => fd.append("file", f) },
-        "word-to-pdf": { url: "/api/filetools/word-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
-        "image-to-pdf": { url: "/api/filetools/image-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
+        "word-to-pdf": { url: "/api/filetools/convert/word-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
+        "image-to-pdf": { url: "/api/filetools/convert/image-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
       };
 
       // Choose endpoint
