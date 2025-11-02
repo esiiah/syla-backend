@@ -8,6 +8,7 @@ import {
   Title, Tooltip, Legend, Filler
 } from "chart.js";
 import { Bar, Line, Pie, Scatter, Doughnut, PolarArea, Radar } from "react-chartjs-2";
+import { applyUserSelection, filterRowsByLimit, detectMobileViewport } from '../utils/rowSelectionUtils';
 import { 
   DoughnutChart, 
   RadarChart, 
@@ -125,39 +126,58 @@ export default function ChartView({
     if (!yAxis && columns[1]) setYAxis(columns[1]);
   }, [columns, xAxis, yAxis, setXAxis, setYAxis]);
 
-  const labels = useMemo(() => data.map((r, i) => r?.[xAxis] ?? `Row ${i + 1}`), [data, xAxis]);
-  const values = useMemo(() => data.map(r => parseNum(r?.[yAxis])), [data, yAxis]);
-  const compareVals = useMemo(() => 
-    options.compareField ? data.map(r => parseNum(r?.[options.compareField])) : null, 
-    [data, options.compareField]
-  );
-
-  const pairs = labels.map((l, i) => ({
-    l, 
-    v: values[i], 
-    c: compareVals ? compareVals[i] : null, 
-    raw: data[i], 
-    i
-  }));
-
-  if (options.sort === "asc") pairs.sort((a, b) => a.v - b.v);
-  if (options.sort === "desc") pairs.sort((a, b) => b.v - a.v);
-
-  const lbls = pairs.map(p => p.l);
-  const vals = pairs.map(p => p.v);
-  const cmp = compareVals ? pairs.map(p => p.c) : null;
-  const map = pairs.map(p => p.i);
-
-  const minPos = Math.max(1e-6, Math.min(...[...vals, ...(cmp || [])].filter(v => v > 0)) || 1);
-  const safeVals = options.logScale ? vals.map(v => v > 0 ? v : minPos * 0.01) : vals;
-  const safeCmp = cmp ? (options.logScale ? cmp.map(v => v > 0 ? v : minPos * 0.01) : cmp) : null;
-
   // MUST define isHorizontal BEFORE chartData useMemo (used in 3D shadow logic)
   const isHorizontal = options.type === CHART_TYPES.COLUMN || 
                        options.type === CHART_TYPES.COMPARISON || 
                        options.type === CHART_TYPES.STACKED_BAR;
 
+   const filteredData = useMemo(() => {
+    if (!data || data.length === 0) return [];
+    
+    // Apply user custom selection if exists
+    if (options?.selectedRowIndices && options.selectedRowIndices.length > 0) {
+      return data.filter((_, index) => options.selectedRowIndices.includes(index));
+    }
+    
+    // Otherwise apply automatic limit
+    const isMobile = detectMobileViewport();
+    return filterRowsByLimit(data, isMobile);
+  }, [data, options?.selectedRowIndices]);
+
   const chartData = useMemo(() => {
+    // STEP 1: Determine which data to use
+    const displayData = filteredData.length > 0 ? filteredData : data;
+    
+    // STEP 2: Calculate compareVals from displayData
+    const compareVals = options.compareField 
+      ? displayData.map(r => parseNum(r?.[options.compareField])) 
+      : null;
+
+    // STEP 3: Create pairs from displayData
+    const pairs = displayData.map((row, i) => ({
+      l: row?.[xAxis] ?? `Row ${i + 1}`,
+      v: parseNum(row?.[yAxis]),
+      c: compareVals ? compareVals[i] : null,
+      raw: row,
+      i
+    }));
+
+    // STEP 4: Sort if needed
+    if (options.sort === "asc") pairs.sort((a, b) => a.v - b.v);
+    if (options.sort === "desc") pairs.sort((a, b) => b.v - a.v);
+
+    // STEP 5: Extract arrays
+    const lbls = pairs.map(p => p.l);
+    const vals = pairs.map(p => p.v);
+    const cmp = compareVals ? pairs.map(p => p.c) : null;
+    const map = pairs.map(p => p.i);
+
+    // STEP 6: Calculate safe values for log scale
+    const minPos = Math.max(1e-6, Math.min(...[...vals, ...(cmp || [])].filter(v => v > 0)) || 1);
+    const safeVals = options.logScale ? vals.map(v => v > 0 ? v : minPos * 0.01) : vals;
+    const safeCmp = cmp ? (options.logScale ? cmp.map(v => v > 0 ? v : minPos * 0.01) : cmp) : null;
+
+    // STEP 7: Generate colors
     const base = options.color || "#2563eb";
     const N = lbls.length || 1;
     
@@ -353,8 +373,8 @@ export default function ChartView({
 
     // Handle Compare Mode
     if (options.compareMode && options.compareParam1 && options.compareParam2) {
-      const param1Values = data.map(r => parseNum(r?.[options.compareParam1]));
-      const param2Values = data.map(r => parseNum(r?.[options.compareParam2]));
+      const param1Values = displayData.map(r => parseNum(r?.[options.compareParam1]));
+      const param2Values = displayData.map(r => parseNum(r?.[options.compareParam2]));
       
       ds.length = 0;
       
@@ -431,14 +451,13 @@ export default function ChartView({
         pointHoverRadius: 0,
         borderWidth: 2,
         borderDash: [5, 5],
-        order: 0  // Render on top
+        order: 0
       });
     }
 
     // Apply 3D transformation for bar/column charts ONLY
     let finalData = { labels: lbls, datasets: ds };
     
-    // Check if current chart type supports 3D
     const supports3DBars = [
       CHART_TYPES.BAR,
       CHART_TYPES.COLUMN,
@@ -454,7 +473,31 @@ export default function ChartView({
     }
 
     return finalData;
-  }, [options, lbls, vals, safeVals, perColor, yAxis, map, safeCmp, cmp, selectedBars, data]);
+  }, [options, xAxis, yAxis, perColor, selectedBars, filteredData, data]);
+
+  // Extract labels and minPos for chartOptions
+  const lbls = useMemo(() => {
+    const displayData = filteredData.length > 0 ? filteredData : data;
+    const pairs = displayData.map((row, i) => ({
+      l: row?.[xAxis] ?? `Row ${i + 1}`,
+      v: parseNum(row?.[yAxis])
+    }));
+    
+    if (options.sort === "asc") pairs.sort((a, b) => a.v - b.v);
+    if (options.sort === "desc") pairs.sort((a, b) => b.v - a.v);
+    
+    return pairs.map(p => p.l);
+  }, [filteredData, data, xAxis, yAxis, options.sort]);
+
+  const minPos = useMemo(() => {
+    const displayData = filteredData.length > 0 ? filteredData : data;
+    const vals = displayData.map(r => parseNum(r?.[yAxis]));
+    const compareVals = options.compareField 
+      ? displayData.map(r => parseNum(r?.[options.compareField])) 
+      : [];
+    
+    return Math.max(1e-6, Math.min(...[...vals, ...compareVals].filter(v => v > 0)) || 1);
+  }, [filteredData, data, yAxis, options.compareField]);
 
   const chartOptions = useMemo(() => {
     const tc = themeText();
@@ -509,13 +552,29 @@ export default function ChartView({
             }
             return ctx.dataset?.datalabels?.display ?? !!options.showLabels;
           },
+          anchor: options.labelPosition === 'outside' ? 'end' : 'center',
+          align: options.labelPosition === 'outside' ? 'end' : 'center',
+          offset: options.labelPosition === 'outside' ? 8 : 0,
+          clip: false,
+          font: {
+            size: 11,
+            weight: options.labelPosition === 'outside' ? '600' : '500'
+          },
+          padding: options.labelPosition === 'outside' ? 4 : 2,
+          backgroundColor: options.labelPosition === 'outside' 
+            ? 'rgba(255, 255, 255, 0.9)' 
+            : 'transparent',
+          borderRadius: options.labelPosition === 'outside' ? 4 : 0,
           formatter: (value, ctx) => {
             if (options.type === CHART_TYPES.PIE || options.type === CHART_TYPES.DOUGHNUT) {
               const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
               const percentage = ((value / total) * 100).toFixed(1);
               return `${percentage}%`;
             }
-            return ctx.dataset.originalData ? ctx.dataset.originalData[ctx.dataIndex] : value;
+            const displayValue = ctx.dataset.originalData ? ctx.dataset.originalData[ctx.dataIndex] : value;
+            return options.labelPosition === 'outside' 
+              ? displayValue?.toLocaleString() || displayValue
+              : displayValue;
           }
         },
         tooltip: {
@@ -662,6 +721,16 @@ export default function ChartView({
           left: depthPadding
         }
       };
+    } else if (options.showLabels && options.labelPosition === 'outside') {
+      // Add padding for outside labels
+      opts.layout = {
+        padding: {
+          top: 30,
+          right: 20,
+          bottom: 10,
+          left: 20
+        }
+      };
     }
 
     // Apply rounded corners for horizontal bars with 3D
@@ -739,6 +808,8 @@ export default function ChartView({
 
   // Render special chart types
   if (options.type === CHART_TYPES.GAUGE) {
+    const displayData = filteredData.length > 0 ? filteredData : data;
+    const vals = displayData.map(r => parseNum(r?.[yAxis]));
     const avgValue = vals.reduce((a, b) => a + b, 0) / (vals.length || 1);
     return (
       <div className="rounded-2xl bg-white border shadow-sm dark:bg-ink/80 dark:border-white/5 p-5">
@@ -884,7 +955,11 @@ const getChartComponent = () => {
   const handleBarClick = (seriesKey, label) => {
     const index = lbls.indexOf(label);
     if (index !== -1) {
-      const originalIndex = map[index];
+      // Find original index in full dataset
+      const displayData = filteredData.length > 0 ? filteredData : data;
+      const originalIndex = data.findIndex(row => 
+        displayData[index] && row[xAxis] === displayData[index][xAxis]
+      );
       if (!selectionMode) {
         setEditing({ index: originalIndex, label });
       }
@@ -914,19 +989,36 @@ const getChartComponent = () => {
   return (
     <div className="rounded-2xl bg-white border shadow-sm dark:bg-ink/80 dark:border-white/5 p-5">
      {/* Header */}
-      <div className="flex justify-between items-start mb-4">
-        <div className="flex-1">
-          <h3 className="font-display text-lg font-medium mb-2 text-gray-800 dark:text-slate-200">
+      <div className="flex flex-col gap-3 mb-4">
+        <div className="w-full">
+          <h3 className="font-display text-sm sm:text-base md:text-lg font-medium mb-2 text-gray-800 dark:text-slate-200 break-words">
             {chartTitle || "Data Visualization"}
           </h3>
 
+          {/* Row selection info banner */}
+          {data.length > (detectMobileViewport() ? 10 : 20) && (
+            <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-blue-700 dark:text-blue-300">
+                  Showing {filteredData.length} of {data.length} rows
+                  {chartData?.selectedRowIndices ? " (custom selection)" : " (auto-limited)"}
+                </span>
+                <button
+                  onClick={() => window.dispatchEvent(new CustomEvent('openRowSelectionModal'))}
+                  className="text-sm text-blue-600 hover:text-blue-700 underline"
+                >
+                  Customize
+                </button>
+              </div>
+            </div>
+          )}
           {/* Status indicators */}
 
-          <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-slate-400">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 dark:text-slate-400">
             <span>{data.length.toLocaleString()} data points</span>
             {options.logScale && <span>Log Scale</span>}
             {selectedBars.length > 0 && (
-              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full">
+              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs">
                 {selectedBars.length} selected
               </span>
             )}
@@ -940,50 +1032,54 @@ const getChartComponent = () => {
 
         {/* Action buttons */}
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <button
             onClick={() => navigate('/editing')}
-            className="flex items-center gap-2 px-2.5 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg text-sm font-medium"
+            className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-200 shadow-md hover:shadow-lg text-xs sm:text-sm font-medium flex-1 sm:flex-initial justify-center"
             title="Edit Chart"
           >
-            <Edit3 size={16} />
-            Edit Chart
+            <Edit3 size={14} className="sm:w-4 sm:h-4" />
+            <span className="hidden sm:inline">Edit Chart</span>
+            <span className="sm:hidden">Edit</span>
           </button>
 
           <button
             onClick={() => navigate('/forecast')}
-            className="flex items-center gap-2 px-2.5 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg text-sm font-medium"
+            className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg text-xs sm:text-sm font-medium flex-1 sm:flex-initial justify-center"
             title="Generate AI Forecast"
           >
-            <TrendingUp size={16} />
+            <TrendingUp size={14} className="sm:w-4 sm:h-4" />
             Forecast
           </button>
           
           <button
             onClick={() => setShowExportTool(!showExportTool)}
-            className="flex items-center gap-2 px-2.5 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 dark:border-white/20 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors text-sm font-medium"
+            className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 dark:border-white/20 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors text-xs sm:text-sm font-medium flex-1 sm:flex-initial justify-center"
             title="Export Chart"
           >
-            <Download size={16} />
+            <Download size={14} className="sm:w-4 sm:h-4" />
             Export
           </button>
         </div>
       </div>
 
       {/* Chart container */}
-
-      <div className="mt-4 rounded-xl p-4 bg-gradient-to-b from-gray-50 to-white border dark:from-black/20 dark:to-black/10 dark:border-white/10">
+      <div className="mt-4 rounded-xl p-2 sm:p-3 md:p-4 bg-gradient-to-b from-gray-50 to-white border dark:from-black/20 dark:to-black/10 dark:border-white/10 overflow-hidden">
         <div style={{ 
-          height: options.enable3D ? 500 : 450, 
+          height: window.innerWidth < 640 ? 250 : window.innerWidth < 768 ? 300 : (options.enable3D ? 500 : 450), 
           position: 'relative', 
-          overflow: 'visible', 
-          padding: options.enable3D ? '30px 20px' : '20px 0' 
+          overflow: 'visible',
+          padding: window.innerWidth < 640 ? '5px' : (options.enable3D ? '30px 20px' : '20px 0'),
+          maxWidth: '100%',
+          width: '100%'
         }}>
           <ChartComponent
             ref={ref}
             data={chartData}
             options={{
               ...chartOptions,
+              responsive: true,
+              maintainAspectRatio: false,
               onClick: (event, elements) => {
                 if (elements.length > 0) {
                   const element = elements[0];

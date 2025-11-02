@@ -3,6 +3,15 @@ import React, { createContext, useState, useEffect } from "react";
 
 export const UserContext = createContext();
 
+// Add useUser hook
+export const useUser = () => {
+  const context = React.useContext(UserContext);
+  if (!context) {
+    throw new Error('useUser must be used within UserProvider');
+  }
+  return context;
+};
+
 export default function UserProvider({ children }) {
   const [user, setUser] = useState(() => {
     const storedUser = localStorage.getItem("user");
@@ -77,33 +86,23 @@ export default function UserProvider({ children }) {
     }
   };
 
-  const login = async (contact, password) => {
+  const login = async (userData, token) => {
     try {
-      const formData = new FormData();
-      formData.append("contact", contact);
-      formData.append("password", password);
-
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        credentials: "include",
-        body: formData
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || "Login failed");
+      setUser(userData);
+      localStorage.setItem("user", JSON.stringify(userData));
+      
+      if (token) {
+        localStorage.setItem("token", token);
       }
 
-      const data = await response.json();
-      
-      setUser(data.user);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      
-      if (data.access_token) {
-        localStorage.setItem("token", data.access_token);
-      }
+      // Trigger storage event for other tabs
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'user',
+        newValue: JSON.stringify(userData),
+        oldValue: localStorage.getItem("user")
+      }));
 
-      return data;
+      return userData;
     } catch (error) {
       console.error("Login error:", error);
       throw error;

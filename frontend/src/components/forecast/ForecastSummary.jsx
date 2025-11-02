@@ -573,41 +573,42 @@ export default function ForecastSummary({
   return (
     <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 rounded-2xl border border-blue-200 dark:border-slate-700 overflow-hidden shadow-lg">
       {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
-        <div className="flex items-start justify-between">
+      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-3 sm:p-6 text-white">
+        <div className="flex items-start justify-between gap-2">
           <button
             onClick={() => setIsMinimized(!isMinimized)}
-            className="flex-1 flex items-center gap-3 text-left hover:opacity-90 transition-opacity"
+            className="flex-1 flex items-center gap-2 sm:gap-3 text-left hover:opacity-90 transition-opacity min-w-0"
           >
-            <Sparkles size={28} className="flex-shrink-0" />
-            <div>
-              <h3 className="text-2xl font-bold flex items-center gap-2">
-                Forecast Analysis
-                <span className="text-sm font-normal text-blue-100">
+            <Sparkles size={20} className="sm:w-7 sm:h-7 flex-shrink-0" />
+            <div className="min-w-0">
+              <h3 className="text-base sm:text-2xl font-bold flex items-center gap-1 sm:gap-2">
+                <span className="truncate">Forecast Analysis</span>
+                <span className="text-xs sm:text-sm font-normal text-blue-100 hidden md:inline whitespace-nowrap">
                   {isMinimized ? '(Click to expand)' : '(Click to minimize)'}
                 </span>
               </h3>
-              <p className="text-blue-100 text-sm">
-                {isMinimized ? 'AI-generated insights hidden' : 'AI-generated insights and actionable recommendations'}
+              <p className="text-blue-100 text-xs sm:text-sm truncate">
+                {isMinimized ? 'Insights hidden' : 'AI insights & recommendations'}
               </p>
             </div>
           </button>
           <button
             onClick={handleExportPDF}
-            className="flex items-center gap-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg font-medium transition-all shadow-lg hover:shadow-xl hover:scale-105 flex-shrink-0"
+            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-lg font-medium transition-all shadow-lg hover:shadow-xl hover:scale-105 flex-shrink-0 text-sm sm:text-base"
           >
-            <Download size={18} />
+            <Download size={16} className="sm:w-[18px] sm:h-[18px]" />
             <span className="hidden sm:inline">Export PDF</span>
+            <span className="sm:hidden">PDF</span>
           </button>
         </div>
       </div>
 
       {!isMinimized && (
-      <div className="p-6 space-y-6">
+      <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
         {/* Summary */}
-        <div className="bg-white dark:bg-slate-800/50 rounded-xl p-5 border border-gray-200 dark:border-slate-700">
-          <h4 className="text-lg font-semibold text-gray-800 dark:text-slate-200 mb-3 flex items-center gap-2">
-            <FileText size={20} className="text-blue-600" />
+        <div className="bg-white dark:bg-slate-800/50 rounded-lg sm:rounded-xl p-3 sm:p-5 border border-gray-200 dark:border-slate-700">
+          <h4 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-slate-200 mb-2 sm:mb-3 flex items-center gap-2">
+            <FileText size={16} className="sm:w-5 sm:h-5 text-blue-600 flex-shrink-0" />
             Summary
           </h4>
           <p className="text-gray-700 dark:text-slate-300 leading-relaxed text-sm">
@@ -616,17 +617,17 @@ export default function ForecastSummary({
         </div>
 
         {/* Two Column Layout */}
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid md:grid-cols-2 gap-3 sm:gap-4">
           {/* Key Insights */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl p-5 border border-gray-200 dark:border-slate-700 shadow-sm">
-            <h4 className="text-base font-semibold text-gray-800 dark:text-slate-200 mb-4 flex items-center gap-2">
-              <CheckCircle size={20} className="text-green-600" />
+          <div className="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-5 border border-gray-200 dark:border-slate-700 shadow-sm">
+            <h4 className="text-sm sm:text-base font-semibold text-gray-800 dark:text-slate-200 mb-3 sm:mb-4 flex items-center gap-2">
+              <CheckCircle size={16} className="sm:w-5 sm:h-5 text-green-600 flex-shrink-0" />
               Key Insights
             </h4>
-            <ul className="space-y-3">
+            <ul className="space-y-2 sm:space-y-3">
               {displayInsights.slice(0, 4).map((insight, idx) => (
-                <li key={idx} className="flex items-start gap-2 text-sm text-gray-700 dark:text-slate-300">
-                  <span className="text-blue-600 dark:text-blue-400 font-bold mt-0.5 flex-shrink-0">•</span>
+                <li key={idx} className="flex items-start gap-2 text-xs sm:text-sm text-gray-700 dark:text-slate-300">
+                  <span className="text-blue-600 dark:text-blue-400 font-bold mt-0.5 flex-shrink-0 text-sm">•</span>
                   <span className="leading-relaxed">{insight}</span>
                 </li>
               ))}
@@ -634,14 +635,14 @@ export default function ForecastSummary({
           </div>
 
           {/* Recommendations */}
-          <div className="bg-white dark:bg-slate-800 rounded-xl p-5 border border-gray-200 dark:border-slate-700 shadow-sm">
-            <h4 className="text-base font-semibold text-gray-800 dark:text-slate-200 mb-4 flex items-center gap-2">
-              <AlertCircle size={20} className="text-orange-600" />
+          <div className="bg-white dark:bg-slate-800 rounded-lg sm:rounded-xl p-3 sm:p-5 border border-gray-200 dark:border-slate-700 shadow-sm">
+            <h4 className="text-sm sm:text-base font-semibold text-gray-800 dark:text-slate-200 mb-3 sm:mb-4 flex items-center gap-2">
+              <AlertCircle size={16} className="sm:w-5 sm:h-5 text-orange-600 flex-shrink-0" />
               Recommendations
             </h4>
-            <ol className="space-y-3">
+            <ol className="space-y-2 sm:space-y-3">
               {displayRecommendations.slice(0, 4).map((rec, idx) => (
-                <li key={idx} className="flex items-start gap-2 text-sm text-gray-700 dark:text-slate-300">
+                <li key={idx} className="flex items-start gap-2 text-xs sm:text-sm text-gray-700 dark:text-slate-300">
                   <span className="text-orange-600 dark:text-orange-400 font-bold min-w-[20px] flex-shrink-0">
                     {idx + 1}.
                   </span>
@@ -653,9 +654,9 @@ export default function ForecastSummary({
         </div>
 
         {/* Info Banner */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 flex items-start gap-3">
-          <TrendingUp size={20} className="text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-blue-800 dark:text-blue-300">
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 sm:p-4 flex items-start gap-2 sm:gap-3">
+          <TrendingUp size={16} className="sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+          <p className="text-xs sm:text-sm text-blue-800 dark:text-blue-300">
             <strong>📄 Comprehensive Report:</strong> Click "Export PDF" to download a detailed report including all forecast charts, extended analysis, statistical summaries, and complete recommendations.
           </p>
         </div>

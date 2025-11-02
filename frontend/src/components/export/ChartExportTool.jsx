@@ -248,11 +248,11 @@ export default function ChartExportTool({
       // No fullscreen overlay, just the floating draggable panel
       <div
         ref={panelRef}
-        className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-600 w-80 max-h-[85vh] overflow-hidden z-50"
+        className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-gray-200 dark:border-slate-600 w-[90vw] sm:w-80 max-h-[85vh] overflow-hidden z-50"
         style={{
           position: "fixed",
-          left: `${dragPosition.x}px`,
-          top: `${dragPosition.y}px`,
+          left: window.innerWidth < 640 ? "5vw" : `${dragPosition.x}px`,
+          top: window.innerWidth < 640 ? "10vh" : `${dragPosition.y}px`,
           transform: isDragging ? "scale(1.02)" : "scale(1)",
           transition: isDragging ? "none" : "transform 0.2s ease-out",
           opacity: isInitialized ? 1 : 0

@@ -17,6 +17,7 @@ import './styles/forecast-animations.css';
 import './styles/chart-themes.css'; 
 import { Link } from "react-router-dom";
 import { Settings, Brain } from "lucide-react";
+import AdSenseAd from './components/AdSenseAd';
 
 const LoginRequiredModal = ({ onClose, onSignup, onLogin }) => (
   <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -150,24 +151,24 @@ function App() {
                 </>
               ) : (
                 <>
-                  <h1 className="font-body text-4xl md:text-5xl tracking-wide mb-6 text-gray-800 dark:text-slate-200">
+                  <h1 className="font-body text-2xl sm:text-3xl md:text-4xl lg:text-5xl tracking-wide mb-6 text-gray-800 dark:text-slate-200">
                     From raw data to <span className="text-red-500 font-semibold">smart decisions</span>
                     <br />
                     all powered by <span className="text-neonYellow font-semibold">Ai</span>.
                   </h1>
-                  <p className="text-xl text-gray-700 dark:text-slate-300 mb-8 max-w-4xl mx-auto">
+                  <p className="text-base sm:text-lg md:text-xl text-gray-700 dark:text-slate-300 mb-8 max-w-4xl mx-auto">
                     Clean, visualize, and convert your data with intelligent automation.
                   </p>
-                  <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center px-4">
                     <button
                       onClick={handleSignupNavigation}
-                      className="px-8 py-3 bg-neonBlue text-white rounded-xl font-semibold hover:bg-blue-600 shadow-lg hover:shadow-neon transition-all duration-300"
+                      className="w-full sm:w-auto px-6 sm:px-8 py-3 text-sm sm:text-base bg-neonBlue text-white rounded-xl font-semibold hover:bg-blue-600 shadow-lg hover:shadow-neon transition-all duration-300"
                     >
                       Get Started - Sign Up
                     </button>
                     <button
                       onClick={handleLoginNavigation}
-                      className="px-8 py-3 border-2 border-neonBlue text-neonBlue rounded-xl font-semibold hover:bg-neonBlue hover:text-white transition-all duration-300"
+                      className="w-full sm:w-auto px-6 sm:px-8 py-3 text-sm sm:text-base border-2 border-neonBlue text-neonBlue rounded-xl font-semibold hover:bg-neonBlue hover:text-white transition-all duration-300"
                     >
                       Already have an account? Log In
                     </button>
@@ -177,12 +178,19 @@ function App() {
             </div>
           </div>
 
+          {/* Banner Ad */}
+          <div className="my-8 flex justify-center w-full">
+            <div className="w-full max-w-4xl">
+              <AdSenseAd adSlot="8700675186" />
+            </div>
+          </div>
+
           {/* Dashboard Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-            <section className="lg:col-span-1 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
-              <div className="p-5">
-                <h2 className="font-display text-lg mb-1">Upload Data</h2>
-                <p className="text-gray-500 text-sm mb-4 dark:text-slate-400">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 mt-6 max-w-full overflow-hidden">
+            <section className="lg:col-span-1 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border max-w-full">
+              <div className="p-3 sm:p-5">
+                <h2 className="font-display text-base sm:text-lg mb-1">Upload Data</h2>
+                <p className="text-gray-500 text-xs sm:text-sm mb-4 dark:text-slate-400">
                   CSV / Excel only. Preview & progress included.
                 </p>
                 <FileUpload
@@ -196,10 +204,10 @@ function App() {
               </div>
             </section>
 
-            <section className="lg:col-span-2 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border">
-              <div className="p-5">
+            <section className="lg:col-span-2 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 dark:shadow-soft neon-border max-w-full overflow-hidden">
+              <div className="p-3 sm:p-5">
                 <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-display text-lg">Visualization</h2>
+                  <h2 className="font-display text-base sm:text-lg">Visualization</h2>
                   <button
                     className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-black/30 transition"
                     onClick={() => setShowOptions((prev) => !prev)}
@@ -209,7 +217,7 @@ function App() {
                 </div>
 
                 {showOptions && (
-                  <div className="mb-4">
+                  <div className="mb-4 max-w-full overflow-x-hidden">
                     <ChartOptions 
                       options={chartData.chartOptions} 
                       setOptions={updateChartOptions} 
@@ -219,53 +227,64 @@ function App() {
                   </div>
                 )}
 
-                {user && hasData ? (
-                  <ChartView
-                    data={chartData.data}
-                    columns={chartData.columns}
-                    types={chartData.types}
-                    options={chartData.chartOptions}
-                    chartTitle={chartData.chartTitle}
-                    xAxis={chartData.xAxis}
-                    yAxis={chartData.yAxis}
-                    setXAxis={(xAxis) => updateChartData({ xAxis })}
-                    setYAxis={(yAxis) => updateChartData({ yAxis })}
-                  />
-                ) : !user ? (
-                  <div className="rounded-2xl p-8 bg-gray-50 dark:bg-black/20 text-center text-gray-500">
-                    <div className="text-lg font-medium mb-2">Sign in to visualize</div>
-                    <div className="text-sm">Create an account or sign in to unlock visualization features.</div>
-                    <div className="mt-4">
-                      <button
-                        onClick={() => setShowLoginModal(true)}
-                        className="px-6 py-2 bg-neonBlue text-white rounded-lg hover:bg-blue-600 transition-colors duration-200"
-                      >
-                        Sign In
-                      </button>
+                <div className="max-w-full overflow-hidden">
+                  {user && hasData ? (
+                    <ChartView
+                      data={chartData.data}
+                      columns={chartData.columns}
+                      types={chartData.types}
+                      options={chartData.chartOptions}
+                      chartTitle={chartData.chartTitle}
+                      xAxis={chartData.xAxis}
+                      yAxis={chartData.yAxis}
+                      setXAxis={(xAxis) => updateChartData({ xAxis })}
+                      setYAxis={(yAxis) => updateChartData({ yAxis })}
+                    />
+                  ) : !user ? (
+                    <div className="rounded-2xl p-6 sm:p-8 bg-gray-50 dark:bg-black/20 text-center text-gray-500">
+                      <div className="text-base sm:text-lg font-medium mb-2">Sign in to visualize</div>
+                      <div className="text-xs sm:text-sm">Create an account or sign in to unlock visualization features.</div>
+                      <div className="mt-4">
+                        <button
+                          onClick={() => setShowLoginModal(true)}
+                          className="px-4 sm:px-6 py-2 bg-neonBlue text-white rounded-lg hover:bg-blue-600 transition-colors duration-200 text-sm sm:text-base"
+                        >
+                          Sign In
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="rounded-2xl p-8 bg-gray-50 dark:bg-black/20 text-center text-gray-500">
-                    <div className="text-lg font-medium">Upload to visualize</div>
-                    <div className="text-sm mt-2">
-                      Upload a CSV / Excel file on the left to enable the visualization tools.
+                  ) : (
+                    <div className="rounded-2xl p-6 sm:p-8 bg-gray-50 dark:bg-black/20 text-center text-gray-500">
+                      <div className="text-base sm:text-lg font-medium">Upload to visualize</div>
+                      <div className="text-xs sm:text-sm mt-2">
+                        Upload a CSV / Excel file on the left to enable the visualization tools.
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </section>
           </div>
           
-          {/* Summary Section */}
-
+          {/* Summary Section with Mobile Collapse */}
           {Object.keys(chartData.summary || {}).length > 0 && user && (
-            <ChartSummaryReport 
-              summary={chartData.summary}
-              data={chartData.data}
-              chartTitle={chartData.chartTitle}
-            />
+            <div className="max-w-full overflow-hidden mt-6">
+              <ChartSummaryReport 
+                summary={chartData.summary}
+                data={chartData.data}
+                chartTitle={chartData.chartTitle}
+              />
+            </div>
           )}
-          
+                  
+          {/* Banner Ad */}
+          <div className="my-8 flex justify-center w-full">
+            <div className="w-full max-w-4xl">
+              <AdSenseAd adSlot="8700675186" />
+            </div>
+          </div>
+
+          {/* Features Section */}
           <div className="mt-12">
             <Features />
           </div>

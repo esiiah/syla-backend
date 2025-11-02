@@ -10,12 +10,14 @@ import EditingBar from "../components/EditingBar";
 import EditingPanel from "../components/EditingPanel";
 import EditingPreviewPanel from "../components/EditingPreviewPanel";
 import ChartExportTool from "../components/export/ChartExportTool";
+import RowSelectionModal from "../components/RowSelectionModal";
 
 export default function EditingPage() {
   const navigate = useNavigate();
   const { user, theme, setTheme } = useContext(UserContext);
   const { chartData, updateChartOptions, updateChartData, hasData, isDataLoaded } = useChartData();
   
+  const [showRowSelectionModal, setShowRowSelectionModal] = useState(false);  
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showExportTool, setShowExportTool] = useState(false);
   const [showPreviewPanel, setShowPreviewPanel] = useState(false);
@@ -39,6 +41,20 @@ export default function EditingPage() {
       return;
     }
   }, [user, hasData, isDataLoaded, navigate]);
+
+  useEffect(() => {
+    const handleOpenModal = () => setShowRowSelectionModal(true);
+    window.addEventListener('openRowSelectionModal', handleOpenModal);
+    return () => window.removeEventListener('openRowSelectionModal', handleOpenModal);
+  }, []);
+
+  const handleRowSelectionApply = (selectedIndices) => {
+    updateChartData({ 
+      selectedRowIndices: selectedIndices,
+      rowSelectionMode: "custom",
+      totalRowCount: chartData.data.length
+    });
+  };
 
   // Initialize history with current state
   useEffect(() => {
@@ -280,12 +296,13 @@ export default function EditingPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50 dark:bg-slate-950">
-      {/* User Navbar - Scrollable */}
-      <div className={`transition-transform duration-300 ${navbarHidden ? '-translate-y-full' : 'translate-y-0'}`}>
+      {/* User Navbar - Scrollable, hidden on mobile */}
+      <div className={`hidden md:block transition-transform duration-300 ${navbarHidden ? '-translate-y-full' : 'translate-y-0'}`}>
         <Navbar user={user} />
       </div>
       
-      {/* Editing Toolbar - Always Visible */}
+      {/* Editing Toolbar - Hidden on mobile */}
+      <div className="hidden md:block">
       <EditingBar
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
@@ -301,21 +318,22 @@ export default function EditingPage() {
         onFitToScreen={() => console.log("Fit to screen")}
         className="sticky top-0 z-40"
       />
+      </div>
 
       {/* Main Content Area */}
       <div 
         ref={mainContentRef}
         className="flex flex-1 relative overflow-auto"
-        style={{ height: 'calc(100vh - 120px)', paddingBottom: '40px' }}
+        style={{ height: window.innerWidth < 768 ? 'calc(100vh - 60px)' : 'calc(100vh - 120px)', paddingBottom: '40px' }}
       >
-        {/* Sidebar */}
+        {/* Sidebar - Hidden on mobile */}
         {sidebarOpen && (
           <>
             <div 
-              className="fixed inset-0 bg-black/20 z-20 lg:hidden"
+              className="fixed inset-0 bg-black/20 z-20 hidden lg:block"
               onClick={() => setSidebarOpen(false)}
             />
-            <div className="fixed lg:relative left-0 top-0 h-full w-64 z-30 lg:z-10">
+            <div className="fixed lg:relative left-0 top-0 h-full w-64 z-30 lg:z-10 hidden lg:block">
               <Sidebar theme={theme} setTheme={setTheme} onReportChange={() => {}} />
             </div>
           </>
@@ -336,10 +354,10 @@ export default function EditingPage() {
         {/* Floating Preview Button */}
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="fixed bottom-6 right-6 p-3 bg-green-600 text-white rounded-full shadow-lg hover:bg-green-700 transition-colors z-10"
+          className="fixed bottom-6 right-6 w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center bg-green-600 text-white rounded-full shadow-lg hover:bg-green-700 transition-colors z-10"
           title="Upload File for Preview"
         >
-          <Eye size={20} />
+          <Eye size={18} className="sm:w-5 sm:h-5" />
         </button>
 
         <input
@@ -371,6 +389,16 @@ export default function EditingPage() {
           />
         )}
       </div>
+
+      <RowSelectionModal
+          isOpen={showRowSelectionModal}
+          onClose={() => setShowRowSelectionModal(false)}
+          data={chartData.data}
+          columns={chartData.columns}
+          chartData={chartData}
+          onApply={handleRowSelectionApply}
+        />
+      
     </div>
   );
 }

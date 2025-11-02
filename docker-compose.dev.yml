@@ -1,5 +1,8 @@
+# docker-compose.dev.yml
+version: '3.8'
+
 services:
-  sylabackend:
+  sylabackend-dev:  # Changed service name to avoid conflicts
     build:
       context: .
       dockerfile: Dockerfile
@@ -11,28 +14,35 @@ services:
         VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID}
         VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
-    image: syla-backend
-    container_name: syla-backend
+    image: syla-backend:dev
+    container_name: syla-backend-dev
     ports:
-      - "8080:8080"
+      - "8081:8080"  # Host:Container -访问 localhost:8081
     env_file:
       - .env
     environment:
-      ENVIRONMENT: ${ENVIRONMENT}
+      ENVIRONMENT: development
       DATABASE_URL: ${DATABASE_LOCAL_URL}
       DATABASE_LOCAL_URL: ${DATABASE_LOCAL_URL}
       DATABASE_PROD_URL: ${DATABASE_PROD_URL}
       DATABASE_PUBLIC_URL: ${DATABASE_PUBLIC_URL}
-      FRONTEND_URL: http://localhost:8080
-      BACKEND_URL: http://localhost:8080
-      PORT: 8080
+      FRONTEND_URL: ${FRONTEND_URL}
+      BACKEND_URL: ${BACKEND_URL}
+      PORT: 8080  # Internal container port
     volumes:
-      - uploads_data:/app/uploads:delegated
+      - uploads_data_dev:/app/uploads:delegated
     depends_on:
-      - syla-db
+      - syla-db-dev
+    networks:
+      - syla-dev-network  # Separate network for dev
     user: "1000:1000"
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers 1
-    # ✅ ADD THIS - Prevents logs from filling disk
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers 1 --reload  # Added --reload for dev
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
     logging:
       driver: "json-file"
       options:
@@ -45,19 +55,26 @@ services:
       retries: 3
       start_period: 40s
 
-  syla-db:
+  syla-db-dev:
     image: postgres:16
-    container_name: syla-db
+    container_name: syla-db-dev
     restart: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 1234
-      POSTGRES_DB: postgres
+      POSTGRES_DB: postgres_dev
     ports:
-      - "5432:5432"
+      - "5433:5432"  # Different host port to avoid conflict with prod
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-    # ✅ ADD THIS TOO - Database logs can also get big
+      - postgres_data_dev:/var/lib/postgresql/data
+    networks:
+      - syla-dev-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 256M
     logging:
       driver: "json-file"
       options:
@@ -65,5 +82,9 @@ services:
         max-file: "3"
 
 volumes:
-  postgres_data:
-  uploads_data:
+  postgres_data_dev:
+  uploads_data_dev:
+
+networks:
+  syla-dev-network:
+    driver: bridge

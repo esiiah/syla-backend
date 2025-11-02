@@ -26,26 +26,25 @@ export default function Features() {
     <section className="py-6 bg-transparent">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <h2 className="text-3xl font-display text-center mb-8 text-primary">Our File Tools</h2>
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
           {features.map((feature, index) => {
             const Icon = feature.icon;
             return (
               <Link
                 key={index}
                 to={feature.link}
-                className="group p-6 flex flex-col items-center text-center 
-                           rounded-full bg-gradient-to-br from-blue-400/40 to-blue-600/40 
+                className="group p-3 sm:p-4 md:p-5 flex flex-col items-center text-center 
+                           rounded-2xl bg-gradient-to-br from-blue-400/40 to-blue-600/40 
                            border border-blue-200/30 shadow-lg shadow-blue-300/40
                            hover:scale-105 active:scale-95 transition-all duration-200"
                 title={feature.title}
               >
-                <div className="relative w-20 h-20 flex items-center justify-center">
-                  <Icon size={32} className="text-white drop-shadow-lg" />
-                  {/* Optional soft glint for watery bubble */}
-                  <span className="absolute top-2 left-2 w-3 h-3 rounded-full bg-white/30 blur-sm"></span>
+                <div className="relative w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center">
+                  <Icon size={24} className="sm:w-7 sm:h-7 md:w-8 md:h-8 text-white drop-shadow-lg" />
+                  <span className="absolute top-1 left-1 w-2 h-2 rounded-full bg-white/30 blur-sm"></span>
                 </div>
-                <h3 className="mt-4 font-display font-semibold text-white">{feature.title}</h3>
-                <p className="mt-2 text-sm text-white/80">{feature.description}</p>
+                <h3 className="mt-2 sm:mt-3 md:mt-4 font-display font-semibold text-xs sm:text-sm md:text-base text-white">{feature.title}</h3>
+                <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-white/80 line-clamp-2">{feature.description}</p>
               </Link>
             );
           })}

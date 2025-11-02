@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  sylabackend-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID}
+        VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET}
+        VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
+    image: syla-backend:prod
+    container_name: syla-backend-prod
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env.production
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: ${DATABASE_PROD_URL}
+      PORT: 8080
+    volumes:
+      - uploads_data_prod:/app/uploads:delegated
+    # DELETE THIS LINE:
+    # depends_on:
+    #   - syla-db-prod
+    networks:
+      - syla-prod-network
+    user: "1000:1000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers 2
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # DELETE THIS ENTIRE BLOCK (lines ~45-75):
+  # syla-db-prod:
+  #   image: postgres:16
+  #   container_name: syla-db-prod
+  #   restart: always
+  #   environment:
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: 1234
+  #     POSTGRES_DB: postgres
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - /mnt/ebs/postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - syla-prod-network
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 1G
+  #       reservations:
+  #         memory: 256M
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+
+volumes:
+  # DELETE THIS LINE:
+  # postgres_data_prod:
+  uploads_data_prod:
+
+networks:
+  syla-prod-network:
+    driver: bridge

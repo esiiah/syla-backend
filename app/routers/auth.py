@@ -4,13 +4,19 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from typing import Optional, Dict, Any
 import os
+import logging
 from datetime import datetime, timedelta
 from pydantic import BaseModel
+import firebase_admin
+from firebase_admin import credentials, auth as firebase_auth
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from google.oauth2 import id_token
 from google.auth.transport import requests as grequests
+
+from app.routers.notifications import create_notification_for_user, NotificationType, NotificationCategory, NotificationPriority
+from app.routers.db import get_db
 
 from .db import (
     get_user_by_contact, 
@@ -19,10 +25,27 @@ from .db import (
     create_local_user,
     get_user_by_google_id,
     create_google_user,
-    link_google_to_user
+    link_google_to_user,
+    update_user_profile
 )
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+# Initialize logger
+logger = logging.getLogger(__name__)
+
+# Initialize Firebase Admin SDK
+try:
+    firebase_service_account = os.getenv("FIREBASE_SERVICE_ACCOUNT_PATH")
+    if firebase_service_account and os.path.exists(firebase_service_account):
+        cred = credentials.Certificate(firebase_service_account)
+        firebase_admin.initialize_app(cred)
+        logger.info("✅ Firebase Admin initialized")
+    else:
+        logger.warning("⚠️ Firebase service account not found - phone auth will not be verified")
+except Exception as e:
+    logger.error(f"❌ Firebase Admin initialization failed: {e}")
+
+# Router initialization
+router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer(auto_error=False)
 
 # Security configuration
@@ -43,6 +66,22 @@ class SignupRequest(BaseModel):
     confirm_password: str
     contact_type: str
 
+class GoogleLoginRequest(BaseModel):
+    credential: str
+
+class FirebasePhoneLoginRequest(BaseModel):
+    firebase_token: str
+    phone: str
+    password: str
+
+class FirebasePhoneSignupRequest(BaseModel):
+    firebase_token: str
+    name: str
+    phone: str
+    password: str
+    confirm_password: str
+
+# ------------------- Helper Functions -------------------
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
@@ -106,8 +145,10 @@ def require_auth(request: Request) -> Dict[str, Any]:
         )
     return user
 
+# ------------------- Auth Endpoints -------------------
 @router.post("/signup")
 async def signup(payload: SignupRequest):
+    """Register a new user with email/phone and password"""
     name = payload.name
     contact = payload.contact
     password = payload.password
@@ -148,6 +189,18 @@ async def signup(payload: SignupRequest):
     if not user:
         raise HTTPException(status_code=500, detail="Failed to create user")
     
+    # Send welcome notification
+    db = next(get_db())
+    create_notification_for_user(
+        db=db,
+        user_id=user["id"],
+        title="Welcome to Syla Analytics",
+        message="Clean, Analyse, Visualise, Convert and Forecast in just few minutes. Enjoy your easy work with SYLA.",
+        type=NotificationType.INFO,
+        category=NotificationCategory.SYSTEM,
+        priority=NotificationPriority.MEDIUM
+    )
+
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
@@ -173,10 +226,10 @@ async def signup(payload: SignupRequest):
 
 @router.post("/login")
 async def login(payload: LoginRequest):
+    """Login with email/phone and password"""
     contact = payload.contact
     password = payload.password
 
-    """Login with email/phone and password"""
     user = get_user_with_hash_by_contact(contact)
     if not user or not user.get("_password_hash"):
         raise HTTPException(
@@ -192,7 +245,7 @@ async def login(payload: LoginRequest):
     
     # Remove password hash from user data
     user_data = {k: v for k, v in user.items() if k != "_password_hash"}
-    
+       
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
@@ -220,13 +273,9 @@ async def login(payload: LoginRequest):
     
     return response
 
-class GoogleLoginRequest(BaseModel):
-    credential: str
-
-# Replace your @router.post("/google") endpoint with this:
 @router.post("/google")
 async def google_signin(body: GoogleLoginRequest):
-    """Sign in or sign up with Google - FIXED VERSION"""
+    """Sign in or sign up with Google"""
     token = body.credential
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     
@@ -237,7 +286,6 @@ async def google_signin(body: GoogleLoginRequest):
         )
     
     try:
-        # Verify Google token
         idinfo = id_token.verify_oauth2_token(token, grequests.Request(), client_id)
         
         google_id = idinfo["sub"]
@@ -245,33 +293,25 @@ async def google_signin(body: GoogleLoginRequest):
         name = idinfo.get("name", "Google User")
         avatar_url = idinfo.get("picture")
         
-        # Check if user exists with this Google ID
         user = get_user_by_google_id(google_id)
+        is_new_user = False
         
         if user:
-            # User exists - check if avatar needs updating
             if avatar_url and user.get("avatar_url") != avatar_url:
-                # Update avatar URL if it changed
-                user_data = update_user_profile(
-                    user_id=user["id"],
-                    avatar_url=avatar_url
-                )
+                user_data = update_user_profile(user_id=user["id"], avatar_url=avatar_url)
             else:
                 user_data = user
         else:
-            # Check if user exists with this email
+            is_new_user = True
             if email:
                 existing_user = get_user_by_contact(email)
                 if existing_user:
-                    # Link Google account to existing user
                     link_google_to_user(existing_user["id"], google_id, avatar_url)
                     user_data = get_user_by_id(existing_user["id"])
                 else:
-                    # Create new user
                     user_id = create_google_user(name, email, google_id, avatar_url)
                     user_data = get_user_by_id(user_id)
             else:
-                # Create new user without email
                 user_id = create_google_user(name, None, google_id, avatar_url)
                 user_data = get_user_by_id(user_id)
         
@@ -280,29 +320,39 @@ async def google_signin(body: GoogleLoginRequest):
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to create or retrieve user"
             )
-        
-        # Create access token
+
+        # Send welcome notification only for new users
+        if is_new_user:
+            db = next(get_db())
+            create_notification_for_user(
+                db=db,
+                user_id=user_data["id"],
+                title="Welcome to Syla Analytics",
+                message="Clean, Analyse, Visualise, Convert and Forecast in just few minutes. Enjoy your easy work with SYLA.",
+                type=NotificationType.INFO,
+                category=NotificationCategory.SYSTEM,
+                priority=NotificationPriority.MEDIUM
+            )
+
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"sub": str(user_data["id"])}, 
             expires_delta=access_token_expires
         )
         
-        # Create response with cookie
         response = JSONResponse(content={
             "message": "Google sign-in successful",
-            "user": user_data,  # ENSURE full user data is returned
+            "user": user_data,
             "access_token": access_token,
             "token_type": "bearer"
         })
         
-        # Set cookie
         response.set_cookie(
             key="auth_token",
             value=access_token,
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             httponly=True,
-            secure=False,  # Set to True in production with HTTPS
+            secure=False,
             samesite="lax"
         )
         
@@ -313,6 +363,134 @@ async def google_signin(body: GoogleLoginRequest):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid Google token: {str(e)}"
         )
+
+@router.post("/firebase-phone-login")
+async def firebase_phone_login(payload: FirebasePhoneLoginRequest):
+    """Login with Firebase-verified phone number"""
+    try:
+        # Verify Firebase token
+        decoded_token = firebase_auth.verify_id_token(payload.firebase_token)
+        phone_from_token = decoded_token.get('phone_number')
+        
+        if not phone_from_token:
+            raise HTTPException(status_code=400, detail="Phone number not in token")
+        
+        if phone_from_token != payload.phone:
+            raise HTTPException(status_code=400, detail="Phone number mismatch")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Invalid Firebase token: {str(e)}")
+    
+    user = get_user_with_hash_by_contact(payload.phone)
+    if not user or not user.get("_password_hash"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
+    
+    if not verify_password(payload.password, user["_password_hash"]):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
+    
+    user_data = {k: v for k, v in user.items() if k != "_password_hash"}  
+  
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(user_data["id"])}, 
+        expires_delta=access_token_expires
+    )
+    
+    response = JSONResponse(content={
+        "message": "Login successful",
+        "user": user_data,
+        "access_token": access_token,
+        "token_type": "bearer"
+    })
+    
+    response.set_cookie(
+        key="auth_token",
+        value=access_token,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        secure=False,
+        samesite="lax"
+    )
+    
+    return response
+
+@router.post("/firebase-phone-signup")
+async def firebase_phone_signup(payload: FirebasePhoneSignupRequest):
+    """Signup with Firebase-verified phone number"""
+    try:
+        # Verify Firebase token
+        decoded_token = firebase_auth.verify_id_token(payload.firebase_token)
+        phone_from_token = decoded_token.get('phone_number')
+        
+        if not phone_from_token:
+            raise HTTPException(status_code=400, detail="Phone number not in token")
+        
+        if phone_from_token != payload.phone:
+            raise HTTPException(status_code=400, detail="Phone number mismatch")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Invalid Firebase token: {str(e)}")
+    
+    if payload.password != payload.confirm_password:
+        raise HTTPException(status_code=400, detail="Passwords do not match")
+    
+    existing_user = get_user_by_contact(payload.phone)
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User with this phone already exists"
+        )
+    
+    password_hash = hash_password(payload.password)
+    
+    user_id = create_local_user(
+        name=payload.name,
+        phone=payload.phone,
+        password_hash=password_hash
+    )
+    
+    user = get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=500, detail="Failed to create user")
+    
+    # Send welcome notification
+    db = next(get_db())
+    create_notification_for_user(
+        db=db,
+        user_id=user["id"],
+        title="Welcome to Syla Analytics",
+        message="Clean, Analyse, Visualise, Convert and Forecast in just few minutes. Enjoy your easy work with SYLA.",
+        type=NotificationType.INFO,
+        category=NotificationCategory.SYSTEM,
+        priority=NotificationPriority.MEDIUM
+    )
+   
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": str(user["id"])}, 
+        expires_delta=access_token_expires
+    )
+    
+    response = JSONResponse(content={
+        "user": user,
+        "access_token": access_token,
+        "token_type": "bearer"
+    })
+    
+    response.set_cookie(
+        key="auth_token",
+        value=access_token,
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        httponly=True,
+        secure=False,
+        samesite="lax"
+    )
+    
+    return response
 
 @router.get("/me")
 async def get_current_user_endpoint(request: Request):
@@ -369,109 +547,6 @@ async def refresh_token(request: Request):
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         httponly=True,
         secure=False,  # Set to True in production with HTTPS
-        samesite="lax"
-    )
-    
-class FirebasePhoneLoginRequest(BaseModel):
-    firebase_token: str
-    phone: str
-    password: str
-
-class FirebasePhoneSignupRequest(BaseModel):
-    firebase_token: str
-    name: str
-    phone: str
-    password: str
-    confirm_password: str
-
-@router.post("/firebase-phone-login")
-async def firebase_phone_login(payload: FirebasePhoneLoginRequest):
-    """Login with Firebase-verified phone number"""
-    # In production, verify the Firebase token here
-    # For now, we trust the frontend verification
-    
-    user = get_user_with_hash_by_contact(payload.phone)
-    if not user or not user.get("_password_hash"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials"
-        )
-    
-    if not verify_password(payload.password, user["_password_hash"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials"
-        )
-    
-    user_data = {k: v for k, v in user.items() if k != "_password_hash"}
-    
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": str(user_data["id"])}, 
-        expires_delta=access_token_expires
-    )
-    
-    response = JSONResponse(content={
-        "message": "Login successful",
-        "user": user_data,
-        "access_token": access_token,
-        "token_type": "bearer"
-    })
-    
-    response.set_cookie(
-        key="auth_token",
-        value=access_token,
-        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        httponly=True,
-        secure=False,
-        samesite="lax"
-    )
-    
-    return response
-
-@router.post("/firebase-phone-signup")
-async def firebase_phone_signup(payload: FirebasePhoneSignupRequest):
-    """Signup with Firebase-verified phone number"""
-    if payload.password != payload.confirm_password:
-        raise HTTPException(status_code=400, detail="Passwords do not match")
-    
-    existing_user = get_user_by_contact(payload.phone)
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User with this phone already exists"
-        )
-    
-    password_hash = hash_password(payload.password)
-    
-    user_id = create_local_user(
-        name=payload.name,
-        phone=payload.phone,
-        password_hash=password_hash
-    )
-    
-    user = get_user_by_id(user_id)
-    if not user:
-        raise HTTPException(status_code=500, detail="Failed to create user")
-    
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": str(user["id"])}, 
-        expires_delta=access_token_expires
-    )
-    
-    response = JSONResponse(content={
-        "user": user,
-        "access_token": access_token,
-        "token_type": "bearer"
-    })
-    
-    response.set_cookie(
-        key="auth_token",
-        value=access_token,
-        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-        httponly=True,
-        secure=False,
         samesite="lax"
     )
     

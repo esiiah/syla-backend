@@ -13,7 +13,7 @@ if ENVIRONMENT == "production":
     DATABASE_URL = os.getenv("DATABASE_PROD_URL")
 else:
     DATABASE_URL = os.getenv("DATABASE_LOCAL_URL")
-
+    
 # Validate that DATABASE_URL is set
 if not DATABASE_URL:
     raise EnvironmentError(
@@ -22,7 +22,6 @@ if not DATABASE_URL:
     )
 
 print(f"🔌 [db.py] Connecting to database for {ENVIRONMENT}: {DATABASE_URL[:30]}...")
-
 # Create engine with PostgreSQL-appropriate settings
 engine = create_engine(
     DATABASE_URL,
@@ -61,7 +60,8 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    chart_settings = relationship("ChartSettings", back_populates="user")    
+    chart_settings = relationship("ChartSettings", back_populates="user")
+    row_selections = relationship("ChartRowSelection", back_populates="user")
 
 
 # ⚠️ Do not auto-create tables in production.

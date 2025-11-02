@@ -142,7 +142,7 @@ function ChartOptions({
   const features = chartConfig.features || {};
  
   return (
-    <div className="mt-4 rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5">
+    <div className="mt-4 mx-2 sm:mx-0 rounded-xl sm:rounded-2xl bg-white border border-gray-200 shadow-sm dark:bg-ink/80 dark:border-white/5 max-w-full overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-white/10">
         <h3 className="font-display text-sm flex items-center gap-2 font-medium">
@@ -168,12 +168,12 @@ function ChartOptions({
       </div>
 
       {/* Tab navigation */}
-      <div className="flex border-b border-gray-200 dark:border-white/10">
+      <div className="flex overflow-x-auto border-b border-gray-200 dark:border-white/10 -mx-2 px-2 sm:mx-0 sm:px-0">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
+            className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
               activeTab === tab.id
                 ? "text-blue-600 border-b-2 border-blue-600 bg-blue-50/50 dark:bg-blue-900/20 dark:text-blue-400"
                 : "text-gray-600 hover:text-gray-900 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700"
@@ -437,6 +437,59 @@ function ChartOptions({
                   >
                     Vertical
                   </button>
+                </div>
+              </div>
+
+              {/* Data Labels Configuration */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                  Data Labels
+                </label>
+                <div className="space-y-3 p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={local.showLabels || false}
+                      onChange={e => commit({ showLabels: e.target.checked })}
+                      className="rounded"
+                    />
+                    <span className="text-sm">Show Data Labels</span>
+                  </label>
+
+                  {local.showLabels && (
+                    <div>
+                      <label className="block text-xs text-gray-600 dark:text-slate-400 mb-2">
+                        Label Position
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => commit({ labelPosition: 'center' })}
+                          className={`py-2 px-3 rounded-lg text-sm transition-colors ${
+                            (local.labelPosition || 'center') === 'center'
+                              ? 'bg-blue-600 text-white shadow-md'
+                              : 'bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:border-blue-400'
+                          }`}
+                        >
+                          Centered
+                        </button>
+                        <button
+                          onClick={() => commit({ labelPosition: 'outside' })}
+                          className={`py-2 px-3 rounded-lg text-sm transition-colors ${
+                            local.labelPosition === 'outside'
+                              ? 'bg-blue-600 text-white shadow-md'
+                              : 'bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 hover:border-blue-400'
+                          }`}
+                        >
+                          Outside
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        {local.labelPosition === 'outside' 
+                          ? 'Labels appear outside chart elements' 
+                          : 'Labels appear centered on chart elements'}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -1,5 +1,6 @@
 // frontend/src/components/EditingPanel.jsx
 import React, { useState, useRef, useEffect } from "react";
+import RowSelectionModal from "./RowSelectionModal";
 import { Edit3, Trash2, Square } from "lucide-react";
 import ChartView from "./ChartView";
 import ChartOptions from "./ChartOptions";
@@ -83,16 +84,44 @@ const EditableText = ({
 export default function EditingPanel({ 
   sidebarOpen, 
   onTitleEdit,
-  onExport,
-  onForecast,
-  selectedBars,
-  onBarClick,
-  onSelectionDelete,
-  onSelectionClear
+  selectedBars = [],
+  onBarClick = () => {},
+  onSelectionDelete = () => {},
+  onSelectionClear = () => {}
 }) {
   const { chartData, updateChartData } = useChartData();
-  const [selectionMode, setSelectionMode] = useState(false);
+  const [showRowSelectionModal, setShowRowSelectionModal] = useState(false);
   const panelRef = useRef(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+
+  useEffect(() => {
+    const handleOpenModal = () => setShowRowSelectionModal(true);
+    window.addEventListener('openRowSelectionModal', handleOpenModal);
+    return () => window.removeEventListener('openRowSelectionModal', handleOpenModal);
+  }, []);
+
+  // Force re-render when row selection changes
+  useEffect(() => {
+    if (chartData.selectedRowIndices) {
+      console.log('Row selection updated:', chartData.selectedRowIndices.length, 'rows selected');
+    }
+  }, [chartData.selectedRowIndices]);
+
+  const handleRowSelectionApply = (selectedIndices) => {
+    // Filter the data based on selected indices
+    const filteredData = chartData.data.filter((_, index) => 
+      selectedIndices.includes(index)
+    );
+    
+    // Update both the selection metadata AND the displayed data
+    updateChartData({ 
+      data: filteredData,  // Update the actual data being displayed
+      selectedRowIndices: selectedIndices,
+      rowSelectionMode: "custom",
+      totalRowCount: chartData.data.length,
+      originalData: chartData.originalData || chartData.data  // Preserve original
+    });
+  };
 
   const updateAxes = (xAxis, yAxis) => {
     updateChartData({ xAxis, yAxis });
@@ -115,8 +144,8 @@ export default function EditingPanel({
 
   if (!chartData.data.length) {
     return (
-      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
-        <div className="mx-4 mt-4 mb-4 rounded-2xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 shadow-sm min-h-[calc(100vh-8rem)]">
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-0 lg:ml-64' : 'ml-0'}`}>
+        <div className="mx-2 sm:mx-4 mt-2 sm:mt-4 mb-2 sm:mb-4 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 shadow-sm min-h-[calc(100vh-8rem)]">
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-slate-700 flex items-center justify-center">
@@ -146,14 +175,14 @@ export default function EditingPanel({
   return (
     <div 
       ref={panelRef}
-      className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'} overflow-auto`}
+      className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-0 lg:ml-64' : 'ml-0'} overflow-auto`}
       style={{ height: 'calc(100vh - 120px)' }}
     >
-      <div className="mx-4 mt-4 mb-4 rounded-2xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 shadow-sm min-h-[calc(100vh-8rem)]">
+      <div className="mx-2 sm:mx-4 mt-2 sm:mt-4 mb-2 sm:mb-4 rounded-xl sm:rounded-2xl bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 shadow-sm min-h-[calc(100vh-8rem)]">
         {/* Chart Area */}
-        <div className="p-6 h-full">
+        <div className="p-3 sm:p-6 h-full">
           {/* Title and Data Info Row */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4 mb-4 sm:mb-6">
             <div className="flex items-center gap-6">
               {/* Editable Title */}
               <div className="flex items-center">
@@ -167,15 +196,15 @@ export default function EditingPanel({
               </div>
               
               {/* Data info */}
-              <div className="text-sm text-gray-500 dark:text-slate-400">
+              <div className="text-xs sm:text-sm text-gray-500 dark:text-slate-400">
                 {chartData.data.length.toLocaleString()} rows • {chartData.columns.length} columns
               </div>
             </div>
           </div>
 
           {/* Axis Controls with Selection Mode */}
-          <div className="flex flex-wrap gap-6 mb-6 items-center">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-6 mb-4 sm:mb-6 items-stretch sm:items-center">
+            <div className="flex items-center gap-2 sm:gap-3 flex-1 sm:flex-initial">
               <div className="flex items-center gap-2">
                 <EditableText
                   value={chartData.xAxisLabel || "X-Axis"}
@@ -189,7 +218,7 @@ export default function EditingPanel({
               <select
                 value={chartData.xAxis || ""}
                 onChange={(e) => updateAxes(e.target.value, chartData.yAxis)}
-                className="border border-gray-300 rounded-lg px-3 py-1 text-sm bg-white dark:bg-slate-700 dark:border-slate-600 min-w-[120px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-gray-300 rounded-lg px-2 sm:px-3 py-1 text-xs sm:text-sm bg-white dark:bg-slate-700 dark:border-slate-600 w-full sm:min-w-[120px] focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {chartData.columns.map(col => (
                   <option key={col} value={col}>{col}</option>
@@ -197,7 +226,7 @@ export default function EditingPanel({
               </select>
             </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 flex-1 sm:flex-initial">
               <div className="flex items-center gap-2">
                 <EditableText
                   value={chartData.yAxisLabel || "Y-Axis"}
@@ -211,7 +240,7 @@ export default function EditingPanel({
               <select
                 value={chartData.yAxis || ""}
                 onChange={(e) => updateAxes(chartData.xAxis, e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-1 text-sm bg-white dark:bg-slate-700 dark:border-slate-600 min-w-[120px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="border border-gray-300 rounded-lg px-2 sm:px-3 py-1 text-xs sm:text-sm bg-white dark:bg-slate-700 dark:border-slate-600 w-full sm:min-w-[120px] focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {chartData.columns.map(col => (
                   <option key={col} value={col}>{col}</option>
@@ -220,10 +249,10 @@ export default function EditingPanel({
             </div>
 
             {/* Selection Mode Button */}
-            <div className="ml-auto">
+            <div className="w-full sm:w-auto sm:ml-auto">
               <button
                 onClick={() => setSelectionMode(!selectionMode)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                className={`w-full sm:w-auto flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors text-sm ${
                   selectionMode 
                     ? 'bg-orange-100 text-orange-700 border border-orange-300' 
                     : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -237,7 +266,7 @@ export default function EditingPanel({
 
           {/* Selection Info */}
           {selectedBars?.length > 0 && (
-            <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+            <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
                   {selectedBars.length} item(s) selected
@@ -245,14 +274,14 @@ export default function EditingPanel({
                 <div className="flex gap-2">
                   <button 
                     onClick={onSelectionDelete}
-                    className="flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors text-sm"
+                    className="flex items-center gap-1 px-2 sm:px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors text-xs sm:text-sm"
                   >
                     <Trash2 size={14} />
                     Delete Selected
                   </button>
                   <button 
                     onClick={onSelectionClear}
-                    className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors text-sm"
+                    className="px-2 sm:px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors text-xs sm:text-sm"
                   >
                     Clear Selection
                   </button>
@@ -262,15 +291,15 @@ export default function EditingPanel({
           )}
 
           {selectionMode && (
-            <div className="mb-4 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-700">
-              <div className="text-sm text-orange-700 dark:text-orange-300">
+            <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-700">
+              <div className="text-xs sm:text-sm text-orange-700 dark:text-orange-300">
                 <strong>Selection Mode Active:</strong> Click on chart elements to select them for bulk operations.
               </div>
             </div>
           )}
 
           {/* Chart Component */}
-          <div className="bg-gradient-to-b from-gray-50 to-white dark:from-black/20 dark:to-black/10 rounded-xl p-4 border dark:border-white/10" style={{ 
+          <div className="bg-gradient-to-b from-gray-50 to-white dark:from-black/20 dark:to-black/10 rounded-lg sm:rounded-xl p-2 sm:p-4 border dark:border-white/10" style={{ 
             minHeight: '550px',
             overflow: 'visible' 
           }}> 
@@ -300,6 +329,16 @@ export default function EditingPanel({
           />
         </div>
       </div>
+      
+      <RowSelectionModal
+        isOpen={showRowSelectionModal}
+        onClose={() => setShowRowSelectionModal(false)}
+        data={chartData.data}
+        columns={chartData.columns}
+        chartData={chartData}
+        onApply={handleRowSelectionApply}
+      />
+      
     </div>
   );
 }

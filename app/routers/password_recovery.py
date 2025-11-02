@@ -27,7 +27,7 @@ class PasswordResetToken(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 # Create the table
-Base.metadata.create_all(bind=engine)
+#Base.metadata.create_all(bind=engine)
 
 class ForgotPasswordRequest(BaseModel):
     contact: str  # email or phone

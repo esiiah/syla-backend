@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from .services.file_compression import FileCompressionService
 
-router = APIRouter(prefix="/api/filetools", tags=["filetools"])
+router = APIRouter(prefix="/filetools", tags=["filetools"])
 
 # ---------- Directories ----------
 BASE_DIR = os.path.dirname(__file__)
@@ -159,6 +159,17 @@ async def pdf_compress_preview(file: UploadFile = File(...)):
                 os.remove(in_path)
             except Exception:
                 pass
+
+# ---------- Generic compression endpoint for frontend ----------
+@router.post("/compress")
+async def generic_compress(file: UploadFile = File(...), level: str = Form("medium")):
+    """Auto-detect file type and compress accordingly"""
+    filename = (file.filename or "").lower()
+    
+    if filename.endswith(".pdf"):
+        return await pdf_compress(file, level)
+    else:
+        return await file_compress(file, level)
 
 # ---------- Generic file compress ----------
 @router.post("/file/compress")
@@ -311,7 +322,7 @@ async def pdf_merge(files: List[UploadFile] = File(...)):
                     pass
 
 # ---------- Word/Image to PDF (LibreOffice) ----------
-@router.post("/word-to-pdf")
+@router.post("/convert/word-to-pdf")
 async def word_to_pdf(file: UploadFile = File(...)):
     """Convert Word document to PDF using LibreOffice"""
     ext = (file.filename or "").lower()
@@ -342,7 +353,7 @@ async def word_to_pdf(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-@router.post("/image-to-pdf")
+@router.post("/convert/image-to-pdf")
 async def image_to_pdf(file: UploadFile = File(...)):
     """Convert image to PDF using LibreOffice"""
     ext = (file.filename or "").lower()
@@ -375,7 +386,7 @@ async def image_to_pdf(file: UploadFile = File(...)):
                 pass
 
 # ---------- Other Conversions ----------
-@router.post("/csv-to-excel")
+@router.post("/convert/csv-to-excel")
 async def csv_to_excel(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files allowed")
@@ -399,7 +410,7 @@ async def csv_to_excel(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
 
-@router.post("/excel-to-csv")
+@router.post("/convert/excel-to-csv")
 async def excel_to_csv(file: UploadFile = File(...)):
     ext = (file.filename or "").lower()
     if not (ext.endswith(".xls") or ext.endswith(".xlsx")):
@@ -424,7 +435,7 @@ async def excel_to_csv(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
 
-@router.post("/pdf-to-csv")
+@router.post("/convert/pdf-to-csv")
 async def pdf_to_csv(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files allowed")
@@ -476,7 +487,7 @@ async def pdf_to_csv(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-@router.post("/csv-to-pdf")
+@router.post("/convert/csv-to-pdf")
 async def csv_to_pdf(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files allowed")
@@ -527,7 +538,7 @@ async def csv_to_pdf(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-@router.post("/pdf-to-excel")
+@router.post("/convert/pdf-to-excel")
 async def pdf_to_excel(file: UploadFile = File(...)):
     try:
         import pdfplumber
@@ -590,7 +601,7 @@ async def pdf_to_excel(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-@router.post("/excel-to-pdf")
+@router.post("/convert/excel-to-pdf")
 async def excel_to_pdf(file: UploadFile = File(...)):
     try:
         import pandas as pd
@@ -622,44 +633,57 @@ async def excel_to_pdf(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-@router.post("/pdf-to-word")
+@router.post("/convert/pdf-to-word")
 async def pdf_to_word(file: UploadFile = File(...)):
-    """Convert PDF to Word using pdf2docx"""
+    """Convert PDF to Word using PyMuPDF"""
+    try:
+        import fitz  # PyMuPDF
+        from docx import Document
+        from docx.shared import Pt, Inches
+    except ImportError:
+        raise HTTPException(status_code=500, detail="PyMuPDF or python-docx not installed")
+
     if not (file.filename or "").lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files allowed")
-    
-    try:
-        from pdf2docx import Converter
-    except ImportError:
-        raise HTTPException(status_code=500, detail="pdf2docx required")
-    
+
     in_path = write_upload_to_temp(file, prefix="pdf2word_in_")
-    out_name = f"pdf2word_{int(time.time() * 1000)}.docx"
-    out_path = os.path.join(UPLOAD_DIR, out_name)
     
     try:
-        if not os.path.exists(in_path) or os.path.getsize(in_path) == 0:
-            raise HTTPException(status_code=400, detail="Uploaded PDF is empty")
+        doc = Document()
+        pdf_doc = fitz.open(in_path)
         
-        cv = Converter(in_path)
-        cv.convert(out_path, start=0, end=None)
-        cv.close()
+        for page_num in range(len(pdf_doc)):
+            page = pdf_doc[page_num]
+            text = page.get_text()
+            
+            if text.strip():
+                paragraph = doc.add_paragraph(text)
+                paragraph.style.font.size = Pt(11)
+            
+            if page_num < len(pdf_doc) - 1:
+                doc.add_page_break()
         
-        if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
-            raise HTTPException(status_code=500, detail="Conversion failed")
+        pdf_doc.close()
+        
+        final_name = unique_filename(f"{Path(file.filename).stem}_converted.docx")
+        final_path = os.path.join(UPLOAD_DIR, final_name)
+        doc.save(final_path)
+        
+        if not os.path.exists(final_path) or os.path.getsize(final_path) == 0:
+            raise Exception("Output file is empty")
         
         return {
             "message": "PDF successfully converted to Word",
-            "download_url": f"/api/filetools/files/{out_name}",
-            "filename": out_name
+            "download_url": f"/api/filetools/files/{final_name}",
+            "filename": final_name
         }
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"PDF to Word conversion failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
     finally:
         if os.path.exists(in_path):
             try:
                 os.remove(in_path)
             except Exception:
                 pass
+
+# End of file_tools_full.py

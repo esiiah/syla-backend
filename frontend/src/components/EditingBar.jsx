@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CHART_TYPES } from "../utils/chartConfigs";
+import { useChartData } from "../context/ChartDataContext";
 import {
   Menu, Settings, Palette, BarChart3, LineChart, PieChart, Circle, AreaChart,
   TrendingUp, SortAsc, SortDesc, Grid, Layers, Eye, EyeOff, Download, Save,
@@ -15,6 +16,7 @@ export default function EditingBar({
 }) {
   const navigate = useNavigate();
   const [activeDropdown, setActiveDropdown] = useState(null);
+  const { chartData } = useChartData();
 
   const chartTypes = [
     { type: CHART_TYPES.BAR, icon: BarChart3, label: "Bar" },
@@ -348,20 +350,94 @@ export default function EditingBar({
             )}
           </div>
 
-          <div className="w-px h-6 bg-gray-300 dark:bg-slate-600 mx-2" />
-
-          {/* Show Labels */}
+          {/* Row Selection Button */}
           <button
-            onClick={() => onOptionsChange({ showLabels: !chartOptions.showLabels })}
+            onClick={() => {
+              // Trigger modal open via context
+              window.dispatchEvent(new CustomEvent('openRowSelectionModal'));
+            }}
             className={`p-2 rounded-lg transition-colors ${
-              chartOptions.showLabels
-                ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30"
+              chartData?.selectedRowIndices
+                ? "bg-green-100 text-green-600 dark:bg-green-900/30"
                 : "hover:bg-gray-100 dark:hover:bg-slate-700"
             }`}
-            title="Toggle Data Labels"
+            title="Select Rows"
           >
-            {chartOptions.showLabels ? <Eye size={18} /> : <EyeOff size={18} />}
+            <Grid size={18} />
+            {chartData?.selectedRowIndices && (
+              <span className="absolute -top-1 -right-1 bg-green-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                {chartData.selectedRowIndices.length}
+              </span>
+            )}
           </button>
+          
+          <div className="w-px h-6 bg-gray-300 dark:bg-slate-600 mx-2" />
+
+          {/* Show Labels with Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => toggleDropdown("labels")}
+              className={`p-2 rounded-lg transition-colors ${
+                activeDropdown === "labels"
+                  ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30"
+                  : chartOptions.showLabels
+                  ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30"
+                  : "hover:bg-gray-100 dark:hover:bg-slate-700"
+              }`}
+              title="Data Labels Options"
+            >
+              {chartOptions.showLabels ? <Eye size={18} /> : <EyeOff size={18} />}
+            </button>
+
+            {activeDropdown === "labels" && (
+              <div
+                className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg min-w-[160px] p-2"
+                style={{ zIndex: 70 }}
+              >
+                <label className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-slate-700 rounded cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={chartOptions.showLabels || false}
+                    onChange={e => {
+                      onOptionsChange({ showLabels: e.target.checked });
+                      if (!e.target.checked) setActiveDropdown(null);
+                    }}
+                    className="rounded"
+                  />
+                  Show Labels
+                </label>
+                
+                {chartOptions.showLabels && (
+                  <>
+                    <div className="border-t border-gray-200 dark:border-slate-600 my-2"></div>
+                    <div className="px-3 py-1 text-xs text-gray-500">Position:</div>
+                    <button
+                      onClick={() => {
+                        onOptionsChange({ labelPosition: 'center' });
+                        setActiveDropdown(null);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors ${
+                        (chartOptions.labelPosition || 'center') === 'center' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30' : ''
+                      }`}
+                    >
+                      Centered
+                    </button>
+                    <button
+                      onClick={() => {
+                        onOptionsChange({ labelPosition: 'outside' });
+                        setActiveDropdown(null);
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-slate-700 rounded transition-colors ${
+                        chartOptions.labelPosition === 'outside' ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30' : ''
+                      }`}
+                    >
+                      Outside
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Trendline */}
           <button
