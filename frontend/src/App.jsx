@@ -10,8 +10,8 @@ import Footer from "./components/Footer.jsx";
 import Navbar from "./components/Navbar";
 import ChartOptions from "./components/ChartOptions.jsx";
 import { useChartData } from "./context/ChartDataContext";
+import { useUser } from "./context/UserContext";
 import ChartSummaryReport from './components/ChartSummaryReport';
-import api from "./services/api"; 
 import "./App.css";
 import './styles/forecast-animations.css';
 import './styles/chart-themes.css'; 
@@ -53,7 +53,7 @@ const LoginRequiredModal = ({ onClose, onSignup, onLogin }) => (
 
 function App() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
+  const { user } = useUser();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [heroGreeting, setHeroGreeting] = useState("");
   const { chartData, updateChartOptions, updateChartData, hasData } = useChartData();
@@ -75,33 +75,6 @@ function App() {
   }, [user]);
 
   useEffect(() => {
-    // ✅ FIXED: Check authentication on mount using api service
-    const checkAuth = async () => {
-      try {
-        const response = await api.get('/auth/me');
-
-        if (response.ok) {
-          const userData = await response.json();
-          setUser(userData);
-          localStorage.setItem("user", JSON.stringify(userData));
-          console.log("[App] User authenticated:", userData.name);
-        } else {
-          // Not authenticated
-          console.log("[App] Not authenticated");
-          localStorage.removeItem("user");
-          localStorage.removeItem("token");
-          setUser(null);
-        }
-      } catch (error) {
-        console.error("[App] Auth check failed:", error);
-        localStorage.removeItem("user");
-        localStorage.removeItem("token");
-        setUser(null);
-      }
-    };
-
-    checkAuth();
-
     const savedTheme = localStorage.getItem("theme") || "light";
     setTheme(savedTheme);
   }, []);
