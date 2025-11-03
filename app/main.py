@@ -60,19 +60,20 @@ logger = logging.getLogger("syla-backend")
 # ------------------------------
 app = FastAPI(title="Syla Analytics")
 
-# --- FIX: increase upload size for merge endpoint ---
+# --- FIX: increase request body size limit for filetools merge ---
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import Request
 
 class LargeUploadMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # only pre-read body for merge endpoint
+        # read body manually for large uploads to bypass Starlette limits
         if request.url.path.startswith("/api/filetools/merge"):
-            await request.body()
+            request._body = await request.body()
         return await call_next(request)
 
 app.add_middleware(LargeUploadMiddleware)
 app.state._MAX_BODY_SIZE = 1024 * 1024 * 100  # 100MB
+# --- END FIX ---
 
 # ------------------------------
 # Startup event
