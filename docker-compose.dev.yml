@@ -36,7 +36,7 @@ services:
     networks:
       - syla-dev-network  # Separate network for dev
     user: "1000:1000"
-    command: gunicorn app.main:app --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8080 --workers 2 --timeout 120 --limit-request-line 8190 --limit-request-fields 100 --limit-request-field_size 8190
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers 2  
     deploy:
       resources:
         limits:
