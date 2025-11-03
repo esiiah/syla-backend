@@ -55,13 +55,13 @@ export default function FileToolPage({ theme, setTheme }) {
       type: "compress",
       label: "File → Compressed File",
       accept: ".pdf,.docx,.xlsx,.csv,.txt",
-      endpoint: "/api/filetools/pdf/compress",
+      endpoint: "/api/filetools/compress",
     },
     merge: {
       type: "merge",
       label: "Merge PDFs",
       accept: ".pdf",
-      endpoint: "/api/filetools/pdf/merge",
+      endpoint: "/api/filetools/merge",
     },
     "pdf-to-word": {
       type: "convert",
@@ -118,7 +118,7 @@ export default function FileToolPage({ theme, setTheme }) {
       endpoint: "/api/filetools/csv-to-pdf",
     },
   };
-
+  
   const config = toolMapping[action] || null;
 
   // --- Upload / Convert Handler ---

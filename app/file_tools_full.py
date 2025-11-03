@@ -276,7 +276,7 @@ async def pdf_compress(file: UploadFile = File(...), level: str = Form("medium")
                     pass
 
 # ---------- PDF merge ----------
-@router.post("/pdf/merge")
+@router.post("/merge")
 async def pdf_merge(files: List[UploadFile] = File(...)):
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
@@ -322,7 +322,7 @@ async def pdf_merge(files: List[UploadFile] = File(...)):
                     pass
 
 # ---------- Word/Image to PDF (LibreOffice) ----------
-@router.post("/convert/word-to-pdf")
+@router.post("/word-to-pdf")
 async def word_to_pdf(file: UploadFile = File(...)):
     """Convert Word document to PDF using LibreOffice"""
     ext = (file.filename or "").lower()
@@ -353,7 +353,7 @@ async def word_to_pdf(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-@router.post("/convert/image-to-pdf")
+@router.post("/image-to-pdf")
 async def image_to_pdf(file: UploadFile = File(...)):
     """Convert image to PDF using LibreOffice"""
     ext = (file.filename or "").lower()
@@ -386,7 +386,7 @@ async def image_to_pdf(file: UploadFile = File(...)):
                 pass
 
 # ---------- Other Conversions ----------
-@router.post("/convert/csv-to-excel")
+@router.post("/csv-to-excel")
 async def csv_to_excel(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files allowed")
@@ -410,7 +410,7 @@ async def csv_to_excel(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
 
-@router.post("/convert/excel-to-csv")
+@router.post("/excel-to-csv")
 async def excel_to_csv(file: UploadFile = File(...)):
     ext = (file.filename or "").lower()
     if not (ext.endswith(".xls") or ext.endswith(".xlsx")):
@@ -435,7 +435,7 @@ async def excel_to_csv(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
 
-@router.post("/convert/pdf-to-csv")
+@router.post("/pdf-to-csv")
 async def pdf_to_csv(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files allowed")
@@ -487,7 +487,7 @@ async def pdf_to_csv(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-@router.post("/convert/csv-to-pdf")
+@router.post("/csv-to-pdf")
 async def csv_to_pdf(file: UploadFile = File(...)):
     if not (file.filename or "").lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files allowed")
@@ -538,7 +538,7 @@ async def csv_to_pdf(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-@router.post("/convert/pdf-to-excel")
+@router.post("/pdf-to-excel")
 async def pdf_to_excel(file: UploadFile = File(...)):
     try:
         import pdfplumber
@@ -601,7 +601,7 @@ async def pdf_to_excel(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-@router.post("/convert/excel-to-pdf")
+@router.post("/excel-to-pdf")
 async def excel_to_pdf(file: UploadFile = File(...)):
     try:
         import pandas as pd
@@ -633,7 +633,7 @@ async def excel_to_pdf(file: UploadFile = File(...)):
             except Exception:
                 pass
 
-@router.post("/convert/pdf-to-word")
+@router.post("/pdf-to-word")
 async def pdf_to_word(file: UploadFile = File(...)):
     """Convert PDF to Word using PyMuPDF"""
     try:

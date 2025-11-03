@@ -5,7 +5,8 @@ FROM node:20-slim AS frontend-builder
 WORKDIR /app/frontend
 
 COPY frontend/package*.json ./
-RUN npm ci --legacy-peer-deps
+RUN npm config set update-notifier false && \
+    npm ci --legacy-peer-deps
 
 COPY frontend/ ./
 
@@ -38,6 +39,8 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_ROOT_USER_ACTION=ignore \
+    DEBIAN_FRONTEND=noninteractive \
     PORT=8080 \
     ENVIRONMENT=production
 

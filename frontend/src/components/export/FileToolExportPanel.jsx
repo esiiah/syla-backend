@@ -105,20 +105,18 @@ export default function FileToolExportPanel({
 
       // Map toolType -> endpoint + payload construction
       const map = {
-        compress: { url: "/api/filetools/pdf/compress", method: "POST", form: (fd, f) => { fd.append("file", f); fd.append("level", compressionLevel); } },
-        "compress-any": { url: "/api/filetools/file/compress", method: "POST", form: (fd, f) => { fd.append("file", f); fd.append("level", compressionLevel); } },
-        merge: { url: "/api/filetools/pdf/merge", method: "POST-multi", form: (fd, f) => fd.append("files", f) },
-        "csv-to-excel": { url: "/api/filetools/convert/csv-to-excel", method: "POST", form: (fd, f) => fd.append("file", f) },
-        "excel-to-csv": { url: "/api/filetools/convert/excel-to-csv", method: "POST", form: (fd, f) => fd.append("file", f) },
-        "pdf-to-csv": { url: "/api/filetools/convert/pdf-to-csv", method: "POST", form: (fd, f) => fd.append("file", f) },
-        "csv-to-pdf": { url: "/api/filetools/convert/csv-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
-        "pdf-to-excel": { url: "/api/filetools/convert/pdf-to-excel", method: "POST", form: (fd, f) => fd.append("file", f) },
-        "excel-to-pdf": { url: "/api/filetools/convert/excel-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
-        "pdf-to-word": { url: "/api/filetools/convert/pdf-to-word", method: "POST", form: (fd, f) => fd.append("file", f) },
-        "word-to-pdf": { url: "/api/filetools/convert/word-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
-        "image-to-pdf": { url: "/api/filetools/convert/image-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
+        compress: { url: "/api/filetools/compress", method: "POST", form: (fd, f) => { fd.append("file", f); fd.append("level", compressionLevel); } },
+        merge: { url: "/api/filetools/merge", method: "POST-multi", form: (fd, f) => fd.append("files", f) },
+        "csv-to-excel": { url: "/api/filetools/csv-to-excel", method: "POST", form: (fd, f) => fd.append("file", f) },
+        "excel-to-csv": { url: "/api/filetools/excel-to-csv", method: "POST", form: (fd, f) => fd.append("file", f) },
+        "pdf-to-csv": { url: "/api/filetools/pdf-to-csv", method: "POST", form: (fd, f) => fd.append("file", f) },
+        "csv-to-pdf": { url: "/api/filetools/csv-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
+        "pdf-to-excel": { url: "/api/filetools/pdf-to-excel", method: "POST", form: (fd, f) => fd.append("file", f) },
+        "excel-to-pdf": { url: "/api/filetools/excel-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
+        "pdf-to-word": { url: "/api/filetools/pdf-to-word", method: "POST", form: (fd, f) => fd.append("file", f) },
+        "word-to-pdf": { url: "/api/filetools/word-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
+        "image-to-pdf": { url: "/api/filetools/image-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
       };
-
       // Choose endpoint
       let chosen = map[toolType];
       // If toolType is compress but file isn't PDF, use compress-any if available

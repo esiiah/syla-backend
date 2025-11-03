@@ -109,18 +109,17 @@ export default function FileToolUploadPanel({
 
       // map toolType -> endpoint
       const map = {
-        compress: { url: "/api/filetools/pdf/compress", multi: false, formFileKey: "file" },
-        "compress-any": { url: "/api/filetools/file/compress", multi: false, formFileKey: "file" },
-        merge: { url: "/api/filetools/pdf/merge", multi: true, formFileKey: "files" },
-        "csv-to-excel": { url: "/api/filetools/convert/csv-to-excel", multi: false, formFileKey: "file" },
-        "excel-to-csv": { url: "/api/filetools/convert/excel-to-csv", multi: false, formFileKey: "file" },
-        "pdf-to-csv": { url: "/api/filetools/convert/pdf-to-csv", multi: false, formFileKey: "file" },
-        "csv-to-pdf": { url: "/api/filetools/convert/csv-to-pdf", multi: false, formFileKey: "file" },
-        "pdf-to-excel": { url: "/api/filetools/convert/pdf-to-excel", multi: false, formFileKey: "file" },
-        "excel-to-pdf": { url: "/api/filetools/convert/excel-to-pdf", multi: false, formFileKey: "file" },
-        "pdf-to-word": { url: "/api/filetools/convert/pdf-to-word", multi: false, formFileKey: "file" },
-        "word-to-pdf": { url: "/api/filetools/convert/word-to-pdf", multi: false, formFileKey: "file" },
-        "image-to-pdf": { url: "/api/filetools/convert/image-to-pdf", multi: false, formFileKey: "file" },
+        compress: { url: "/api/filetools/compress", multi: false, formFileKey: "file" },
+        merge: { url: "/api/filetools/merge", multi: true, formFileKey: "files" },
+        "csv-to-excel": { url: "/api/filetools/csv-to-excel", multi: false, formFileKey: "file" },
+        "excel-to-csv": { url: "/api/filetools/excel-to-csv", multi: false, formFileKey: "file" },
+        "pdf-to-csv": { url: "/api/filetools/pdf-to-csv", multi: false, formFileKey: "file" },
+        "csv-to-pdf": { url: "/api/filetools/csv-to-pdf", multi: false, formFileKey: "file" },
+        "pdf-to-excel": { url: "/api/filetools/pdf-to-excel", multi: false, formFileKey: "file" },
+        "excel-to-pdf": { url: "/api/filetools/excel-to-pdf", multi: false, formFileKey: "file" },
+        "pdf-to-word": { url: "/api/filetools/pdf-to-word", multi: false, formFileKey: "file" },
+        "word-to-pdf": { url: "/api/filetools/word-to-pdf", multi: false, formFileKey: "file" },
+        "image-to-pdf": { url: "/api/filetools/image-to-pdf", multi: false, formFileKey: "file" },
       };
 
       let chosen = map[toolType] || map.compress;
