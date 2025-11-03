@@ -31,7 +31,7 @@ services:
     networks:
       - syla-prod-network
     user: "1000:1000"
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers 2
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers 2 --limit-max-request-size 104857600
     restart: unless-stopped
     deploy:
       resources:
