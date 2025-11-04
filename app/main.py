@@ -105,6 +105,16 @@ app.add_middleware(
 )
 
 # ------------------------------
+# Security header middleware (fix COOP/COEP issues for Google login)
+# ------------------------------
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
+    response.headers["Cross-Origin-Embedder-Policy"] = "unsafe-none"
+    return response
+
+# ------------------------------
 # FRONTEND DIRECTORY - MUST BE DEFINED EARLY
 # ------------------------------
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "dist")

@@ -56,12 +56,12 @@ useEffect(() => {
 }, [user]);
 
 useEffect(() => {
-  // Give context time to load user data
+  // Wait for user context to load properly
   const timer = setTimeout(() => {
-    setInitialLoading(false);
+    if (!userLoading) setLoading(false);
   }, 500);
   return () => clearTimeout(timer);
-}, []);
+}, [userLoading]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
