@@ -28,7 +28,7 @@ export default function ResetPasswordPage() {
 
   const validateToken = async () => {
     try {
-      const res = await fetch(`/api/auth/validate-reset-token/${token}`, {
+      const res = await fetch(`/api/api/auth/validate-reset-token/${token}`, {
         credentials: "include"
       });
       
@@ -64,7 +64,7 @@ export default function ResetPasswordPage() {
     }
 
     try {
-      const res = await fetch("/api/auth/reset-password", {
+      const res = await fetch("/api/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

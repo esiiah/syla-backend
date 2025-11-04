@@ -231,10 +231,17 @@ async def login(payload: LoginRequest):
     password = payload.password
 
     user = get_user_with_hash_by_contact(contact)
-    if not user or not user.get("_password_hash"):
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials"
+        )
+    
+    # Check if user has a password set (local auth users only)
+    if not user.get("_password_hash"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This account uses Google sign-in. Please use 'Continue with Google' button."
         )
     
     if not verify_password(password, user["_password_hash"]):
