@@ -54,24 +54,51 @@ export default function LoginPage() {
   );
 
   const setupRecaptcha = () => {
-    // Clear existing verifier first
-    if (window.recaptchaVerifier) {
+    return new Promise((resolve, reject) => {
       try {
-        window.recaptchaVerifier.clear();
-      } catch (e) {}
-      window.recaptchaVerifier = null;
-    }
-    
-    // Clear the container
-    const container = document.getElementById('recaptcha-container');
-    if (container) {
-      container.innerHTML = '';
-    }
-    
-    // Create new verifier
-    window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-      size: 'invisible',
-      callback: () => console.log("reCAPTCHA solved")
+        // Clear existing verifier first
+        if (window.recaptchaVerifier) {
+          try {
+            window.recaptchaVerifier.clear();
+          } catch (e) {
+            console.warn("Error clearing old verifier:", e);
+          }
+          window.recaptchaVerifier = null;
+        }
+        
+        // Clear the container
+        const container = document.getElementById('recaptcha-container');
+        if (!container) {
+          reject(new Error("reCAPTCHA container not found"));
+          return;
+        }
+        container.innerHTML = '';
+        
+        // Create new verifier with proper error handling
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+          size: 'invisible',
+          callback: (response) => {
+            console.log("reCAPTCHA solved successfully");
+            resolve(response);
+          },
+          'error-callback': (error) => {
+            console.error("reCAPTCHA error:", error);
+            reject(error);
+          }
+        });
+        
+        // Render the verifier
+        window.recaptchaVerifier.render().then(() => {
+          console.log("reCAPTCHA rendered successfully");
+          resolve();
+        }).catch((error) => {
+          console.error("reCAPTCHA render failed:", error);
+          reject(error);
+        });
+      } catch (error) {
+        console.error("setupRecaptcha failed:", error);
+        reject(error);
+      }
     });
   };
 
@@ -157,17 +184,32 @@ export default function LoginPage() {
       }
 
       try {
-        setupRecaptcha();
         const phoneNumber = selectedCode + contact;
         console.log("Sending OTP to:", phoneNumber);
         
+        // Setup reCAPTCHA first and wait for it
+        await setupRecaptcha();
+        
+        if (!window.recaptchaVerifier) {
+          throw new Error("reCAPTCHA verification failed to initialize");
+        }
+        
         const appVerifier = window.recaptchaVerifier;
         
-        const result = await signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+        // Send OTP with timeout
+        const otpPromise = signInWithPhoneNumber(auth, phoneNumber, appVerifier);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("OTP request timed out after 30 seconds")), 30000)
+        );
+        
+        const result = await Promise.race([otpPromise, timeoutPromise]);
+        
         setConfirmationResult(result);
         setShowOtpInput(true);
+        setOtpTimer(60);
+        setCanResendOtp(false);
         setError("");
-        console.log("OTP sent successfully");
+        console.log("OTP sent successfully to", phoneNumber);
       } catch (err) {
         console.error("OTP Error:", err);
         
@@ -178,13 +220,18 @@ export default function LoginPage() {
         } else if (err.code === 'auth/invalid-phone-number') {
           errorMessage = "Invalid phone number format. Please check and try again.";
         } else if (err.code === 'auth/too-many-requests') {
-          errorMessage = "Too many requests. Please try again later.";
+          errorMessage = "Too many OTP requests. Please wait 5 minutes before trying again.";
+        } else if (err.code === 'auth/quota-exceeded') {
+          errorMessage = "SMS quota exceeded. Please try again later or use email login.";
+        } else if (err.message && err.message.includes("timeout")) {
+          errorMessage = "Request timed out. Please check your connection and try again.";
         } else {
           errorMessage += err.message || "Please try again.";
         }
         
         setError(errorMessage);
         
+        // Clean up reCAPTCHA on error
         if (window.recaptchaVerifier) {
           try {
             window.recaptchaVerifier.clear();
