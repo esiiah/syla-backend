@@ -10,6 +10,29 @@ export default function FileToolPage({ theme, setTheme }) {
   const { action } = useParams();
   const [searchParams] = useSearchParams();
 
+// Add after imports in FileToolPage.jsx
+useEffect(() => {
+  const metaTags = {
+    "pdf-to-word": { title: "PDF to Word Converter", desc: "Convert PDF to editable Word documents" },
+    "word-to-pdf": { title: "Word to PDF Converter", desc: "Convert Word documents to PDF format" },
+    "image-to-pdf": { title: "Image to PDF Converter", desc: "Convert images to PDF files" },
+    "pdf-to-excel": { title: "PDF to Excel Converter", desc: "Extract PDF tables to Excel spreadsheets" },
+    "excel-to-pdf": { title: "Excel to PDF Converter", desc: "Convert Excel spreadsheets to PDF" },
+    "csv-to-excel": { title: "CSV to Excel Converter", desc: "Convert CSV files to Excel format" },
+    "excel-to-csv": { title: "Excel to CSV Converter", desc: "Export Excel to CSV format" },
+    "pdf-to-csv": { title: "PDF to CSV Converter", desc: "Extract PDF data to CSV" },
+    "csv-to-pdf": { title: "CSV to PDF Converter", desc: "Convert CSV to PDF tables" },
+    compress: { title: "File Compression Tool", desc: "Compress PDF, Excel, and documents" },
+    merge: { title: "PDF Merge Tool", desc: "Combine multiple PDFs into one" }
+  };
+
+  const meta = metaTags[action];
+  if (meta) {
+    document.title = `${meta.title} - Syla Analytics`;
+    document.querySelector('meta[name="description"]')?.setAttribute("content", meta.desc);
+  }
+}, [action]);
+
   // --- File Tool States ---
   const [files, setFiles] = useState([]);
   const [downloadUrl, setDownloadUrl] = useState("");

@@ -9,7 +9,7 @@ from app.models.user import User
 from app.models.chart_settings import ChartSettings
 from app.routers.auth import get_current_user
 
-router = APIRouter(prefix="/api/search", tags=["search"])
+router = APIRouter(tags=["search"])
 
 class SearchResult:
     def __init__(self, title: str, description: str, url: str, type: str, category: str = "general"):

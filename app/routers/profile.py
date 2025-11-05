@@ -89,6 +89,14 @@ def save_avatar(file: UploadFile) -> str:
     try:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
+
+    # Resize to standard 256x256 for uniform avatars
+    from PIL import Image
+    img = Image.open(file_path)
+    img = img.convert("RGBA") if img.mode in ("RGBA", "LA") else img.convert("RGB")
+    img.thumbnail((256, 256))
+    img.save(file_path, format="JPEG", quality=90)
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -221,6 +229,13 @@ async def change_password(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated"
+        )
+    
+    # Add this block:
+    if user.get("google_id") and not user.get("email"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password changes are not available for Google-only accounts"
         )
     
     # Validate new password

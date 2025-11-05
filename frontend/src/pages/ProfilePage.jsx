@@ -4,8 +4,10 @@ import { UserContext } from "../context/UserContext";
 import Sidebar from "../components/Sidebar";
 import Navbar from "../components/Navbar";
 import { 
-  User, Camera, Save, Trash2, Eye, EyeOff, MapPin, Briefcase, Globe, Calendar,Mail,Phone,Building, FileText, Languages, Clock
+  User, Camera, Save, Trash2, Eye, EyeOff, MapPin, Briefcase, Globe, Calendar, Mail, Phone, Building, FileText, Languages, Clock
 } from "lucide-react";
+import Cropper from "react-easy-crop";
+
 
 export default function ProfilePage() {
   const { user, setUser, loading: userLoading } = useContext(UserContext);
@@ -31,6 +33,11 @@ export default function ProfilePage() {
   });
 
   const fileInputRef = useRef(null);
+  const [cropMode, setCropMode] = useState(false);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+
 
 // Load theme and user data on component mount
 useEffect(() => {
@@ -92,8 +99,38 @@ useEffect(() => {
       const reader = new FileReader();
       reader.onload = (e) => {
         setAvatarPreview(e.target.result);
+        setCropMode(true); // open crop modal
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+
+  const onCropComplete = (_, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  };
+
+  const handleCropSave = async () => {
+    try {
+      const croppedBlob = await new Promise((resolve) => {
+        const image = new Image();
+        image.src = avatarPreview;
+        image.onload = () => {
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          const { x, y, width, height } = croppedAreaPixels;
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(image, x, y, width, height, 0, 0, width, height);
+          canvas.toBlob((blob) => resolve(blob), "image/png", 1);
+        };
+      });
+      const croppedFile = new File([croppedBlob], "avatar.png", { type: "image/png" });
+      setAvatarFile(croppedFile);
+      setAvatarPreview(URL.createObjectURL(croppedBlob));
+      setCropMode(false);
+    } catch (err) {
+      setMessage("Failed to crop image.");
     }
   };
 
@@ -404,6 +441,26 @@ useEffect(() => {
                       
                       <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                          <Mail className="w-4 h-4 inline mr-2" />
+                          Email Address
+                        </label>
+                        <input
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => handleInputChange("email", e.target.value)}
+                          disabled={user.google_id}
+                          className="w-full px-4 py-3 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-neonBlue focus:border-transparent bg-white dark:bg-white/5 text-gray-900 dark:text-slate-200 transition-colors duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed dark:disabled:bg-slate-800"
+                          placeholder="Enter your email address"
+                        />
+                        {user.google_id && (
+                          <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                            Email cannot be changed for Google accounts
+                          </p>
+                        )}
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
                           <Phone className="w-4 h-4 inline mr-2" />
                           Phone Number
                         </label>
@@ -490,6 +547,39 @@ useEffect(() => {
                     </div>
                   </section>
                   
+                  {/* Preferences Crop */}
+                  {cropMode && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+                      <div className="relative bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-[90vw] max-w-lg h-[80vh] flex flex-col">
+                        <div className="flex-1 relative">
+                          <Cropper
+                            image={avatarPreview}
+                            crop={crop}
+                            zoom={zoom}
+                            aspect={1}
+                            onCropChange={setCrop}
+                            onZoomChange={setZoom}
+                            onCropComplete={onCropComplete}
+                          />
+                        </div>
+                        <div className="p-4 flex justify-between border-t border-gray-200 dark:border-slate-800">
+                          <button
+                            onClick={() => setCropMode(false)}
+                            className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-200"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleCropSave}
+                            className="px-4 py-2 rounded-lg bg-neonBlue text-white hover:bg-blue-600"
+                          >
+                            Save Crop
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Preferences */}
                   <section className="bg-white dark:bg-ink/80 rounded-2xl border border-gray-200 dark:border-white/5 p-6 shadow-soft">
                     <h2 className="font-display text-xl text-gray-800 dark:text-slate-200 mb-6">
@@ -590,95 +680,109 @@ useEffect(() => {
                     Security Settings
                   </h2>
                   
-                  <div className="space-y-6">
-                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                      <h3 className="text-sm font-medium text-blue-800 dark:text-blue-400 mb-1">
-                        Password Security
+                  {user.google_id && !user.email ? (
+                    <div className="p-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800 text-center">
+                      <svg className="w-12 h-12 mx-auto mb-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                      </svg>
+                      <h3 className="text-lg font-medium text-blue-800 dark:text-blue-400 mb-2">
+                        Google Account Security
                       </h3>
                       <p className="text-sm text-blue-700 dark:text-blue-300">
-                        Keep your account secure by using a strong password and changing it regularly.
+                        Your account is secured through Google authentication. Password management is handled by your Google account.
                       </p>
                     </div>
-                    
-                    <div className="grid grid-cols-1 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                          Current Password
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showCurrentPassword ? "text" : "password"}
-                            value={passwordData.currentPassword}
-                            onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                            className="w-full px-4 py-3 pr-12 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-neonBlue focus:border-transparent bg-white dark:bg-white/5 text-gray-900 dark:text-slate-200 transition-colors duration-200"
-                            placeholder="Enter your current password"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-slate-300"
-                          >
-                            {showCurrentPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                          </button>
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                          New Password
-                        </label>
-                        <div className="relative">
-                          <input
-                            type={showNewPassword ? "text" : "password"}
-                            value={passwordData.newPassword}
-                            onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-                            className="w-full px-4 py-3 pr-12 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-neonBlue focus:border-transparent bg-white dark:bg-white/5 text-gray-900 dark:text-slate-200 transition-colors duration-200"
-                            placeholder="Enter your new password"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowNewPassword(!showNewPassword)}
-                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-slate-300"
-                          >
-                            {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                          </button>
-                        </div>
-                        <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
-                          Password must be at least 6 characters long
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <h3 className="text-sm font-medium text-blue-800 dark:text-blue-400 mb-1">
+                          Password Security
+                        </h3>
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                          Keep your account secure by using a strong password and changing it regularly.
                         </p>
                       </div>
                       
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
-                          Confirm New Password
-                        </label>
-                        <input
-                          type="password"
-                          value={passwordData.confirmPassword}
-                          onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                          className="w-full px-4 py-3 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-neonBlue focus:border-transparent bg-white dark:bg-white/5 text-gray-900 dark:text-slate-200 transition-colors duration-200"
-                          placeholder="Confirm your new password"
-                        />
+                      <div className="grid grid-cols-1 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                            Current Password
+                          </label>
+                          <div className="relative">
+                            <input
+                              type={showCurrentPassword ? "text" : "password"}
+                              value={passwordData.currentPassword}
+                              onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                              className="w-full px-4 py-3 pr-12 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-neonBlue focus:border-transparent bg-white dark:bg-white/5 text-gray-900 dark:text-slate-200 transition-colors duration-200"
+                              placeholder="Enter your current password"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-slate-300"
+                            >
+                              {showCurrentPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                            New Password
+                          </label>
+                          <div className="relative">
+                            <input
+                              type={showNewPassword ? "text" : "password"}
+                              value={passwordData.newPassword}
+                              onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                              className="w-full px-4 py-3 pr-12 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-neonBlue focus:border-transparent bg-white dark:bg-white/5 text-gray-900 dark:text-slate-200 transition-colors duration-200"
+                              placeholder="Enter your new password"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowNewPassword(!showNewPassword)}
+                              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-slate-300"
+                            >
+                              {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                          </div>
+                          <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">
+                            Password must be at least 6 characters long
+                          </p>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-2">
+                            Confirm New Password
+                          </label>
+                          <input
+                            type="password"
+                            value={passwordData.confirmPassword}
+                            onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                            className="w-full px-4 py-3 border border-gray-200 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-neonBlue focus:border-transparent bg-white dark:bg-white/5 text-gray-900 dark:text-slate-200 transition-colors duration-200"
+                            placeholder="Confirm your new password"
+                          />
+                        </div>
+                        
+                        <button
+                          onClick={changePassword}
+                          disabled={loading || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                          className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
+                            loading || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword
+                              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                              : "bg-green-600 text-white hover:bg-green-700 shadow-lg hover:shadow-xl"
+                          }`}
+                        >
+                          {loading ? (
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          ) : (
+                            <Save className="w-5 h-5" />
+                          )}
+                          {loading ? "Changing Password..." : "Change Password"}
+                        </button>
                       </div>
-                      
-                      <button
-                        onClick={changePassword}
-                        disabled={loading || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
-                        className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
-                          loading || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword
-                            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                            : "bg-green-600 text-white hover:bg-green-700 shadow-lg hover:shadow-xl"
-                        }`}
-                      >
-                        {loading ? (
-                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                          <Save className="w-5 h-5" />
-                        )}
-                        {loading ? "Changing Password..." : "Change Password"}
-                      </button>
                     </div>
-                  </div>
+                  )}
                 </section>
               )}
 
