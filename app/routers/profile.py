@@ -170,10 +170,13 @@ async def update_profile(
         return value.strip() if isinstance(value, str) else value
     
     try:
+        # Don't allow email changes for Google users
+        email_to_update = None if user.get("google_id") else clean_field(email)
+        
         updated_user = update_user_profile(
             user_id=user_id,
             name=clean_field(name),
-            email=clean_field(email),
+            email=email_to_update,
             phone=clean_field(phone),
             bio=clean_field(bio),
             location=clean_field(location),

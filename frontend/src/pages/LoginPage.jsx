@@ -1,32 +1,9 @@
 // frontend/src/pages/LoginPage.jsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
-import { auth } from '../config/firebase';
 import { useUser } from '../context/UserContext';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "618939207673-gbevo0aok0bqufjch9mmr4sc9ma86qtm.apps.googleusercontent.com";
-
-const countryCodes = [
-  { code: "+1", name: "USA" }, { code: "+1", name: "Canada" }, { code: "+44", name: "UK" },  { code: "+91", name: "India" }, { code: "+61", name: "Australia" }, { code: "+81", name: "Japan" }, 
-  { code: "+49", name: "Germany" }, { code: "+33", name: "France" }, { code: "+55", name: "Brazil" }, { code: "+7", name: "Russia" }, { code: "+86", name: "China" }, { code: "+27", name: "South Africa" }, 
-  { code: "+39", name: "Italy" }, { code: "+34", name: "Spain" }, { code: "+82", name: "South Korea" }, { code: "+64", name: "New Zealand" }, { code: "+65", name: "Singapore" }, { code: "+90", name: "Turkey" }, 
-  { code: "+31", name: "Netherlands" }, { code: "+46", name: "Sweden" }, { code: "+41", name: "Switzerland" }, { code: "+351", name: "Portugal" }, { code: "+352", name: "Luxembourg" }, { code: "+353", name: "Ireland" }, 
-  { code: "+358", name: "Finland" }, { code: "+420", name: "Czech Republic" }, { code: "+421", name: "Slovakia" }, { code: "+48", name: "Poland" }, { code: "+36", name: "Hungary" }, { code: "+971", name: "UAE" }, 
-  { code: "+972", name: "Israel" }, { code: "+966", name: "Saudi Arabia" }, { code: "+20", name: "Egypt" }, { code: "+212", name: "Morocco" }, { code: "+92", name: "Pakistan" }, { code: "+880", name: "Bangladesh" }, 
-  { code: "+974", name: "Qatar" }, { code: "+965", name: "Kuwait" }, { code: "+260", name: "Zambia" }, { code: "+263", name: "Zimbabwe" }, { code: "+254", name: "Kenya" }, { code: "+234", name: "Nigeria" }, 
-  { code: "+233", name: "Ghana" }, { code: "+255", name: "Tanzania" }, { code: "+256", name: "Uganda" }, { code: "+251", name: "Ethiopia" }, { code: "+231", name: "Liberia" }, { code: "+232", name: "Sierra Leone" },
-  { code: "+237", name: "Cameroon" }, { code: "+225", name: "Ivory Coast" }, { code: "+221", name: "Senegal" }, { code: "+213", name: "Algeria" }, { code: "+216", name: "Tunisia" }, { code: "+218", name: "Libya" },
-  { code: "+249", name: "Sudan" }, { code: "+252", name: "Somalia" }, { code: "+257", name: "Burundi" }, { code: "+258", name: "Mozambique" }, { code: "+264", name: "Namibia" }, { code: "+265", name: "Malawi" },
-  { code: "+266", name: "Lesotho" }, { code: "+267", name: "Botswana" }, { code: "+268", name: "Eswatini" }, { code: "+350", name: "Gibraltar" }, { code: "+356", name: "Malta" }, { code: "+357", name: "Cyprus" },
-  { code: "+370", name: "Lithuania" }, { code: "+371", name: "Latvia" }, { code: "+372", name: "Estonia" }, { code: "+374", name: "Armenia" }, { code: "+375", name: "Belarus" }, { code: "+380", name: "Ukraine" },
-  { code: "+381", name: "Serbia" }, { code: "+382", name: "Montenegro" }, { code: "+383", name: "Kosovo" }, { code: "+385", name: "Croatia" }, { code: "+386", name: "Slovenia" }, { code: "+387", name: "Bosnia" },
-  { code: "+389", name: "North Macedonia" }, { code: "+40", name: "Romania" }, { code: "+43", name: "Austria" }, { code: "+45", name: "Denmark" }, { code: "+47", name: "Norway" }, { code: "+60", name: "Malaysia" },
-  { code: "+62", name: "Indonesia" }, { code: "+63", name: "Philippines" }, { code: "+66", name: "Thailand" }, { code: "+84", name: "Vietnam" }, { code: "+852", name: "Hong Kong" }, { code: "+853", name: "Macau" },
-  { code: "+886", name: "Taiwan" }, { code: "+94", name: "Sri Lanka" }, { code: "+95", name: "Myanmar" }, { code: "+98", name: "Iran" }, { code: "+963", name: "Syria" }, { code: "+964", name: "Iraq" },
-  { code: "+967", name: "Yemen" }, { code: "+968", name: "Oman" }, { code: "+973", name: "Bahrain" }, { code: "+975", name: "Bhutan" }, { code: "+976", name: "Mongolia" }, { code: "+977", name: "Nepal" },
-  { code: "+992", name: "Tajikistan" }, { code: "+993", name: "Turkmenistan" }, { code: "+994", name: "Azerbaijan" }, { code: "+995", name: "Georgia" }, { code: "+996", name: "Kyrgyzstan" }, { code: "+998", name: "Uzbekistan" }
-];
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -37,70 +14,6 @@ export default function LoginPage() {
   const [showDetails, setShowDetails] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [selectedCode, setSelectedCode] = useState("+1");
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const dropdownRef = useRef(null);
-  const [showOtpInput, setShowOtpInput] = useState(false);
-  const [otp, setOtp] = useState("");
-  const [confirmationResult, setConfirmationResult] = useState(null);
-  const [otpError, setOtpError] = useState("");
-  const [otpTimer, setOtpTimer] = useState(60);
-  const [canResendOtp, setCanResendOtp] = useState(false);
-
-  const filteredCountries = countryCodes.filter(country => 
-    country.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    country.code.includes(searchTerm)
-  );
-
-  const setupRecaptcha = () => {
-    return new Promise((resolve, reject) => {
-      try {
-        // Clear existing verifier first
-        if (window.recaptchaVerifier) {
-          try {
-            window.recaptchaVerifier.clear();
-          } catch (e) {
-            console.warn("Error clearing old verifier:", e);
-          }
-          window.recaptchaVerifier = null;
-        }
-        
-        // Clear the container
-        const container = document.getElementById('recaptcha-container');
-        if (!container) {
-          reject(new Error("reCAPTCHA container not found"));
-          return;
-        }
-        container.innerHTML = '';
-        
-        // Create new verifier with proper error handling
-        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-          size: 'invisible',
-          callback: (response) => {
-            console.log("reCAPTCHA solved successfully");
-            resolve(response);
-          },
-          'error-callback': (error) => {
-            console.error("reCAPTCHA error:", error);
-            reject(error);
-          }
-        });
-        
-        // Render the verifier
-        window.recaptchaVerifier.render().then(() => {
-          console.log("reCAPTCHA rendered successfully");
-          resolve();
-        }).catch((error) => {
-          console.error("reCAPTCHA render failed:", error);
-          reject(error);
-        });
-      } catch (error) {
-        console.error("setupRecaptcha failed:", error);
-        reject(error);
-      }
-    });
-  };
 
   window.handleCredentialResponse = async (response) => {
     setLoading(true);
@@ -175,78 +88,6 @@ export default function LoginPage() {
       return;
     }
 
-    // If phone, send OTP first
-    if (contactType === "phone") {
-      if (!contact || contact.length < 7) {
-        setError("Please enter a valid phone number");
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const phoneNumber = selectedCode + contact;
-        console.log("Sending OTP to:", phoneNumber);
-        
-        // Setup reCAPTCHA first and wait for it
-        await setupRecaptcha();
-        
-        if (!window.recaptchaVerifier) {
-          throw new Error("reCAPTCHA verification failed to initialize");
-        }
-        
-        const appVerifier = window.recaptchaVerifier;
-        
-        // Send OTP with timeout
-        const otpPromise = signInWithPhoneNumber(auth, phoneNumber, appVerifier);
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error("OTP request timed out after 30 seconds")), 30000)
-        );
-        
-        const result = await Promise.race([otpPromise, timeoutPromise]);
-        
-        setConfirmationResult(result);
-        setShowOtpInput(true);
-        setOtpTimer(60);
-        setCanResendOtp(false);
-        setError("");
-        console.log("OTP sent successfully to", phoneNumber);
-      } catch (err) {
-        console.error("OTP Error:", err);
-        
-        // Better error messages
-        let errorMessage = "Failed to send OTP. ";
-        if (err.code === 'auth/operation-not-allowed') {
-          errorMessage = "Phone authentication is not enabled. Please contact support.";
-        } else if (err.code === 'auth/invalid-phone-number') {
-          errorMessage = "Invalid phone number format. Please check and try again.";
-        } else if (err.code === 'auth/too-many-requests') {
-          errorMessage = "Too many OTP requests. Please wait 5 minutes before trying again.";
-        } else if (err.code === 'auth/quota-exceeded') {
-          errorMessage = "SMS quota exceeded. Please try again later or use email login.";
-        } else if (err.message && err.message.includes("timeout")) {
-          errorMessage = "Request timed out. Please check your connection and try again.";
-        } else {
-          errorMessage += err.message || "Please try again.";
-        }
-        
-        setError(errorMessage);
-        
-        // Clean up reCAPTCHA on error
-        if (window.recaptchaVerifier) {
-          try {
-            window.recaptchaVerifier.clear();
-          } catch (clearError) {
-            console.error("Error clearing reCAPTCHA:", clearError);
-          }
-          window.recaptchaVerifier = null;
-        }
-      } finally {
-        setLoading(false);
-      }
-      return;
-    }
-
-    // Email login
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -270,81 +111,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleVerifyOtp = async () => {
-    if (!otp || otp.length !== 6) {
-      setOtpError("Please enter a valid 6-digit OTP");
-      return;
-    }
-
-    setLoading(true);
-    setOtpError("");
-
-    try {
-      const result = await confirmationResult.confirm(otp);
-      const firebaseToken = await result.user.getIdToken();
-
-      const res = await fetch("/api/auth/firebase-phone-login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ 
-          firebase_token: firebaseToken,
-          phone: selectedCode + contact,
-          password: password
-        }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.detail || "Login failed");
-      }
-
-      const data = await res.json();
-      await contextLogin(data.user, data.access_token);
-      navigate("/");
-    } catch (err) {
-      setOtpError(err.message || "Invalid OTP. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePhoneLogin = () => {
-    setContactType("phone");
-    setShowDetails(true);
-  };
-
-  const handleCountrySelect = (country) => {
-    setSelectedCode(country.code);
-    setIsDropdownOpen(false);
-    setSearchTerm("");
-  };
-
-  const handleDropdownKeyDown = (e) => {
-    if (e.key === 'Enter' && filteredCountries.length > 0) {
-      handleCountrySelect(filteredCountries[0]);
-    } else if (e.key === 'Escape') {
-      setIsDropdownOpen(false);
-      setSearchTerm("");
-    }
-  };
-
-  const handlePhoneInput = (e) => {
-    const value = e.target.value.replace(/\D/g, '');
-    setContact(value);
-  };
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsDropdownOpen(false);
-        setSearchTerm("");
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   useEffect(() => {
     const script = document.createElement("script");
     script.src = "https://accounts.google.com/gsi/client";
@@ -367,22 +133,6 @@ export default function LoginPage() {
       }
     };
   }, []);
-
-  useEffect(() => {
-    let interval;
-    if (showOtpInput && otpTimer > 0) {
-      interval = setInterval(() => {
-        setOtpTimer((prev) => {
-          if (prev <= 1) {
-            setCanResendOtp(true);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [showOtpInput, otpTimer]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-950 dark:to-slate-900 p-4 relative">
@@ -442,13 +192,6 @@ export default function LoginPage() {
               >
                 Continue with Email
               </button>
-
-              <button
-                onClick={handlePhoneLogin}
-                className="w-full px-4 py-3 rounded-lg font-medium bg-blue-50 dark:bg-slate-800 border-2 border-blue-300 dark:border-blue-400 text-blue-600 dark:text-blue-300 transition-all duration-200 hover:border-blue-500 dark:hover:border-blue-300 hover:bg-blue-100 dark:hover:bg-slate-700 hover:shadow-lg hover:scale-[1.02] transform"
-              >
-                Continue with Phone
-              </button>
             </div>
           ) : (
             <div className="space-y-4">
@@ -459,216 +202,45 @@ export default function LoginPage() {
                 ← Back to options
               </button>
 
-              <form onSubmit={handleLogin} className="space-y-4">                
-                {contactType === "phone" && !showOtpInput && (
-                  <div className="space-y-4">
-                    <div className="flex space-x-2 relative" ref={dropdownRef}>
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                          className="border border-gray-300 dark:border-slate-600 rounded-lg px-3 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-blue-400 min-w-[100px] flex items-center justify-between"
-                        >
-                          <span className="text-sm">{selectedCode}</span>
-                          <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
+              <form onSubmit={handleLogin} className="space-y-4">
+                <input
+                  type="email"
+                  value={contact}
+                  onChange={(e) => setContact(e.target.value)}
+                  placeholder="Email"
+                  required
+                  className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                />
 
-                        {isDropdownOpen && (
-                          <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg shadow-lg z-20 max-h-60 overflow-hidden">
-                            <div className="p-2 border-b border-gray-200 dark:border-slate-600">
-                              <input
-                                type="text"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                onKeyDown={handleDropdownKeyDown}
-                                placeholder="Search country..."
-                                className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-slate-600 rounded bg-white dark:bg-slate-700 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                autoFocus
-                              />
-                            </div>
-                            
-                            <div className="max-h-40 overflow-y-auto">
-                              {filteredCountries.map((country, idx) => (
-                                <button
-                                  key={`${country.code}-${idx}`}
-                                  type="button"
-                                  onClick={() => handleCountrySelect(country)}
-                                  className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors duration-150 flex justify-between items-center"
-                                >
-                                  <span className="text-gray-900 dark:text-slate-100">{country.name}</span>
-                                  <span className="text-gray-500 dark:text-slate-400">{country.code}</span>
-                                </button>
-                              ))}
-                              {filteredCountries.length === 0 && (
-                                <div className="px-3 py-2 text-sm text-gray-500 dark:text-slate-400">
-                                  No countries found
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  required
+                  className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                />
 
-                      <input
-                        type="tel"
-                        value={contact}
-                        onChange={handlePhoneInput}
-                        placeholder="Phone Number"
-                        required
-                        className="flex-1 border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                      />
-                    </div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={`w-full py-3 rounded-lg font-semibold text-white transition-all duration-200 transform ${
+                    loading 
+                      ? "bg-gray-400 cursor-not-allowed" 
+                      : "bg-blue-500 dark:bg-yellow-400 dark:text-gray-900 hover:bg-blue-600 dark:hover:bg-yellow-300 hover:shadow-lg hover:scale-[1.02] shadow-md"
+                  }`}
+                >
+                  {loading ? "Signing In..." : "Sign In"}
+                </button>
 
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Password"
-                      required
-                      className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                    />
-
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className={`w-full py-3 rounded-lg font-semibold text-white transition-all duration-200 transform ${
-                        loading 
-                          ? "bg-gray-400 cursor-not-allowed" 
-                          : "bg-blue-500 dark:bg-yellow-400 dark:text-gray-900 hover:bg-blue-600 dark:hover:bg-yellow-300 hover:shadow-lg hover:scale-[1.02] shadow-md"
-                      }`}
-                    >
-                      {loading ? "Signing In..." : "Sign In"}
-                    </button>
-                    
-                    <div id="recaptcha-container" className="flex justify-center"></div>
-                  </div>
-                )}
-
-                {contactType === "phone" && showOtpInput && (
-                  <div className="space-y-4">
-                    <div className="text-center p-4 bg-blue-50 dark:bg-slate-800 rounded-lg border border-blue-200 dark:border-slate-600">
-                      <p className="text-sm text-gray-700 dark:text-slate-300 mb-1">
-                        We've sent a 6-digit code to
-                      </p>
-                      <p className="font-semibold text-gray-900 dark:text-slate-100">
-                        {selectedCode} {contact}
-                      </p>
-                      {otpTimer > 0 && (
-                        <p className="text-xs text-gray-500 dark:text-slate-400 mt-2">
-                          Code expires in {otpTimer}s
-                        </p>
-                      )}
-                    </div>
-                    
-                    <input
-                      type="text"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      placeholder="000000"
-                      maxLength="6"
-                      className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-center text-2xl tracking-widest font-mono"
-                      autoFocus
-                    />
-
-                    {otpError && (
-                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400 text-sm">
-                        {otpError}
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={handleVerifyOtp}
-                      disabled={loading || otp.length !== 6}
-                      className={`w-full py-3 rounded-lg font-semibold text-white transition-all duration-200 transform ${
-                        loading || otp.length !== 6
-                          ? "bg-gray-400 cursor-not-allowed" 
-                          : "bg-blue-500 dark:bg-yellow-400 dark:text-gray-900 hover:bg-blue-600 dark:hover:bg-yellow-300 hover:shadow-lg hover:scale-[1.02] shadow-md"
-                      }`}
-                    >
-                      {loading ? "Verifying..." : "Verify & Sign In"}
-                    </button>
-
-                    {canResendOtp && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowOtpInput(false);
-                          setOtp("");
-                          setOtpError("");
-                          setOtpTimer(60);
-                          setCanResendOtp(false);
-                        }}
-                        className="w-full text-sm text-blue-500 dark:text-yellow-400 hover:underline font-medium"
-                      >
-                        Resend OTP
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowOtpInput(false);
-                        setOtp("");
-                        setOtpError("");
-                        setOtpTimer(60);
-                        setCanResendOtp(false);
-                        if (window.recaptchaVerifier) {
-                          window.recaptchaVerifier.clear();
-                          window.recaptchaVerifier = null;
-                        }
-                      }}
-                      className="w-full text-sm text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200"
-                    >
-                      ← Change phone number
-                    </button>
-                  </div>
-                )}
-
-                {contactType === "email" && (
-                  <>
-                    <input
-                      type="email"
-                      value={contact}
-                      onChange={(e) => setContact(e.target.value)}
-                      placeholder="Email"
-                      required
-                      className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                    />
-
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Password"
-                      required
-                      className="w-full border border-gray-300 dark:border-slate-600 rounded-lg px-4 py-3 bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 placeholder-gray-500 dark:placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                    />
-
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className={`w-full py-3 rounded-lg font-semibold text-white transition-all duration-200 transform ${
-                        loading 
-                          ? "bg-gray-400 cursor-not-allowed" 
-                          : "bg-blue-500 dark:bg-yellow-400 dark:text-gray-900 hover:bg-blue-600 dark:hover:bg-yellow-300 hover:shadow-lg hover:scale-[1.02] shadow-md"
-                      }`}
-                    >
-                      {loading ? "Signing In..." : "Sign In"}
-                    </button>
-
-                    <div className="text-center">
-                      <Link 
-                        to="/forgot-password" 
-                        className="text-sm text-blue-500 dark:text-yellow-400 hover:underline transition-colors duration-200"
-                      >
-                        Forgot your password?
-                      </Link>
-                    </div>
-                  </>
-                )}
+                <div className="text-center">
+                  <Link 
+                    to="/forgot-password" 
+                    className="text-sm text-blue-500 dark:text-yellow-400 hover:underline transition-colors duration-200"
+                  >
+                    Forgot your password?
+                  </Link>
+                </div>
               </form>
             </div>
           )}
