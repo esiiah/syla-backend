@@ -69,4 +69,3 @@ stash/
 *credentials*
 google-credentials.json
 service-account.json
-firebase-service-account.json
