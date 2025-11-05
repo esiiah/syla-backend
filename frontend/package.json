@@ -5,8 +5,7 @@
   "type": "module",
   "dependencies": {
     "chart.js": "^4.5.0",
-    "chartjs-plugin-datalabels": "^2.2.0",
-    "firebase": "^12.4.0",
+    "chartjs-plugin-datalabels": "^2.2.0",    
     "html2canvas": "^1.4.1",
     "js-cookie": "^3.0.5",
     "jspdf": "^3.0.3",
@@ -18,7 +17,8 @@
     "react-dom": "^18.3.1",
     "react-image-crop": "^11.0.10",
     "react-router-dom": "^7.9.1",
-    "recharts": "^3.2.1"
+    "recharts": "^3.2.1",
+    "react-easy-crop": "^5.9.0"
   },
   "scripts": {
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vite build"

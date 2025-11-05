@@ -8,7 +8,9 @@ passlib[bcrypt]==1.7.4
 bcrypt==4.2.0
 google-auth>=2.22.0
 requests>=2.31.0
-firebase-admin==6.5.0
+
+# === Settings ===
+Pillow>=10.0.0
 
 # === Data handling ===
 pandas>=2.2.2,<2.3
