@@ -117,7 +117,7 @@ async def get_profile(request: Request):
         )
     return user
 
-@router.put("/")
+@router.put("")
 async def update_profile(
     request: Request,
     name: Optional[str] = Form(None),
