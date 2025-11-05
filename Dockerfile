@@ -6,7 +6,7 @@ WORKDIR /app/frontend
 
 COPY frontend/package*.json ./
 RUN npm config set update-notifier false && \
-    npm ci --legacy-peer-deps
+    npm install --legacy-peer-deps
 
 COPY frontend/ ./
 
@@ -67,9 +67,6 @@ COPY app/ ./app/
 
 # Copy frontend build artifacts (clean copy)
 COPY --from=frontend-builder /app/frontend/dist ./app/dist
-
-# Copy Firebase service account (add after COPY app/ ./app/)
-COPY firebase-service-account.json /app/firebase-service-account.json
 
 # Create unprivileged user FIRST
 RUN useradd -m -u 1000 appuser
