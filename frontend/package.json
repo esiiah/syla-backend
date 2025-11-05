@@ -18,7 +18,8 @@
     "react-image-crop": "^11.0.10",
     "react-router-dom": "^7.9.1",
     "recharts": "^3.2.1",
-    "react-easy-crop": "^5.9.0"
+    "react-easy-crop": "^5.5.0"
+
   },
   "scripts": {
     "build": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vite build"
