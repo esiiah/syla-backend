@@ -6,7 +6,7 @@ WORKDIR /app/frontend
 
 COPY frontend/package*.json ./
 RUN npm config set update-notifier false && \
-    npm install --legacy-peer-deps
+    npm ci --legacy-peer-deps
 
 COPY frontend/ ./
 
@@ -80,7 +80,7 @@ RUN mkdir -p \
     /app/app/models \
     /app/app/tmp \
     /app/app/stash \
-    && chown -R appuser:appuser /app /app/firebase-service-account.json
+    && chown -R appuser:appuser /app
 
 # Switch to unprivileged user
 USER appuser
