@@ -9,7 +9,7 @@ from app.models.user import User
 from app.models.chart_settings import ChartSettings
 from app.routers.auth import get_current_user
 
-router = APIRouter(tags=["search"])
+router = APIRouter(prefix="/search", tags=["search"])
 
 class SearchResult:
     def __init__(self, title: str, description: str, url: str, type: str, category: str = "general"):
@@ -19,7 +19,7 @@ class SearchResult:
         self.type = type
         self.category = category
 
-@router.get("/")
+@router.get("")
 async def search(
     q: str = Query(..., min_length=1, max_length=100),
     limit: int = Query(10, ge=1, le=50),
