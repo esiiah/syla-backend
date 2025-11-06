@@ -768,6 +768,7 @@ async def serve_ads():
     return FileResponse(ads_path, media_type="text/plain")
 
 @app.get("/robots.txt")
+@app.head("/robots.txt")
 async def serve_robots():
     robots_path = os.path.join(FRONTEND_DIR, "robots.txt")
     if not os.path.exists(robots_path):
@@ -775,6 +776,7 @@ async def serve_robots():
     return FileResponse(robots_path, media_type="text/plain")
 
 @app.get("/sitemap.xml")
+@app.head("/sitemap.xml")
 async def serve_sitemap():
     sitemap_path = os.path.join(FRONTEND_DIR, "sitemap.xml")
     if not os.path.exists(sitemap_path):

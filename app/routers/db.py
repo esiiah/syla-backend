@@ -295,6 +295,8 @@ def remove_user_avatar(user_id: int) -> Optional[Dict[str, Any]]:
         session.refresh(user)
         return _serialize_user(user)
 
+# Import related models to establish relationships
+from app.models.chart_settings import ChartSettings, ChartTemplate
 
 # ---- FastAPI Dependency ----
 def get_db():

@@ -1,5 +1,5 @@
 # Robots.txt for Syla Analytics
-# https://sylaanalytics.com/robots.txt
+# https://www.sylaanalytics.com/robots.txt
 
 User-agent: *
 Allow: /
@@ -15,11 +15,8 @@ Allow: /assets/
 Allow: /*.css$
 Allow: /*.js$
 
-# Crawl delay (optional, prevents server overload)
-Crawl-delay: 1
-
 # Sitemap location
-Sitemap: https://sylaanalytics.com/sitemap.xml
+Sitemap: https://www.sylaanalytics.com/sitemap.xml
 
 # Block bad bots (optional)
 User-agent: AhrefsBot

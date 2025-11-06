@@ -90,12 +90,23 @@ def save_avatar(file: UploadFile) -> str:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # ✅ Resize to standard 256x256 for uniform avatars
+        # âœ… Resize to standard 256x256 for uniform avatars
         from PIL import Image
         img = Image.open(file_path)
-        img = img.convert("RGBA") if img.mode in ("RGBA", "LA") else img.convert("RGB")
-        img.thumbnail((256, 256))
-        img.save(file_path, format="JPEG", quality=90)
+        
+        # Convert RGBA/LA to RGB for JPEG compatibility
+        if img.mode in ("RGBA", "LA", "P"):
+            # Create white background
+            background = Image.new("RGB", img.size, (255, 255, 255))
+            if img.mode == "P":
+                img = img.convert("RGBA")
+            background.paste(img, mask=img.split()[-1] if img.mode in ("RGBA", "LA") else None)
+            img = background
+        elif img.mode not in ("RGB", "L"):
+            img = img.convert("RGB")
+        
+        img.thumbnail((256, 256), Image.Resampling.LANCZOS)
+        img.save(file_path, format="JPEG", quality=90, optimize=True)
 
     except Exception as e:
         raise HTTPException(
