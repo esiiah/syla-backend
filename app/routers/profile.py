@@ -159,17 +159,6 @@ async def update_profile(
     
     # Handle avatar upload
     if avatar:
-        # Validate file size
-        contents = await avatar.read()
-        if len(contents) > MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="File too large. Maximum size is 5MB."
-            )
-        
-        # Reset file pointer
-        await avatar.seek(0)
-        
         try:
             avatar_url = save_avatar(avatar)
         except Exception as e:
