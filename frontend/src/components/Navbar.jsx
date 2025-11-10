@@ -2,11 +2,12 @@
 import React, { useState, useRef, useEffect, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { 
-  User, Settings, LogOut, Bell, Search, Menu, 
-  ChevronDown, HelpCircle, Zap, DollarSign
+  User, Settings, LogOut, Bell, Menu, 
+  ChevronDown, HelpCircle, DollarSign
 } from "lucide-react";
 import { UserContext } from "../context/UserContext";
 import Sidebar from "./Sidebar";
+import SearchBar from "./SearchBar"; // NEW IMPORT
 
 const Logo = () => {
   const [imageError, setImageError] = useState(false);
@@ -31,19 +32,14 @@ const Logo = () => {
 
 export default function Navbar() {
   const navigate = useNavigate();
-  const { user, logout, theme, setTheme, checkAuthStatus } = useContext(UserContext);
+  const { user, logout, theme, setTheme } = useContext(UserContext);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
-  const [showSearchResults, setShowSearchResults] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
 
   const userMenuRef = useRef(null);
   const notificationRef = useRef(null);
-  const searchRef = useRef(null);
 
   const fetchNotifications = async () => {
     if (!user) return;
@@ -74,49 +70,12 @@ export default function Navbar() {
   }, [user]);
 
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      setShowSearchResults(false);
-      return;
-    }
-
-    const timeoutId = setTimeout(async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`, {
-          credentials: 'include',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          setSearchResults(data.results || []);
-          setShowSearchResults(true);
-        }
-      } catch (error) {
-        console.error("Search failed:", error);
-        setSearchResults([]);
-      } finally {
-        setLoading(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery]);
-
-  useEffect(() => {
     const handleClickOutside = (event) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
         setShowUserMenu(false);
       }
       if (notificationRef.current && !notificationRef.current.contains(event.target)) {
         setShowNotifications(false);
-      }
-      if (searchRef.current && !searchRef.current.contains(event.target)) {
-        setShowSearchResults(false);
       }
     };
 
@@ -166,14 +125,6 @@ export default function Navbar() {
     }
 
     setShowNotifications(false);
-  };
-
-  const handleSearchResultClick = (result) => {
-    if (result.url) {
-      navigate(result.url);
-    }
-    setShowSearchResults(false);
-    setSearchQuery("");
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -264,56 +215,9 @@ export default function Navbar() {
               </div>
             </Link>
 
-            <div className="hidden lg:flex flex-1 max-w-md mx-8 relative" ref={searchRef}>
-              <div className="relative w-full">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-                <input
-                  type="text"
-                  placeholder="Search charts, data, or ask questions..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
-                />
-                
-                {showSearchResults && (
-                  <div 
-                    className="absolute top-full left-0 mt-2 w-full max-w-md bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded-lg shadow-lg max-h-64 overflow-y-auto"
-                    style={{ zIndex: 'var(--z-dropdowns)' }}
-                  >
-                    {loading ? (
-                      <div className="p-3 text-center text-gray-500">
-                        <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
-                      </div>
-                    ) : searchResults.length > 0 ? (
-                      searchResults.map((result, index) => (
-                        <button
-                          key={index}
-                          onClick={() => handleSearchResultClick(result)}
-                          className="w-full p-3 text-left hover:bg-gray-50 dark:hover:bg-slate-700 border-b border-gray-100 dark:border-slate-700 last:border-b-0"
-                        >
-                          <div className="font-medium text-gray-900 dark:text-slate-200">
-                            {result.title}
-                          </div>
-                          {result.description && (
-                            <div className="text-sm text-gray-600 dark:text-slate-400">
-                              {result.description}
-                            </div>
-                          )}
-                          {result.type && (
-                            <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                              {result.type}
-                            </div>
-                          )}
-                        </button>
-                      ))
-                    ) : searchQuery && (
-                      <div className="p-3 text-center text-gray-500">
-                        No results found
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+            {/* REPLACE OLD SEARCH WITH NEW SEARCHBAR COMPONENT */}
+            <div className="hidden lg:flex flex-1 max-w-md mx-8">
+              <SearchBar />
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
