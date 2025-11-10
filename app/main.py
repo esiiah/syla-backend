@@ -28,6 +28,7 @@ from .routers import help, pricing
 from app.routers import row_selection
 from . import visual
 from app import settings
+from . import ssr
 
 PORT = int(os.getenv("PORT", "8080"))
 
@@ -258,69 +259,6 @@ async def get_source_index():
     except Exception as e:
         logger.error(f"Source index failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-# ------------------------------
-# SSR Data Endpoint for Crawlers
-# ------------------------------
-@app.get("/api/ssr-meta")
-def get_ssr_meta(path: str = "/"):
-    """Provide metadata for SSR/crawlers based on route"""
-    routes = {
-        "/": {
-            "title": "Syla Analytics – AI Data Forecasting & Visualization",
-            "description": "Clean, visualize, and convert your data with intelligent AI automation. Upload CSV/Excel files for instant analysis.",
-            "keywords": "AI forecasting, data visualization, CSV analysis, Excel tools, data cleaning"
-        },
-        "/forecast": {
-            "title": "AI Forecasting - Syla Analytics",
-            "description": "Generate accurate AI-powered forecasts from your data. Prophet and GPT-based models available.",
-            "keywords": "AI forecasting, predictive analytics, time series, Prophet, GPT forecasting"
-        },
-        "/tools/compress": {
-            "title": "File Compression Tools - Syla Analytics",
-            "description": "Compress images, PDFs, and documents with smart AI-powered optimization.",
-            "keywords": "file compression, image optimization, PDF compression"
-        },
-        "/tools/convert": {
-            "title": "File Conversion Tools - Syla Analytics",
-            "description": "Convert between CSV, Excel, PDF, and other formats instantly.",
-            "keywords": "file conversion, CSV to Excel, PDF conversion, format converter"
-        },
-        "/tools/merge": {
-            "title": "PDF Merge Tool - Syla Analytics",
-            "description": "Merge multiple PDF files into a single document.",
-            "keywords": "PDF merge, combine PDFs, PDF tools"
-        },
-        "/editing": {
-            "title": "Chart Editing - Syla Analytics",
-            "description": "Advanced chart editing and customization tools for data visualization.",
-            "keywords": "chart editing, data visualization, chart customization"
-        },
-        "/pricing": {
-            "title": "Pricing - Syla Analytics",
-            "description": "View our pricing plans for advanced AI forecasting and data analysis features.",
-            "keywords": "pricing, plans, subscription, AI tools"
-        },
-        "/help": {
-            "title": "Help & Support - Syla Analytics",
-            "description": "Get help with using Syla Analytics features and tools.",
-            "keywords": "help, support, documentation, FAQ"
-        },
-        "/docs": {
-            "title": "Documentation - Syla Analytics",
-            "description": "Complete documentation for Syla Analytics API and features.",
-            "keywords": "documentation, API docs, guides, tutorials"
-        }
-    }
-    
-    meta = routes.get(path, routes["/"])
-    return {
-        "title": meta["title"],
-        "description": meta["description"],
-        "keywords": meta["keywords"],
-        "url": f"https://sylaanalytics.com{path}",
-        "image": "https://sylaanalytics.com/favicon.png"
-    }
 
 # ------------------------------
 # PRIMARY UPLOAD ENDPOINT
@@ -678,6 +616,7 @@ app.include_router(help.router, prefix="/api")
 app.include_router(pricing.router, prefix="/api")
 app.include_router(file_tools_full_router, prefix="/api")
 app.include_router(row_selection.router, prefix="/api", tags=["row_selection"])
+app.include_router(ssr.router, tags=["ssr"])
 
 # ------------------------------
 # Upload directory mount

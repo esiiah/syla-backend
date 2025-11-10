@@ -3,6 +3,11 @@
 
 User-agent: *
 Allow: /
+Allow: /ssr/
+Allow: /assets/
+Allow: /*.css$
+Allow: /*.js$
+
 Disallow: /api/
 Disallow: /admin/
 Disallow: /private/
@@ -10,15 +15,19 @@ Disallow: /*.json$
 Disallow: /settings
 Disallow: /account
 
-# Allow CSS and JS for better rendering
-Allow: /assets/
-Allow: /*.css$
-Allow: /*.js$
-
 # Sitemap location
 Sitemap: https://www.sylaanalytics.com/sitemap.xml
 
-# Block bad bots (optional)
+# Crawlers should prefer SSR versions for better indexing
+User-agent: Googlebot
+Crawl-delay: 1
+Allow: /ssr/
+
+User-agent: Bingbot
+Crawl-delay: 1
+Allow: /ssr/
+
+# Block bad bots
 User-agent: AhrefsBot
 Disallow: /
 
