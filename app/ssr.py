@@ -316,7 +316,7 @@ async def serve_ssr_page(full_path: str):
     """Serve server-rendered HTML for crawlers"""
     try:
         # Normalize path
-        if not full_path or full_path == "ssr" or full_path == "ssr/":
+        if not full_path or full_path == "" or full_path == "/":
             clean_path = "/"
         else:
             # Remove leading 'ssr/' if present
@@ -430,4 +430,117 @@ async def serve_ssr_page(full_path: str):
         
     except Exception as e:
         logger.error(f"SSR rendering failed for path '{path}': {e}")
+        raise HTTPException(status_code=500, detail="SSR rendering failed")
+
+@router.get("/ssr")
+@router.get("/ssr/")
+async def serve_ssr_home():
+    """Serve SSR homepage"""
+    try:
+        meta = get_route_metadata("/")
+        
+        html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{meta['title']}</title>
+    <meta name="description" content="{meta['description']}">
+    <meta name="keywords" content="{meta['keywords']}">
+    <link rel="canonical" href="{meta['url']}">
+    
+    <!-- Open Graph -->
+    <meta property="og:title" content="{meta['title']}">
+    <meta property="og:description" content="{meta['description']}">
+    <meta property="og:url" content="{meta['url']}">
+    <meta property="og:image" content="{meta['image']}">
+    <meta property="og:type" content="website">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{meta['title']}">
+    <meta name="twitter:description" content="{meta['description']}">
+    <meta name="twitter:image" content="{meta['image']}">
+    
+    <!-- Redirect to SPA after 3 seconds -->
+    <meta http-equiv="refresh" content="3;url=/">
+    
+    <style>
+        body {{ 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px;
+            line-height: 1.6;
+            color: #1f2937;
+        }}
+        h1 {{ 
+            color: #3b82f6; 
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }}
+        h2 {{ 
+            color: #1e40af; 
+            margin-top: 2rem;
+            font-size: 1.75rem;
+        }}
+        ul {{ 
+            line-height: 1.8;
+            margin: 1rem 0;
+        }}
+        li {{
+            margin: 0.5rem 0;
+        }}
+        .notice {{ 
+            background: #eff6ff; 
+            border-left: 4px solid #3b82f6; 
+            padding: 15px; 
+            margin: 20px 0;
+            border-radius: 4px;
+        }}
+        .notice strong {{
+            color: #1e40af;
+        }}
+        a {{
+            color: #3b82f6;
+            text-decoration: none;
+        }}
+        a:hover {{
+            text-decoration: underline;
+        }}
+        footer {{
+            margin-top: 50px; 
+            padding-top: 20px; 
+            border-top: 1px solid #e5e7eb;
+            color: #6b7280;
+        }}
+        footer a {{
+            margin: 0 10px;
+        }}
+    </style>
+</head>
+<body>
+    <div class="notice">
+        <strong>⚡ Loading interactive version...</strong> If you're not redirected automatically, <a href="/">click here</a>.
+    </div>
+    
+    {meta.get('content', '')}
+    
+    <footer>
+        <p>&copy; 2025 Syla Analytics. All rights reserved.</p>
+        <p>
+            <a href="/">Home</a> |
+            <a href="/forecast">AI Forecasting</a> |
+            <a href="/pricing">Pricing</a> |
+            <a href="/help">Help</a> |
+            <a href="/docs">Docs</a>
+        </p>
+    </footer>
+</body>
+</html>"""
+        
+        return HTMLResponse(content=html_content)
+        
+    except Exception as e:
+        logger.error(f"SSR home rendering failed: {e}")
         raise HTTPException(status_code=500, detail="SSR rendering failed")

@@ -115,7 +115,7 @@ const SEARCH_INDEX = [
     title: "CSV to Excel",
     description: "Convert CSV files to Excel format",
     keywords: ["csv to excel", "csv excel", "xlsx"],
-    route: "/tools/convert?from=csv&to=excel",
+    route: "/tools/csv-to-excel",
     icon: FileCode,
     category: "Conversions",
     score: 0
@@ -125,7 +125,7 @@ const SEARCH_INDEX = [
     title: "Excel to CSV",
     description: "Convert Excel files to CSV format",
     keywords: ["excel to csv", "xlsx csv"],
-    route: "/tools/convert?from=excel&to=csv",
+    route: "/tools/excel-to-csv",
     icon: FileCode,
     category: "Conversions",
     score: 0
@@ -135,7 +135,67 @@ const SEARCH_INDEX = [
     title: "PDF to Word",
     description: "Convert PDF to Word document",
     keywords: ["pdf to word", "pdf word", "docx"],
-    route: "/tools/convert?from=pdf&to=word",
+    route: "/tools/pdf-to-word",
+    icon: FileCode,
+    category: "Conversions",
+    score: 0
+  },
+  {
+    id: "word-to-pdf",
+    title: "Word to PDF",
+    description: "Convert Word document to PDF",
+    keywords: ["word to pdf", "docx pdf"],
+    route: "/tools/word-to-pdf",
+    icon: FileCode,
+    category: "Conversions",
+    score: 0
+  },
+  {
+    id: "excel-to-pdf",
+    title: "Excel to PDF",
+    description: "Convert Excel spreadsheet to PDF",
+    keywords: ["excel to pdf", "xlsx pdf"],
+    route: "/tools/excel-to-pdf",
+    icon: FileCode,
+    category: "Conversions",
+    score: 0
+  },
+  {
+    id: "image-to-pdf",
+    title: "Image to PDF",
+    description: "Convert images to PDF format",
+    keywords: ["image to pdf", "jpg pdf", "png pdf", "photo pdf"],
+    route: "/tools/image-to-pdf",
+    icon: FileCode,
+    category: "Conversions",
+    score: 0
+  },
+  {
+    id: "pdf-to-excel",
+    title: "PDF to Excel",
+    description: "Convert PDF to Excel spreadsheet",
+    keywords: ["pdf to excel", "pdf xlsx", "extract tables"],
+    route: "/tools/pdf-to-excel",
+    icon: FileCode,
+    category: "Conversions",
+    score: 0
+  },
+  {
+    id: "csv-to-pdf",
+    title: "CSV to PDF",
+    description: "Convert CSV to PDF document",
+    keywords: ["csv to pdf", "csv pdf"],
+    route: "/tools/csv-to-pdf",
+    icon: FileCode,
+    category: "Conversions",
+    score: 0
+  },
+  {
+    id: "pdf-to-csv",
+    title: "PDF to CSV",
+    description: "Extract tables from PDF to CSV",
+    keywords: ["pdf to csv", "pdf csv", "extract data"],
+    route: "/tools/pdf-to-csv",
     icon: FileCode,
     category: "Conversions",
     score: 0

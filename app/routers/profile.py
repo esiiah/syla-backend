@@ -87,10 +87,14 @@ def save_avatar(file: UploadFile) -> str:
     
     # Save file
     try:
+        # Read file content
+        file_content = file.file.read()
+        
+        # Save original file temporarily
         with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+            buffer.write(file_content)
 
-        # âœ… Resize to standard 256x256 for uniform avatars
+        # Resize to standard 256x256 for uniform avatars
         from PIL import Image
         img = Image.open(file_path)
         
@@ -109,10 +113,16 @@ def save_avatar(file: UploadFile) -> str:
         img.save(file_path, format="JPEG", quality=90, optimize=True)
 
     except Exception as e:
+        # Clean up file if processing failed
+        if file_path.exists():
+            file_path.unlink()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to save file: {str(e)}"
         )
+    finally:
+        # Reset file pointer for potential reuse
+        file.file.seek(0)
     
     # Return relative URL
     return f"/uploads/avatars/{filename}"
