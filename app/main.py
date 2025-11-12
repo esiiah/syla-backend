@@ -68,7 +68,7 @@ from fastapi import Request
 class LargeUploadMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # read body manually for large uploads to bypass Starlette limits
-        if request.url.path.startswith("/api/filetools/merge"):
+        if request.url.path.startswith("/api/filetools/merge") or request.url.path.startswith("/api/profile"):
             request._body = await request.body()
         return await call_next(request)
 
@@ -621,13 +621,21 @@ app.include_router(ssr.router, tags=["ssr"])
 # ------------------------------
 # Upload directory mount
 # ------------------------------
+# Define base uploads directory (same level as UPLOAD_DIR parent)
+BASE_DIR = Path(__file__).resolve().parent.parent
+UPLOADS_BASE = BASE_DIR / "uploads"
+AVATARS_DIR = UPLOADS_BASE / "avatars"
+
+# Create all necessary directories
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-uploads_path = Path(UPLOAD_DIR).parent
-if uploads_path.exists():
-    app.mount("/uploads", StaticFiles(directory=str(uploads_path)), name="uploads")
-    logger.info(f"✅ Uploads mounted at /uploads from {uploads_path}")
+os.makedirs(AVATARS_DIR, exist_ok=True)
+
+# Mount uploads directory
+if UPLOADS_BASE.exists():
+    app.mount("/uploads", StaticFiles(directory=str(UPLOADS_BASE)), name="uploads")
+    logger.info(f"✅ Uploads mounted: {UPLOADS_BASE}")
 else:
-    logger.warning(f"⚠️ Uploads directory not found at {uploads_path}")
+    logger.error(f"❌ Uploads directory missing: {UPLOADS_BASE}")
 
 # ------------------------------
 # Frontend static files setup

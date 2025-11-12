@@ -38,7 +38,6 @@ export default function ProfilePage() {
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
 
-
 // Load theme and user data on component mount
 useEffect(() => {
   const savedTheme = localStorage.getItem("theme") || "dark";
@@ -77,7 +76,61 @@ useEffect(() => {
     }));
   };
 
-  const handleAvatarChange = (e) => {
+// Helper function to compress image before upload
+const compressImage = (file, maxSizeMB = 2) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Resize if too large
+        const maxDimension = 1024;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = (height / width) * maxDimension;
+            width = maxDimension;
+          } else {
+            width = (width / height) * maxDimension;
+            height = maxDimension;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Compress to JPEG with quality adjustment
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name.replace(/\.\w+$/, '.jpg'), {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            } else {
+              reject(new Error('Canvas to Blob conversion failed'));
+            }
+          },
+          'image/jpeg',
+          0.85
+        );
+      };
+      img.onerror = reject;
+    };
+    reader.onerror = reject;
+  });
+};
+
+  const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
       // Validate file type
@@ -87,24 +140,37 @@ useEffect(() => {
         return;
       }
 
-      // Validate file size (5MB limit)
-      if (file.size > 5 * 1024 * 1024) {
-        setMessage("File too large. Please select an image smaller than 5MB.");
+      // Validate file size (10MB limit before compression)
+      if (file.size > 10 * 1024 * 1024) {
+        setMessage("File too large. Please select an image smaller than 10MB.");
         return;
       }
 
-      setAvatarFile(file);
-      
-      // Create preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setAvatarPreview(e.target.result);
-        setCropMode(true); // open crop modal
-      };
-      reader.readAsDataURL(file);
+      try {
+        setLoading(true);
+        setMessage("Compressing image...");
+        
+        // Compress image before setting
+        const compressedFile = await compressImage(file, 2);
+        setAvatarFile(compressedFile);
+        
+        // Create preview
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setAvatarPreview(e.target.result);
+          setCropMode(true);
+          setMessage("");
+        };
+        reader.readAsDataURL(compressedFile);
+        
+      } catch (error) {
+        console.error("Compression error:", error);
+        setMessage("Failed to process image. Please try a different file.");
+      } finally {
+        setLoading(false);
+      }
     }
   };
-
 
   const onCropComplete = (_, croppedAreaPixels) => {
     setCroppedAreaPixels(croppedAreaPixels);

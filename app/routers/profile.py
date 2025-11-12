@@ -6,6 +6,7 @@ import os
 import uuid
 from pathlib import Path
 import shutil
+import logging
 
 from passlib.context import CryptContext
 from .db import (
@@ -17,6 +18,7 @@ from .db import (
 )
 from .auth import get_current_user, require_auth
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/profile", tags=["profile"])
 
 # Password hashing
@@ -80,37 +82,67 @@ def save_avatar(file: UploadFile) -> str:
             detail="Invalid file type. Only JPG, PNG, GIF, and WebP are allowed."
         )
     
-    # Generate unique filename
+    # Read file content first
+    try:
+        file_content = file.file.read()
+        file_size = len(file_content)
+        
+        # Check file size BEFORE processing (5MB limit)
+        if file_size > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File too large. Maximum size is {MAX_FILE_SIZE / (1024*1024):.1f}MB"
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to read file: {str(e)}"
+        )
+    finally:
+        file.file.seek(0)
+    
+    # Generate unique filename (always use .jpg for consistency)
     file_id = str(uuid.uuid4())
-    filename = f"{file_id}{file_ext}"
+    filename = f"{file_id}.jpg"
     file_path = UPLOAD_DIR / filename
     
-    # Save file
+    # Process and save image
     try:
-        # Read file content
-        file_content = file.file.read()
-        
-        # Save original file temporarily
-        with open(file_path, "wb") as buffer:
-            buffer.write(file_content)
-
-        # Resize to standard 256x256 for uniform avatars
         from PIL import Image
-        img = Image.open(file_path)
+        import io
         
-        # Convert RGBA/LA to RGB for JPEG compatibility
+        # Open image from bytes
+        img = Image.open(io.BytesIO(file_content))
+        
+        # Convert to RGB (handles PNG, RGBA, etc.)
         if img.mode in ("RGBA", "LA", "P"):
-            # Create white background
+            # Create white background for transparency
             background = Image.new("RGB", img.size, (255, 255, 255))
             if img.mode == "P":
                 img = img.convert("RGBA")
-            background.paste(img, mask=img.split()[-1] if img.mode in ("RGBA", "LA") else None)
+            if img.mode in ("RGBA", "LA"):
+                background.paste(img, mask=img.split()[-1])
+            else:
+                background.paste(img)
             img = background
         elif img.mode not in ("RGB", "L"):
             img = img.convert("RGB")
         
+        # Resize to 256x256 (keeps aspect ratio)
         img.thumbnail((256, 256), Image.Resampling.LANCZOS)
-        img.save(file_path, format="JPEG", quality=90, optimize=True)
+        
+        # Save as optimized JPEG
+        img.save(file_path, format="JPEG", quality=85, optimize=True)
+        
+        # Verify file was saved and get actual size
+        if not file_path.exists():
+            raise Exception("File was not saved to disk")
+        
+        actual_size = file_path.stat().st_size
+        logger.info(f"Avatar saved: {filename} ({actual_size / 1024:.1f}KB)")
 
     except Exception as e:
         # Clean up file if processing failed
@@ -118,11 +150,8 @@ def save_avatar(file: UploadFile) -> str:
             file_path.unlink()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to save file: {str(e)}"
+            detail=f"Failed to process image: {str(e)}"
         )
-    finally:
-        # Reset file pointer for potential reuse
-        file.file.seek(0)
     
     # Return relative URL
     return f"/uploads/avatars/{filename}"
