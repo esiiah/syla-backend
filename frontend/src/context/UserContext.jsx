@@ -192,9 +192,9 @@ export default function UserProvider({ children }) {
     }
   };
 
-  // FIXED: Force re-render when user is updated
+  // Force re-render when user is updated
   const updateUser = (updatedUserData) => {
-    console.log("Updating user:", updatedUserData);
+    console.log("Updating user context:", updatedUserData);
     const newUser = { ...updatedUserData };
     setUser(newUser);
     localStorage.setItem("user", JSON.stringify(newUser));

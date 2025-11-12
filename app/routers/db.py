@@ -228,7 +228,7 @@ def update_user_profile(
         if not user:
             raise ValueError("User not found")
         
-        # Update fields if provided
+        # Update fields if provided (including None to clear fields)
         if name is not None:
             user.name = name
         if email is not None:
@@ -253,6 +253,7 @@ def update_user_profile(
             user.language = language if language else "en"
         if timezone is not None:
             user.timezone = timezone if timezone else "UTC"
+        # CRITICAL: Always update avatar_url when provided, even if it's the same
         if avatar_url is not None:
             user.avatar_url = avatar_url
         
@@ -262,9 +263,17 @@ def update_user_profile(
             session.commit()
             session.refresh(user)
             return _serialize_user(user)
-        except IntegrityError:
+        except IntegrityError as e:
             session.rollback()
+            # Log the actual error for debugging
+            import logging
+            logging.error(f"Database integrity error during profile update: {e}")
             raise ValueError("Email or phone already exists for another user")
+        except Exception as e:
+            session.rollback()
+            import logging
+            logging.error(f"Unexpected error during profile update: {e}")
+            raise ValueError(f"Failed to update profile: {str(e)}")
 
 
 def update_user_password(user_id: int, password_hash: str) -> bool:
