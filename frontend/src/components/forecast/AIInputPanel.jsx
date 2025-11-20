@@ -1,7 +1,7 @@
 // frontend/src/components/forecast/AIInputPanel.jsx
 import React, { useState } from 'react';
 import { Sparkles, ChevronDown, ChevronUp, Zap, Bot, TrendingUp, AlertTriangle, Database, Filter } from 'lucide-react';
-import { useChartData } from '../context/ChartDataContext';
+import { useChartData } from '../../context/ChartDataContext';
 
 export default function AIInputPanel({ onSubmit, isLoading, targetColumn }) {
   const { chartData } = useChartData();
