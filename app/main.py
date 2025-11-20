@@ -60,6 +60,9 @@ logger = logging.getLogger("syla-backend")
 # FastAPI initialization
 # ------------------------------
 app = FastAPI(title="Syla Analytics")
+# Configure Uvicorn to handle large file uploads
+import uvicorn.config
+uvicorn.config.MAX_HTTP_BUFFER_SIZE = 1024 * 1024 * 500  # 500MB
 
 # --- FIX: increase request body size limit for filetools merge ---
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -67,14 +70,16 @@ from fastapi import Request
 
 class LargeUploadMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # read body manually for large uploads to bypass Starlette limits
-        if request.url.path.startswith("/api/filetools/merge") or request.url.path.startswith("/api/profile"):
-            request._body = await request.body()
-        return await call_next(request)
+        # Allow large uploads for filetools endpoints
+        if request.url.path.startswith("/api/filetools"):
+            # Don't pre-read body, let FastAPI handle it
+            pass
+        response = await call_next(request)
+        return response
 
 app.add_middleware(LargeUploadMiddleware)
-app.state._MAX_BODY_SIZE = 1024 * 1024 * 100  # 100MB
-# --- END FIX ---
+# Set much larger body size limit for file uploads (500MB)
+app.state.MAX_BODY_SIZE = 1024 * 1024 * 500
 
 # ------------------------------
 # Startup event
@@ -731,7 +736,58 @@ async def serve_sitemap():
     return FileResponse(sitemap_path, media_type="application/xml")
 
 # ------------------------------
-# SPA Fallback (MUST BE ABSOLUTE LAST)
+# SSR Routes (MUST come before SPA fallback)
+# ------------------------------
+def is_crawler(user_agent: str) -> bool:
+    """Detect if request is from a crawler"""
+    ua = user_agent.lower()
+    return any(bot in ua for bot in [
+        'googlebot', 'bingbot', 'slurp', 'duckduckbot', 'baiduspider',
+        'yandexbot', 'facebookexternalhit', 'twitterbot', 'whatsapp',
+        'linkedinbot', 'slackbot', 'telegrambot', 'bot', 'crawler', 'spider'
+    ])
+
+@app.get("/ssr-meta")
+def ssr_meta_endpoint(path: str = "/"):
+    """API endpoint for metadata"""
+    from .ssr import get_route_metadata
+    return get_route_metadata(path)
+
+# Specific SSR routes that crawlers should hit
+@app.get("/forecast")
+@app.get("/pricing")
+@app.get("/help")
+@app.get("/docs")
+async def serve_ssr_routes(request: Request):
+    """Serve SSR content for main routes OR SPA for users"""
+    user_agent = request.headers.get("user-agent", "")
+    
+    if is_crawler(user_agent):
+        logger.info(f"🤖 Crawler detected on {request.url.path}: {user_agent}")
+        from .ssr import render_ssr_page
+        return render_ssr_page(str(request.url.path))
+    else:
+        # Real users get the SPA
+        index_path = os.path.join(FRONTEND_DIR, "index.html")
+        return FileResponse(index_path)
+
+# Tool routes
+@app.get("/tools/{tool_name}")
+async def serve_tool_ssr(tool_name: str, request: Request):
+    """Serve SSR content for tool pages OR SPA for users"""
+    user_agent = request.headers.get("user-agent", "")
+    
+    if is_crawler(user_agent):
+        logger.info(f"🤖 Crawler detected on /tools/{tool_name}: {user_agent}")
+        from .ssr import render_ssr_page
+        return render_ssr_page(f"/tools/{tool_name}")
+    else:
+        # Real users get the SPA
+        index_path = os.path.join(FRONTEND_DIR, "index.html")
+        return FileResponse(index_path)
+
+# ------------------------------
+# SPA Fallback (ABSOLUTE LAST)
 # ------------------------------
 @app.get("/{full_path:path}")
 async def spa_fallback(request: Request, full_path: str):
@@ -747,7 +803,7 @@ async def spa_fallback(request: Request, full_path: str):
     if any(full_path.startswith(p) for p in ["assets", "uploads"]):
         logger.warning(f"❌ Static resource not found: {full_path}")
         raise HTTPException(status_code=404, detail="Resource not found")
-
+    
     index_path = os.path.join(FRONTEND_DIR, "index.html")
     
     if not os.path.isfile(index_path):

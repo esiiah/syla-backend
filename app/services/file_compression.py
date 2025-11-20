@@ -105,6 +105,91 @@ class FileCompressionService:
         except Exception as e:
             raise RuntimeError(f"Conversion failed: {str(e)}")
 
+    def convert_images_to_pdf(self, image_paths: list, output_dir: str) -> str:
+        """
+        Convert multiple images to a single PDF preserving original orientation
+        Uses PIL/Pillow to maintain aspect ratio and orientation
+        Returns path to generated PDF
+        """
+        try:
+            from PIL import Image
+        except ImportError:
+            raise RuntimeError("Pillow library required. Install with: pip install Pillow")
+        
+        if not image_paths:
+            raise RuntimeError("No image paths provided")
+        
+        # Create output directory if needed
+        os.makedirs(output_dir, exist_ok=True)
+        
+        try:
+            # Open and prepare all images
+            pil_images = []
+            for idx, img_path in enumerate(image_paths):
+                if not os.path.exists(img_path):
+                    raise RuntimeError(f"Image file not found: {img_path}")
+                
+                try:
+                    img = Image.open(img_path)
+                    
+                    # Convert to RGB if necessary (for RGBA, P mode, etc.)
+                    if img.mode in ('RGBA', 'LA', 'P'):
+                        # Create white background
+                        rgb_img = Image.new('RGB', img.size, (255, 255, 255))
+                        if img.mode == 'P':
+                            img = img.convert('RGBA')
+                        rgb_img.paste(img, mask=img.split()[-1] if img.mode in ('RGBA', 'LA') else None)
+                        img = rgb_img
+                    elif img.mode != 'RGB':
+                        img = img.convert('RGB')
+                    
+                    # Handle EXIF orientation
+                    try:
+                        exif = img._getexif()
+                        if exif is not None:
+                            orientation = exif.get(274)  # 274 is the orientation tag
+                            if orientation == 3:
+                                img = img.rotate(180, expand=True)
+                            elif orientation == 6:
+                                img = img.rotate(270, expand=True)
+                            elif orientation == 8:
+                                img = img.rotate(90, expand=True)
+                    except (AttributeError, KeyError, IndexError):
+                        pass
+                    
+                    pil_images.append(img)
+                    
+                except Exception as e:
+                    raise RuntimeError(f"Failed to process image {idx + 1}: {str(e)}")
+            
+            if not pil_images:
+                raise RuntimeError("No valid images to convert")
+            
+            # Generate output path
+            output_path = os.path.join(output_dir, f"converted_images_{os.getpid()}.pdf")
+            
+            # Save as PDF - first image as base, rest as additional pages
+            # Important: We do NOT resize images, they keep their original dimensions
+            first_image = pil_images[0]
+            if len(pil_images) > 1:
+                first_image.save(
+                    output_path,
+                    "PDF",
+                    resolution=100.0,
+                    save_all=True,
+                    append_images=pil_images[1:]
+                )
+            else:
+                first_image.save(output_path, "PDF", resolution=100.0)
+            
+            if not os.path.exists(output_path):
+                raise RuntimeError("PDF not generated")
+            
+            return output_path
+            
+        except Exception as e:
+            raise RuntimeError(f"Image to PDF conversion failed: {str(e)}")        
+
     def compress_pdf_ghostscript(self, input_path: str, output_path: str, level: str = "medium") -> bool:
         """Compress PDF using Ghostscript"""
         if level not in ["light", "medium", "strong"]:

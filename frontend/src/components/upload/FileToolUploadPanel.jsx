@@ -26,7 +26,20 @@ export default function FileToolUploadPanel({
   const handleSelect = (e) => {
     const selected = Array.from(e.target.files || []);
     if (!selected.length) return;
-    setFiles(multiple ? selected : [selected[0]]);
+    
+    if (multiple) {
+      // Accumulate files instead of replacing
+      const newFiles = [...files, ...selected];
+      // Enforce file limits
+      const limit = toolType === "merge" ? 15 : toolType === "image-to-pdf" ? 10 : 15;
+      if (newFiles.length > limit) {
+        setInternalError(`Maximum ${limit} files allowed. You selected ${newFiles.length} files total.`);
+        return;
+      }
+      setFiles(newFiles);
+    } else {
+      setFiles([selected[0]]);
+    }
     e.target.value = "";
   };
 
@@ -34,7 +47,20 @@ export default function FileToolUploadPanel({
     e.preventDefault();
     const selected = Array.from(e.dataTransfer.files || []);
     if (!selected.length) return;
-    setFiles(multiple ? selected : [selected[0]]);
+    
+    if (multiple) {
+      // Accumulate files instead of replacing
+      const newFiles = [...files, ...selected];
+      // Enforce file limits
+      const limit = toolType === "merge" ? 15 : toolType === "image-to-pdf" ? 10 : 15;
+      if (newFiles.length > limit) {
+        setInternalError(`Maximum ${limit} files allowed. You dropped ${newFiles.length} files total.`);
+        return;
+      }
+      setFiles(newFiles);
+    } else {
+      setFiles([selected[0]]);
+    }
   };
 
   const handleRemoveFile = (index) => {
@@ -66,7 +92,7 @@ export default function FileToolUploadPanel({
       case "word-to-pdf":
         return "Upload Word document to convert to PDF";
       case "image-to-pdf":
-        return "Upload image to convert to PDF";
+        return "Upload Images to Convert to PDF (Max 10)";
       default:
         return title;
     }
@@ -119,7 +145,7 @@ export default function FileToolUploadPanel({
         "excel-to-pdf": { url: "/api/filetools/excel-to-pdf", multi: false, formFileKey: "file" },
         "pdf-to-word": { url: "/api/filetools/pdf-to-word", multi: false, formFileKey: "file" },
         "word-to-pdf": { url: "/api/filetools/word-to-pdf", multi: false, formFileKey: "file" },
-        "image-to-pdf": { url: "/api/filetools/image-to-pdf", multi: false, formFileKey: "file" },
+        "image-to-pdf": { url: "/api/filetools/image-to-pdf", multi: true, formFileKey: "files" },
       };
 
       let chosen = map[toolType] || map.compress;

@@ -103,6 +103,8 @@ useEffect(() => {
       label: "Image → PDF",
       accept: ".jpg,.jpeg,.png,.gif,.bmp,.tiff,.tif",
       endpoint: "/api/filetools/image-to-pdf",
+      multiple: true,
+      maxFiles: 10,
     },
     "pdf-to-excel": {
       type: "convert",
@@ -226,10 +228,12 @@ useEffect(() => {
                       ? "Choose a file and select your preferred compression level"
                       : config.type === "merge"
                       ? "You can select up to 15 PDF files to merge into one document"
+                      : action === "image-to-pdf"
+                      ? "You can select up to 10 images to convert into a single PDF document"
                       : `Upload ${config.accept.replace(/\./g, "").toUpperCase()} file for conversion`
                   }
                   accept={config.accept}
-                  multiple={config.type === "merge"}
+                  multiple={config.type === "merge" || action === "image-to-pdf"}
                   files={files}
                   setFiles={setFiles}
                   viewMode={viewMode}

@@ -52,8 +52,11 @@ export default function ForecastPage() {
     setIsLoading(true);
     setForecastResult(null);
 
+    // Use filtered data if provided, otherwise use full dataset
+    const dataToForecast = config.csvData || chartData.data;
+    
     const payload = {
-      csv_data: chartData.data,
+      csv_data: dataToForecast,
       scenario_text: config.prompt,
       target_column: targetColumn,
       date_column: chartData.columns.find(c => 
@@ -64,6 +67,8 @@ export default function ForecastPage() {
       periods_ahead: config.periods,
       confidence_level: config.confidence
     };
+    
+    console.log(`🎯 Forecasting with ${config.dataSource || 'default'} data: ${dataToForecast.length} rows`);
 
     try {
       const result = await aiApi.createWhatIfForecast(payload);
@@ -74,7 +79,9 @@ export default function ForecastPage() {
         result,
         timestamp: new Date().toISOString(),
         scenario: config.prompt,
-        targetColumn
+        targetColumn,
+        dataSource: config.dataSource || 'default',
+        rowCount: dataToForecast.length
       }));
     } catch (err) {
       console.error('Forecast error:', err);
@@ -84,6 +91,7 @@ export default function ForecastPage() {
     }
   };
 
+  
   // Handle chart click
   const handleChartClick = (chartId) => {
     setSelectedChart(chartId);

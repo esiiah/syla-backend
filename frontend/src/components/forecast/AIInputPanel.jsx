@@ -1,13 +1,24 @@
 // frontend/src/components/forecast/AIInputPanel.jsx
 import React, { useState } from 'react';
-import { Sparkles, ChevronDown, ChevronUp, Zap, Bot, TrendingUp } from 'lucide-react';
+import { Sparkles, ChevronDown, ChevronUp, Zap, Bot, TrendingUp, AlertTriangle, Database, Filter } from 'lucide-react';
+import { useChartData } from '../context/ChartDataContext';
 
 export default function AIInputPanel({ onSubmit, isLoading, targetColumn }) {
+  const { chartData } = useChartData();
+  
   const [prompt, setPrompt] = useState('');
   const [model, setModel] = useState('hybrid');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [periods, setPeriods] = useState(12);
   const [confidence, setConfidence] = useState(0.95);
+  const [dataSource, setDataSource] = useState('edited');
+  
+  const editedRowCount = chartData.selectedRowIndices 
+    ? chartData.selectedRowIndices.length 
+    : chartData.data.length;
+  const originalRowCount = chartData.data.length;
+  const hasRowSelection = chartData.selectedRowIndices && 
+    chartData.selectedRowIndices.length < chartData.data.length;
 
   const models = [
     { 
@@ -39,14 +50,21 @@ export default function AIInputPanel({ onSubmit, isLoading, targetColumn }) {
   const handleSubmit = () => {
     if (!prompt.trim() || isLoading) return;
     
+    const dataToUse = dataSource === 'original' 
+      ? chartData.data 
+      : (chartData.selectedRowIndices 
+          ? chartData.data.filter((_, idx) => chartData.selectedRowIndices.includes(idx))
+          : chartData.data);
+    
     onSubmit({
       prompt: prompt.trim(),
       model,
       periods,
-      confidence
+      confidence,
+      dataSource: dataSource,
+      csvData: dataToUse
     });
   };
-
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && e.ctrlKey) {
       handleSubmit();
@@ -113,6 +131,71 @@ export default function AIInputPanel({ onSubmit, isLoading, targetColumn }) {
                 {example.slice(0, 40)}...
               </button>
             ))}
+          </div>
+        )}
+
+        {/* Data Source Selection - Only show if rows are filtered */}
+        {hasRowSelection && (
+          <div className="mt-4 space-y-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 flex items-center gap-2">
+              <Database size={16} />
+              Data Source for Forecast
+            </label>
+            <div className="grid grid-cols-2 gap-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-900 rounded-xl border border-blue-200 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setDataSource('edited')}
+                className={`px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                  dataSource === 'edited'
+                    ? 'bg-blue-600 text-white shadow-lg scale-105'
+                    : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-600 border border-gray-200 dark:border-slate-600'
+                }`}
+              >
+                <div className="flex flex-col items-center gap-1.5">
+                  <Filter size={18} />
+                  <span className="text-sm font-semibold">Filtered Data</span>
+                  <span className="text-xs opacity-90">
+                    {editedRowCount.toLocaleString()} rows
+                  </span>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDataSource('original')}
+                className={`px-4 py-3 rounded-lg font-medium transition-all duration-200 ${
+                  dataSource === 'original'
+                    ? 'bg-blue-600 text-white shadow-lg scale-105'
+                    : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-600 border border-gray-200 dark:border-slate-600'
+                }`}
+              >
+                <div className="flex flex-col items-center gap-1.5">
+                  <Database size={18} />
+                  <span className="text-sm font-semibold">Original Data</span>
+                  <span className="text-xs opacity-90">
+                    {originalRowCount.toLocaleString()} rows
+                  </span>
+                </div>
+              </button>
+            </div>
+            
+            {dataSource === 'edited' && (
+              <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-800 dark:text-amber-300">
+                  Forecasting with <strong>{editedRowCount} filtered rows</strong> (excluding {originalRowCount - editedRowCount} rows).
+                  Switch to "Original Data" to use all {originalRowCount} rows.
+                </p>
+              </div>
+            )}
+            
+            {dataSource === 'original' && (
+              <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <Database size={16} className="text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-blue-800 dark:text-blue-300">
+                  Using <strong>all {originalRowCount} rows</strong> from the original uploaded file.
+                </p>
+              </div>
+            )}
           </div>
         )}
 

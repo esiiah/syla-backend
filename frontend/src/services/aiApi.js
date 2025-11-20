@@ -47,12 +47,12 @@ class AIApiService {
 
   // Create what-if forecast
   async createWhatIfForecast(payload) {
-    return await this.makeRequest('/forecast/whatif', {
+    return this.makeRequest('/forecast/whatif', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify(payload)
     });
   }
-
+  
   // Parse scenario text into structured parameters
   async parseScenario(scenarioText, availableColumns) {
     return await this.makeRequest('/forecast/scenario/parse', {

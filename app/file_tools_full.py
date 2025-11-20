@@ -281,41 +281,134 @@ async def pdf_merge(files: List[UploadFile] = File(...)):
     if not files:
         raise HTTPException(status_code=400, detail="No files provided")
     if len(files) > 15:
-        raise HTTPException(status_code=400, detail="Cannot merge more than 15 files")
+        raise HTTPException(status_code=400, detail=f"Cannot merge more than 15 files. You uploaded {len(files)} files.")
+    
     temp_paths = []
+    total_size = 0
+    MAX_TOTAL_SIZE = 200 * 1024 * 1024  # 200MB combined limit
+    
     try:
-        for f in files:
+        # Validate and write all files first
+        for idx, f in enumerate(files, 1):
+            # Validate PDF extension
             if not (f.filename or "").lower().endswith(".pdf"):
-                raise HTTPException(status_code=400, detail=f"All files must be PDF. Found: {f.filename}")
-            p = write_upload_to_temp(f, prefix="merge_in_")
-            temp_paths.append(p)
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"All files must be PDF. File #{idx} '{f.filename}' is not a PDF."
+                )
+            
+            # Read file content
+            try:
+                content = await f.read()
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to read file #{idx} '{f.filename}': {str(e)}"
+                )
+            
+            # Check size
+            file_size = len(content)
+            total_size += file_size
+            
+            if total_size > MAX_TOTAL_SIZE:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Total file size exceeds 200MB limit. Current total: {total_size / (1024*1024):.1f}MB"
+                )
+            
+            # Write to temporary file
+            try:
+                fd, temp_path = tempfile.mkstemp(suffix=".pdf", prefix=f"merge_{idx}_", dir=TMP_DIR)
+                os.close(fd)
+                with open(temp_path, "wb") as temp_file:
+                    temp_file.write(content)
+                temp_paths.append(temp_path)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to save file #{idx} '{f.filename}': {str(e)}"
+                )
         
+        # Import PyPDF2
         try:
             from PyPDF2 import PdfMerger
         except ImportError:
-            raise HTTPException(status_code=500, detail="PyPDF2 required: pip install PyPDF2")
+            raise HTTPException(
+                status_code=500, 
+                detail="PDF merge library not available. Contact support."
+            )
         
+        # Merge PDFs
         merger = PdfMerger()
-        for p in temp_paths:
-            merger.append(p)
-        
-        out_name = f"merged_{int(time.time() * 1000)}.pdf"
-        out_path = os.path.join(UPLOAD_DIR, out_name)
-        with open(out_path, "wb") as fh:
-            merger.write(fh)
-        merger.close()
-        
-        if not os.path.exists(out_path) or os.path.getsize(out_path) == 0:
-            raise HTTPException(status_code=500, detail="Merge produced empty file")
-        
-        return {
-            "message": f"Successfully merged {len(temp_paths)} PDF files",
-            "download_url": f"/api/filetools/files/{out_name}",
-            "filename": out_name
-        }
+        try:
+            for idx, p in enumerate(temp_paths, 1):
+                try:
+                    merger.append(p)
+                except Exception as e:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Failed to merge file #{idx}. It may be corrupted or password-protected: {str(e)}"
+                    )
+            
+            # Generate output filename
+            out_name = f"merged_{int(time.time() * 1000)}.pdf"
+            out_path = os.path.join(UPLOAD_DIR, out_name)
+            
+            # Write merged PDF
+            with open(out_path, "wb") as fh:
+                merger.write(fh)
+            merger.close()
+            
+            # Validate output
+            if not os.path.exists(out_path):
+                raise HTTPException(
+                    status_code=500, 
+                    detail="Merge failed: output file was not created"
+                )
+            
+            output_size = os.path.getsize(out_path)
+            if output_size == 0:
+                os.remove(out_path)
+                raise HTTPException(
+                    status_code=500, 
+                    detail="Merge produced empty file"
+                )
+            
+            return {
+                "message": f"Successfully merged {len(temp_paths)} PDF files",
+                "download_url": f"/api/filetools/files/{out_name}",
+                "filename": out_name,
+                "input_files": len(temp_paths),
+                "total_input_size": total_size,
+                "output_size": output_size,
+                "size_readable": f"{output_size / (1024*1024):.2f}MB"
+            }
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"PDF merge failed: {str(e)}"
+            )
+        finally:
+            # Always close merger
+            try:
+                merger.close()
+            except:
+                pass
+                
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected error during merge: {str(e)}"
+        )
     finally:
+        # Clean up all temporary files
         for p in temp_paths:
-            if os.path.exists(p):
+            if p and os.path.exists(p):
                 try:
                     os.remove(p)
                 except Exception:
@@ -354,36 +447,58 @@ async def word_to_pdf(file: UploadFile = File(...)):
                 pass
 
 @router.post("/image-to-pdf")
-async def image_to_pdf(file: UploadFile = File(...)):
-    """Convert image to PDF using LibreOffice"""
-    ext = (file.filename or "").lower()
-    valid_exts = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif"]
-    if not any(ext.endswith(e) for e in valid_exts):
-        raise HTTPException(status_code=400, detail="Only image files allowed")
+async def image_to_pdf(files: List[UploadFile] = File(...)):
+    """Convert images to PDF (supports multiple images up to 10)"""
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided")
+    if len(files) > 10:
+        raise HTTPException(status_code=400, detail=f"Maximum 10 images allowed. You uploaded {len(files)} files.")
     
-    in_path = write_upload_to_temp(file, prefix="img2pdf_in_")
+    temp_paths = []
     try:
-        pdf_path = compression_service.convert_to_pdf_libreoffice(in_path, TMP_DIR)
+        # Validate all files are images
+        valid_exts = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif"]
+        for idx, f in enumerate(files, 1):
+            ext = (f.filename or "").lower()
+            if not any(ext.endswith(e) for e in valid_exts):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"File #{idx} '{f.filename}' is not a valid image file."
+                )
         
-        orig_name = Path(file.filename).stem if file.filename else "image"
-        out_name = f"{orig_name}_converted.pdf"
+        # Write all images to temp files
+        for idx, f in enumerate(files, 1):
+            temp_path = write_upload_to_temp(f, prefix=f"img2pdf_{idx}_")
+            temp_paths.append(temp_path)
+        
+        # Convert images to PDF preserving orientation
+        pdf_path = compression_service.convert_images_to_pdf(temp_paths, TMP_DIR)
+        
+        # Move to final location
+        orig_name = Path(files[0].filename).stem if files[0].filename else "images"
+        out_name = f"{orig_name}_converted.pdf" if len(files) == 1 else f"images_{len(files)}_converted.pdf"
         final_name = unique_filename(out_name)
         final_path = os.path.join(UPLOAD_DIR, final_name)
         shutil.move(pdf_path, final_path)
         
         return {
-            "message": "Image successfully converted to PDF",
+            "message": f"Successfully converted {len(files)} image(s) to PDF",
             "download_url": f"/api/filetools/files/{final_name}",
-            "filename": final_name
+            "filename": final_name,
+            "images_count": len(files)
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Conversion failed: {str(e)}")
     finally:
-        if os.path.exists(in_path):
-            try:
-                os.remove(in_path)
-            except Exception:
-                pass
+        # Clean up all temporary files
+        for p in temp_paths:
+            if p and os.path.exists(p):
+                try:
+                    os.remove(p)
+                except Exception:
+                    pass
 
 # ---------- Other Conversions ----------
 @router.post("/csv-to-excel")
