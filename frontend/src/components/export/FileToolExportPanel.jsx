@@ -115,7 +115,7 @@ export default function FileToolExportPanel({
         "excel-to-pdf": { url: "/api/filetools/excel-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
         "pdf-to-word": { url: "/api/filetools/pdf-to-word", method: "POST", form: (fd, f) => fd.append("file", f) },
         "word-to-pdf": { url: "/api/filetools/word-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
-        "image-to-pdf": { url: "/api/filetools/image-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
+        "image-to-pdf": { url: "/api/filetools/image-to-pdf", method: "POST-multi", form: (fd, f) => fd.append("files", f) },
       };
       // Choose endpoint
       let chosen = map[toolType];
@@ -130,9 +130,7 @@ export default function FileToolExportPanel({
       }
 
       // Build formdata
-      const form = new FormData();
-      if (chosen.method === "POST-multi" || toolType === "merge") {
-        // multiple files expected
+      if (chosen.method === "POST-multi") {
         providedFiles.forEach((f) => {
           chosen.form(form, f);
         });
