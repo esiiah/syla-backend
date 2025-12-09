@@ -165,19 +165,26 @@ async def pdf_compress_preview(file: UploadFile = File(...)):
 async def generic_compress(file: UploadFile = File(...), level: str = Form("medium")):
     """Auto-detect file type and compress accordingly"""
     
-    # Check file size first
+    # Check file size first with streaming to avoid memory issues
     MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
-    content = await file.read()
-    file_size = len(content)
     
-    if file_size > MAX_FILE_SIZE:
-        raise HTTPException(
+    try:
+        content = await file.read()
+        file_size = len(content)
+        
+        if file_size > MAX_FILE_SIZE:
+            return JSONResponse(
+                status_code=413,
+                content={"detail": f"File too large ({file_size / (1024*1024):.1f}MB). Maximum file size for compression is 100MB."}
+            )
+        
+        # Reset file pointer
+        await file.seek(0)
+    except Exception as e:
+        return JSONResponse(
             status_code=413,
-            detail=f"File too large ({file_size / (1024*1024):.1f}MB). Maximum file size for compression is 100MB."
+            content={"detail": f"File upload failed. File may be too large. Error: {str(e)}"}
         )
-    
-    # Reset file pointer
-    await file.seek(0)
     
     filename = (file.filename or "").lower()
     
@@ -254,19 +261,26 @@ async def file_compress(file: UploadFile = File(...), level: str = Form("medium"
 async def pdf_compress(file: UploadFile = File(...), level: str = Form("medium")):
     level = (level or "medium").lower()
     if level not in ["light", "medium", "strong"]:
-        raise HTTPException(status_code=400, detail=f"Invalid level '{level}'")
+        return JSONResponse(status_code=400, content={"detail": f"Invalid compression level: {level}"})
     if not (file.filename or "").lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files allowed")
+        return JSONResponse(status_code=400, content={"detail": "Only PDF files are supported"})
     
     # Check file size
     MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
-    content = await file.read()
-    file_size = len(content)
     
-    if file_size > MAX_FILE_SIZE:
-        raise HTTPException(
+    try:
+        content = await file.read()
+        file_size = len(content)
+        
+        if file_size > MAX_FILE_SIZE:
+            return JSONResponse(
+                status_code=413,
+                content={"detail": f"PDF file too large ({file_size / (1024*1024):.1f}MB). Maximum file size is 100MB."}
+            )
+    except Exception as e:
+        return JSONResponse(
             status_code=413,
-            detail=f"PDF file too large ({file_size / (1024*1024):.1f}MB). Maximum file size is 100MB."
+            content={"detail": f"Upload failed. PDF may be too large. Maximum size: 100MB"}
         )
     
     # Reset file pointer and write to temp
@@ -320,48 +334,51 @@ async def pdf_compress(file: UploadFile = File(...), level: str = Form("medium")
 @router.post("/merge")
 async def pdf_merge(files: List[UploadFile] = File(...)):
     if not files:
-        raise HTTPException(status_code=400, detail="No files provided")
+        return JSONResponse(status_code=400, content={"detail": "No files provided"})
     if len(files) > 15:
-        raise HTTPException(status_code=400, detail=f"Cannot merge more than 15 files. You uploaded {len(files)} files.")
+        return JSONResponse(
+            status_code=400, 
+            content={"detail": f"Cannot merge more than 15 files. You selected {len(files)} files."}
+        )
     
     temp_paths = []
     total_size = 0
-    MAX_TOTAL_SIZE = 150 * 1024 * 1024  # 150MB combined limit
-    MAX_SINGLE_FILE = 50 * 1024 * 1024  # 50MB per file
+    MAX_TOTAL_SIZE = 200 * 1024 * 1024  # Increased to 200MB combined limit
+    MAX_SINGLE_FILE = 75 * 1024 * 1024  # Increased to 75MB per file
     
     try:
         # Validate and write all files first
         for idx, f in enumerate(files, 1):
             # Validate PDF extension
             if not (f.filename or "").lower().endswith(".pdf"):
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"All files must be PDF. File #{idx} '{f.filename}' is not a PDF."
+                return JSONResponse(
+                    status_code=400,
+                    content={"detail": f"All files must be PDF. File #{idx} '{f.filename}' is not a PDF."}
                 )
             
-            # Read file content
+            # Read file content with error handling
             try:
                 content = await f.read()
             except Exception as e:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Failed to read file #{idx} '{f.filename}': {str(e)}"
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": f"Failed to read file #{idx}. It may be too large or corrupted."}
                 )
             
             # Check individual file size
             file_size = len(content)
             if file_size > MAX_SINGLE_FILE:
-                raise HTTPException(
+                return JSONResponse(
                     status_code=413,
-                    detail=f"File #{idx} '{f.filename}' is too large ({file_size / (1024*1024):.1f}MB). Maximum size per file is 50MB."
+                    content={"detail": f"File #{idx} '{f.filename}' is too large ({file_size / (1024*1024):.1f}MB). Maximum size per file is 75MB."}
                 )
             
             # Check total size
             total_size += file_size
             if total_size > MAX_TOTAL_SIZE:
-                raise HTTPException(
+                return JSONResponse(
                     status_code=413,
-                    detail=f"Combined file size exceeds 150MB limit. Please reduce the number or size of files. Current total: {total_size / (1024*1024):.1f}MB"
+                    content={"detail": f"Combined file size exceeds 200MB limit. Current total: {total_size / (1024*1024):.1f}MB. Please reduce the number or size of files."}
                 )
             
             # Write to temporary file
@@ -498,14 +515,17 @@ async def word_to_pdf(file: UploadFile = File(...)):
 async def image_to_pdf(files: List[UploadFile] = File(...)):
     """Convert images to PDF (supports multiple images up to 10)"""
     if not files:
-        raise HTTPException(status_code=400, detail="No files provided")
+        return JSONResponse(status_code=400, content={"detail": "No files provided"})
     if len(files) > 10:
-        raise HTTPException(status_code=400, detail=f"Maximum 10 images allowed. You uploaded {len(files)} files.")
+        return JSONResponse(
+            status_code=400, 
+            content={"detail": f"Maximum 10 images allowed. You selected {len(files)} files."}
+        )
     
     temp_paths = []
     total_size = 0
-    MAX_TOTAL_SIZE = 100 * 1024 * 1024  # 100MB total
-    MAX_SINGLE_IMAGE = 25 * 1024 * 1024  # 25MB per image
+    MAX_TOTAL_SIZE = 150 * 1024 * 1024  # Increased to 150MB total
+    MAX_SINGLE_IMAGE = 35 * 1024 * 1024  # Increased to 35MB per image
     
     try:
         # Validate all files are images and check sizes
@@ -513,26 +533,32 @@ async def image_to_pdf(files: List[UploadFile] = File(...)):
         for idx, f in enumerate(files, 1):
             ext = (f.filename or "").lower()
             if not any(ext.endswith(e) for e in valid_exts):
-                raise HTTPException(
+                return JSONResponse(
                     status_code=400,
-                    detail=f"File #{idx} '{f.filename}' is not a valid image file. Supported formats: JPG, PNG, GIF, BMP, TIFF"
+                    content={"detail": f"File #{idx} '{f.filename}' is not a valid image. Supported: JPG, PNG, GIF, BMP, TIFF"}
                 )
             
-            # Check file size
-            content = await f.read()
-            file_size = len(content)
+            # Check file size with error handling
+            try:
+                content = await f.read()
+                file_size = len(content)
+            except Exception as e:
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": f"Failed to read image #{idx}. It may be too large."}
+                )
             
             if file_size > MAX_SINGLE_IMAGE:
-                raise HTTPException(
+                return JSONResponse(
                     status_code=413,
-                    detail=f"Image #{idx} '{f.filename}' is too large ({file_size / (1024*1024):.1f}MB). Maximum size per image is 25MB."
+                    content={"detail": f"Image #{idx} '{f.filename}' is too large ({file_size / (1024*1024):.1f}MB). Maximum: 35MB per image."}
                 )
             
             total_size += file_size
             if total_size > MAX_TOTAL_SIZE:
-                raise HTTPException(
+                return JSONResponse(
                     status_code=413,
-                    detail=f"Combined image size exceeds 100MB limit. Current total: {total_size / (1024*1024):.1f}MB"
+                    content={"detail": f"Combined images exceed 150MB limit. Current: {total_size / (1024*1024):.1f}MB"}
                 )
         
         # Write all images to temp files (reset file pointers first)
