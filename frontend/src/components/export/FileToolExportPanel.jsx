@@ -105,8 +105,8 @@ export default function FileToolExportPanel({
 
       // Map toolType -> endpoint + payload construction
       const map = {
-        compress: { url: "/api/filetools/compress", method: "POST", form: (fd, f) => { fd.append("file", f); fd.append("level", compressionLevel); } },
-        merge: { url: "/api/filetools/merge", method: "POST-multi", form: (fd, f) => fd.append("files", f) },
+        compress: { url: "/api/filetools/compress", method: "POST", form: (fd, f, opts) => { fd.append("file", f); fd.append("level", opts?.level || "medium"); } },
+        merge: { url: "/api/filetools/merge", method: "POST-multi", form: (fd, f) => { fd.append("files", f); } },
         "csv-to-excel": { url: "/api/filetools/csv-to-excel", method: "POST", form: (fd, f) => fd.append("file", f) },
         "excel-to-csv": { url: "/api/filetools/excel-to-csv", method: "POST", form: (fd, f) => fd.append("file", f) },
         "pdf-to-csv": { url: "/api/filetools/pdf-to-csv", method: "POST", form: (fd, f) => fd.append("file", f) },
@@ -115,7 +115,7 @@ export default function FileToolExportPanel({
         "excel-to-pdf": { url: "/api/filetools/excel-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
         "pdf-to-word": { url: "/api/filetools/pdf-to-word", method: "POST", form: (fd, f) => fd.append("file", f) },
         "word-to-pdf": { url: "/api/filetools/word-to-pdf", method: "POST", form: (fd, f) => fd.append("file", f) },
-        "image-to-pdf": { url: "/api/filetools/image-to-pdf", method: "POST-multi", form: (fd, f) => fd.append("files", f) },
+        "image-to-pdf": { url: "/api/filetools/image-to-pdf", method: "POST-multi", form: (fd, f) => { fd.append("files", f); } },
       };
       // Choose endpoint
       let chosen = map[toolType];
@@ -130,12 +130,13 @@ export default function FileToolExportPanel({
       }
 
       // Build formdata
+      const form = new FormData();
       if (chosen.method === "POST-multi") {
         providedFiles.forEach((f) => {
-          chosen.form(form, f);
+          chosen.form(form, f, opts);
         });
       } else {
-        chosen.form(form, providedFiles[0]);
+        chosen.form(form, providedFiles[0], opts);
       }
 
       // Send
@@ -192,6 +193,7 @@ export default function FileToolExportPanel({
       // allow consumer to handle upload; pass files + opts
       try {
         const r = onUpload(files, { level: compressionLevel });
+
         // if returned promise, await it and handle download_url
         if (r && typeof r.then === "function") {
           const json = await r;
@@ -205,8 +207,8 @@ export default function FileToolExportPanel({
         setInternalError(err.message || String(err));
       }
     } else {
-      // use built-in uploader
-      await defaultUpload(files, {});
+      // use built-in uploader - PASS THE LEVEL HERE
+      await defaultUpload(files, { level: compressionLevel });
     }
   };
 

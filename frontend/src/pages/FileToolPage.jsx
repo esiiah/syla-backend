@@ -158,7 +158,7 @@ useEffect(() => {
 
     try {
       const fd = new FormData();
-      if (config.type === "merge") {
+      if (config.type === "merge" || action === "image-to-pdf") {
         files.forEach((f) => fd.append("files", f));
       } else {
         fd.append("file", files[0]);
