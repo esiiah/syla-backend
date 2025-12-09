@@ -33,6 +33,10 @@ export default function FileCompress({ initialFile = null, onDownloadReady = () 
       else if (["xls", "xlsx", "csv"].includes(ext)) endpoint = "/api/filetools/excel/compress";
 
       const res = await fetch(endpoint, { method: "POST", body: fd });
+
+      const contentType = res.headers.get("content-type") || "";
+
+      // Handle error responses
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         const detail = err.detail || err.message || "Compression failed";
@@ -41,10 +45,22 @@ export default function FileCompress({ initialFile = null, onDownloadReady = () 
         return;
       }
 
+      // Handle binary PDF response
+      if (contentType.includes("application/pdf")) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        setDownloadUrl(url);
+        onDownloadReady(url);
+        setLoading(false);
+        return;
+      }
+
+      // Handle JSON response (fallback)
       const data = await res.json();
       setDownloadUrl(data.download_url || data.url || "");
       onDownloadReady(data.download_url || data.url || "");
       setLoading(false);
+
     } catch (e) {
       setLoading(false);
       alert("Compression failed: " + (e.message || e));

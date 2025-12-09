@@ -170,10 +170,20 @@ useEffect(() => {
 
       const endpoint = config.endpoint;
       const res = await fetch(endpoint, { method: "POST", body: fd });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || err.error || "Conversion failed");
+      }
+
+      const isPdf = res.headers.get("content-type")?.includes("application/pdf");
+      if (isPdf) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        setDownloadUrl(url);
+        return { download_url: url };
+      }
+
       const json = await res.json();
-
-      if (!res.ok) throw new Error(json.detail || json.error || "Conversion failed");
-
       setDownloadUrl(json.download_url);
       setFileName(json.filename || "converted_file");
       setConversionComplete(true);

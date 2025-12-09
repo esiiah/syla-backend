@@ -145,7 +145,15 @@ export default function FileToolExportPanel({
         method: "POST",
         body: form,
       });
+      const contentType = resp.headers.get("content-type") || "";
+      if (contentType.includes("application/pdf")) {
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        return { download_url: url };
+      }
       const json = await resp.json();
+      return json;
+
       if (!resp.ok) {
         throw new Error(json.detail || json.error || JSON.stringify(json));
       }
