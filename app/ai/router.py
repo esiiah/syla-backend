@@ -10,7 +10,7 @@ from .forecast_service import ForecastService
 from ..routers.auth import require_auth
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/forecast", tags=["ai-forecast"])
+router = APIRouter(prefix="/forecast", tags=["ai-forecast"])
 
 # Initialize the forecast service
 forecast_service = ForecastService()

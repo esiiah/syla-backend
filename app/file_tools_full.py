@@ -164,6 +164,21 @@ async def pdf_compress_preview(file: UploadFile = File(...)):
 @router.post("/compress")
 async def generic_compress(file: UploadFile = File(...), level: str = Form("medium")):
     """Auto-detect file type and compress accordingly"""
+    
+    # Check file size first
+    MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
+    content = await file.read()
+    file_size = len(content)
+    
+    if file_size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large ({file_size / (1024*1024):.1f}MB). Maximum file size for compression is 100MB."
+        )
+    
+    # Reset file pointer
+    await file.seek(0)
+    
     filename = (file.filename or "").lower()
     
     if filename.endswith(".pdf"):
@@ -177,6 +192,19 @@ async def file_compress(file: UploadFile = File(...), level: str = Form("medium"
     level = (level or "medium").lower()
     if level not in ["light", "medium", "strong"]:
         raise HTTPException(status_code=400, detail="Invalid level")
+    # Check file size
+    MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
+    content = await file.read()
+    file_size = len(content)
+    
+    if file_size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large ({file_size / (1024*1024):.1f}MB). Maximum file size is 100MB."
+        )
+    
+    # Reset file pointer and write to temp
+    await file.seek(0)
     in_path = write_upload_to_temp(file, prefix="compress_in_")
     out_tmp = None
     try:
@@ -230,6 +258,19 @@ async def pdf_compress(file: UploadFile = File(...), level: str = Form("medium")
     if not (file.filename or "").lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files allowed")
     
+    # Check file size
+    MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB
+    content = await file.read()
+    file_size = len(content)
+    
+    if file_size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"PDF file too large ({file_size / (1024*1024):.1f}MB). Maximum file size is 100MB."
+        )
+    
+    # Reset file pointer and write to temp
+    await file.seek(0)
     in_path = write_upload_to_temp(file, prefix="compress_in_")
     out_tmp = None
     try:
@@ -285,7 +326,8 @@ async def pdf_merge(files: List[UploadFile] = File(...)):
     
     temp_paths = []
     total_size = 0
-    MAX_TOTAL_SIZE = 200 * 1024 * 1024  # 200MB combined limit
+    MAX_TOTAL_SIZE = 150 * 1024 * 1024  # 150MB combined limit
+    MAX_SINGLE_FILE = 50 * 1024 * 1024  # 50MB per file
     
     try:
         # Validate and write all files first
@@ -306,14 +348,20 @@ async def pdf_merge(files: List[UploadFile] = File(...)):
                     detail=f"Failed to read file #{idx} '{f.filename}': {str(e)}"
                 )
             
-            # Check size
+            # Check individual file size
             file_size = len(content)
-            total_size += file_size
+            if file_size > MAX_SINGLE_FILE:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File #{idx} '{f.filename}' is too large ({file_size / (1024*1024):.1f}MB). Maximum size per file is 50MB."
+                )
             
+            # Check total size
+            total_size += file_size
             if total_size > MAX_TOTAL_SIZE:
                 raise HTTPException(
                     status_code=413,
-                    detail=f"Total file size exceeds 200MB limit. Current total: {total_size / (1024*1024):.1f}MB"
+                    detail=f"Combined file size exceeds 150MB limit. Please reduce the number or size of files. Current total: {total_size / (1024*1024):.1f}MB"
                 )
             
             # Write to temporary file
@@ -455,19 +503,41 @@ async def image_to_pdf(files: List[UploadFile] = File(...)):
         raise HTTPException(status_code=400, detail=f"Maximum 10 images allowed. You uploaded {len(files)} files.")
     
     temp_paths = []
+    total_size = 0
+    MAX_TOTAL_SIZE = 100 * 1024 * 1024  # 100MB total
+    MAX_SINGLE_IMAGE = 25 * 1024 * 1024  # 25MB per image
+    
     try:
-        # Validate all files are images
+        # Validate all files are images and check sizes
         valid_exts = [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif"]
         for idx, f in enumerate(files, 1):
             ext = (f.filename or "").lower()
             if not any(ext.endswith(e) for e in valid_exts):
                 raise HTTPException(
                     status_code=400,
-                    detail=f"File #{idx} '{f.filename}' is not a valid image file."
+                    detail=f"File #{idx} '{f.filename}' is not a valid image file. Supported formats: JPG, PNG, GIF, BMP, TIFF"
+                )
+            
+            # Check file size
+            content = await f.read()
+            file_size = len(content)
+            
+            if file_size > MAX_SINGLE_IMAGE:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Image #{idx} '{f.filename}' is too large ({file_size / (1024*1024):.1f}MB). Maximum size per image is 25MB."
+                )
+            
+            total_size += file_size
+            if total_size > MAX_TOTAL_SIZE:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Combined image size exceeds 100MB limit. Current total: {total_size / (1024*1024):.1f}MB"
                 )
         
-        # Write all images to temp files
+        # Write all images to temp files (reset file pointers first)
         for idx, f in enumerate(files, 1):
+            await f.seek(0)  # Reset file pointer after reading
             temp_path = write_upload_to_temp(f, prefix=f"img2pdf_{idx}_")
             temp_paths.append(temp_path)
         

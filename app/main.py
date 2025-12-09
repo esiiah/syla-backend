@@ -66,20 +66,19 @@ uvicorn.config.MAX_HTTP_BUFFER_SIZE = 1024 * 1024 * 500  # 500MB
 
 # --- FIX: increase request body size limit for filetools merge ---
 from starlette.middleware.base import BaseHTTPMiddleware
-from fastapi import Request
+from starlette.datastructures import Headers
+from starlette.requests import Request as StarletteRequest
 
 class LargeUploadMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # Allow large uploads for filetools endpoints
+        # Set larger max body size for filetools endpoints
         if request.url.path.startswith("/api/filetools"):
-            # Don't pre-read body, let FastAPI handle it
-            pass
+            request.scope['extensions'] = request.scope.get('extensions', {})
+            request.scope['extensions']['http.request.max_body_size'] = 500 * 1024 * 1024  # 500MB
         response = await call_next(request)
         return response
 
 app.add_middleware(LargeUploadMiddleware)
-# Set much larger body size limit for file uploads (500MB)
-app.state.MAX_BODY_SIZE = 1024 * 1024 * 500
 
 # ------------------------------
 # Startup event
