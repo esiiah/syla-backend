@@ -162,29 +162,23 @@ export default function FileToolUploadPanel({
         method: "POST",
         body: fd,
       });
+      
+      const contentType = resp.headers.get("content-type") || "";
+      
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
         throw new Error(err.detail || err.error || "Conversion failed");
       }
 
       // If backend returns a file → handle blob
-      const isFile = resp.headers.get("content-type")?.includes("application/pdf");
-      if (isFile) {
+      if (contentType.includes("application/pdf") || contentType.includes("application/vnd")) {
         const blob = await resp.blob();
         const url = URL.createObjectURL(blob);
+        setInternalLoading(false);
         return { download_url: url };
       }
 
       const json = await resp.json();
-      return json;
-
-
-      // If provided, call onUpload callback with response
-      if (typeof onUpload === "function") {
-        try {
-          await onUpload(files, { result: json, toolType });
-        } catch (_) {}
-      }
 
       setInternalLoading(false);
       return json;

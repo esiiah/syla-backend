@@ -146,24 +146,27 @@ export default function FileToolExportPanel({
         body: form,
       });
       const contentType = resp.headers.get("content-type") || "";
+      
+      if (!resp.ok) {
+        const json = await resp.json().catch(() => ({}));
+        throw new Error(json.detail || json.error || "Processing failed");
+      }
+      
       if (contentType.includes("application/pdf")) {
         const blob = await resp.blob();
         const url = URL.createObjectURL(blob);
-        return { download_url: url };
-      }
-      const json = await resp.json();
-      return json;
-
-      if (!resp.ok) {
-        throw new Error(json.detail || json.error || JSON.stringify(json));
-      }
-
-      // Call onUpload callback with response (if provided)
-      try {
-        if (typeof onUpload === "function") {
-          onUpload(providedFiles, { result: json, toolType, level: compressionLevel });
+        const result = { download_url: url };
+        
+        // Call onDownload callback
+        if (dl && typeof onDownload === "function") {
+          onDownload(url);
         }
-      } catch (_) {}
+        
+        setInternalLoading(false);
+        return result;
+      }
+      
+      const json = await resp.json();
 
       // If result contains download_url, either open it or call onDownload
       const dl = json.download_url || json.url || "";
@@ -176,7 +179,7 @@ export default function FileToolExportPanel({
           window.open(absolute, "_blank");
         }
       }
-
+      
       setInternalLoading(false);
       return json;
     } catch (err) {
