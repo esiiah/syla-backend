@@ -1,4 +1,4 @@
-# app/ai/forecast_service.py
+# app/ai/forecast_service.py (UPDATED)
 import asyncio
 import json
 import logging
@@ -9,7 +9,25 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple
 import hashlib
 
+from .validation import (
+    calculate_all_metrics,
+    train_test_split_timeseries,
+    calculate_confidence_score,
+    detect_data_type,
+    validate_forecast_requirements
+)
+from .data_quality import (
+    comprehensive_data_quality_report,
+    clean_data_for_forecasting
+)
+from .models import (
+    ModelSelector,
+    fit_and_forecast,
+    apply_scenario_adjustments
+)
+
 logger = logging.getLogger(__name__)
+
 
 class ForecastService:
     def __init__(self):
@@ -31,24 +49,20 @@ class ForecastService:
         """Simple rate limiting"""
         now = datetime.now()
         
-        # Initialize user if not in rate_limits
         if user_id not in self.rate_limits:
             self.rate_limits[user_id] = {"count": 1, "reset_time": now + timedelta(hours=1)}
             return True
         
         user_limits = self.rate_limits[user_id]
         
-        # Reset if time expired
         if now > user_limits["reset_time"]:
             self.rate_limits[user_id] = {"count": 1, "reset_time": now + timedelta(hours=1)}
             return True
         
-        # Check limit
         if user_limits["count"] >= limit_per_hour:
             logger.warning(f"Rate limit exceeded for user {user_id}")
             return False
         
-        # Increment count
         self.rate_limits[user_id]["count"] += 1
         return True
 
@@ -63,104 +77,160 @@ class ForecastService:
         confidence_level: float = 0.95,
         user_id: str = "anonymous"
     ) -> Dict[str, Any]:
-        """Main forecast generation method"""
+        """Main forecast generation with full validation pipeline"""
         
-        logger.info(f"Starting forecast - User: {user_id}, Model: {model_preference}, Target: {target_column}")
+        logger.info(f"🎯 Starting forecast - User: {user_id}, Model: {model_preference}, Target: {target_column}")
         
         try:
-            # Step 1: Validate and prepare data
-            df = self._prepare_dataframe(data, target_column, date_column)
-            logger.info(f"✓ Prepared dataframe: {len(df)} rows, {len(df.columns)} columns")
+            # STEP 1: Convert to DataFrame
+            df = pd.DataFrame(data)
+            logger.info(f"✓ Data loaded: {len(df)} rows, {len(df.columns)} columns")
             
-            # Step 2: Parse scenario
-            scenario_params = await self._parse_scenario(scenario, df.columns.tolist())
-            logger.info(f"✓ Parsed scenario: {scenario_params}")
+            # STEP 2: Detect data type
+            data_type, detected_date_col = detect_data_type(df)
+            if detected_date_col:
+                date_column = detected_date_col
             
-            # Step 3: Prepare time series
-            ts_df = self._prepare_time_series(df, target_column, date_column)
+            logger.info(f"✓ Data type: {data_type}, Date column: {date_column or 'None (will generate)'}")
+            
+            # STEP 3: Validate requirements
+            validation = validate_forecast_requirements(df, target_column, min_points=3)
+            
+            if not validation["valid"]:
+                raise ValueError(f"Data validation failed: {', '.join(validation['issues'])}")
+            
+            if validation["warnings"]:
+                logger.warning(f"Data warnings: {', '.join(validation['warnings'])}")
+            
+            # STEP 4: Data quality report
+            quality_report = comprehensive_data_quality_report(df, target_column)
+            logger.info(f"✓ Data quality: {quality_report['overall_quality']['rating']} ({quality_report['overall_quality']['score']}%)")
+            
+            # STEP 5: Clean data
+            df_clean, cleaning_log = clean_data_for_forecasting(
+                df, 
+                target_column,
+                remove_outliers=False,  # Don't remove outliers by default
+                fill_missing=True
+            )
+            
+            if cleaning_log["rows_removed"] > 0:
+                logger.info(f"✓ Cleaned data: removed {cleaning_log['rows_removed']} rows")
+            
+            # STEP 6: Prepare time series
+            ts_df = self._prepare_time_series(df_clean, target_column, date_column)
             logger.info(f"✓ Time series prepared: {len(ts_df)} periods")
             
-            # Step 4: Generate forecast based on model preference
-            logger.info(f"Generating forecast with model: {model_preference}")
-            forecast_result = await self._generate_forecast(
-                ts_df, scenario_params, target_column,
-                model_preference, periods_ahead, confidence_level
-            )
-            logger.info(f"✓ Forecast generated: {len(forecast_result.get('forecast', []))} periods")
+            # STEP 7: Parse scenario
+            scenario_params = await self._parse_scenario(scenario, df.columns.tolist())
+            logger.info(f"✓ Scenario parsed: {scenario_params.get('adjustments', {}).get('multiplier', 1.0)}x multiplier")
             
-            # Step 5: Generate explanation
+            # STEP 8: Select best model
+            selected_model = ModelSelector.select_best_model(
+                ts_df,
+                quality_report,
+                user_preference=model_preference
+            )
+            logger.info(f"✓ Model selected: {selected_model}")
+            
+            # STEP 9: Train/test split for validation (if enough data)
+            validation_metrics = None
+            if len(ts_df) >= 10:
+                try:
+                    train_df, test_df = train_test_split_timeseries(ts_df, test_size=0.2)
+                    
+                    # Fit on train, predict on test
+                    val_forecast, _ = fit_and_forecast(train_df, selected_model, len(test_df))
+                    
+                    # Calculate metrics
+                    actual = test_df['y'].values
+                    predicted = val_forecast['y'].values[:len(actual)]
+                    validation_metrics = calculate_all_metrics(actual, predicted)
+                    
+                    logger.info(f"✓ Validation MAPE: {validation_metrics['mape']:.2f}%")
+                except Exception as e:
+                    logger.warning(f"Validation failed: {e}")
+            
+            # STEP 10: Fit final model on full data
+            forecast_df, model_metadata = fit_and_forecast(
+                ts_df,
+                selected_model,
+                periods_ahead,
+                config={"interval_width": confidence_level}
+            )
+            
+            # STEP 11: Apply scenario adjustments
+            forecast_adjusted = apply_scenario_adjustments(forecast_df, scenario_params)
+            
+            # STEP 12: Calculate confidence score
+            confidence = calculate_confidence_score(ts_df, validation_metrics)
+            
+            # STEP 13: Generate AI explanation
             explanation = await self._generate_explanation(
-                ts_df, scenario_params, forecast_result, target_column
+                ts_df,
+                forecast_adjusted,
+                scenario_params,
+                target_column,
+                quality_report,
+                validation_metrics
             )
-            logger.info(f"✓ Explanation generated")
             
-            # Step 6: Assemble final result
+            # STEP 14: Assemble final result
             result = {
-                "forecast": forecast_result,
+                "forecast": {
+                    "forecast": forecast_adjusted['y'].round(2).tolist(),
+                    "lower": forecast_adjusted['y_lower'].round(2).tolist(),
+                    "upper": forecast_adjusted['y_upper'].round(2).tolist(),
+                    "timestamps": forecast_adjusted['ds'].dt.strftime('%Y-%m-%d').tolist(),
+                    "model_used": selected_model,
+                    "confidence_level": confidence_level
+                },
                 "explanation": explanation,
                 "scenario_parsed": scenario_params,
+                "validation": {
+                    "metrics": validation_metrics,
+                    "confidence_score": confidence,
+                    "data_quality": quality_report["overall_quality"]
+                },
                 "metadata": {
-                    "model_used": forecast_result.get("model_used", "unknown"),
-                    "confidence_level": confidence_level,
+                    "model_used": selected_model,
+                    "model_metadata": model_metadata,
+                    "data_type": data_type,
                     "generated_at": datetime.now().isoformat(),
-                    "data_points": len(df),
+                    "data_points": len(ts_df),
                     "forecast_periods": periods_ahead,
                     "target_column": target_column,
-                    "scenario": scenario[:100] + "..." if len(scenario) > 100 else scenario
+                    "scenario": scenario[:100] + "..." if len(scenario) > 100 else scenario,
+                    "cleaning_log": cleaning_log
                 }
             }
             
-            logger.info(f"✓ Forecast completed successfully for user {user_id}")
+            logger.info(f"✅ Forecast completed successfully for user {user_id}")
             return result
             
         except Exception as e:
-            logger.exception(f"✗ Forecast generation failed for user {user_id}")
+            logger.exception(f"❌ Forecast generation failed for user {user_id}")
             raise Exception(f"Forecast generation failed: {str(e)}")
 
-    def _prepare_dataframe(self, data: List[Dict], target_column: str, date_column: Optional[str]) -> pd.DataFrame:
-        """Convert input data to clean DataFrame"""
-        if not data:
-            raise ValueError("No data provided")
-        
-        df = pd.DataFrame(data)
-        logger.info(f"Initial dataframe shape: {df.shape}")
-        
-        if target_column not in df.columns:
-            raise ValueError(f"Target column '{target_column}' not found. Available: {list(df.columns)}")
-        
-        # Clean target column - convert to numeric
-        try:
-            df[target_column] = pd.to_numeric(df[target_column], errors='coerce')
-            df[target_column] = df[target_column].fillna(0)
-            logger.info(f"Target column '{target_column}' converted to numeric")
-        except Exception as e:
-            raise ValueError(f"Cannot convert target column to numeric: {e}")
-        
-        # Clean date column if provided
-        if date_column and date_column in df.columns:
-            try:
-                df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
-                df = df.dropna(subset=[date_column])
-                df = df.sort_values(date_column).reset_index(drop=True)
-                logger.info(f"Date column '{date_column}' processed successfully")
-            except Exception as e:
-                logger.warning(f"Date column processing failed: {e}")
-                date_column = None
-        
-        if len(df) < 2:
-            raise ValueError("Need at least 2 data points for forecasting")
-            
-        return df
-
-    def _prepare_time_series(self, df: pd.DataFrame, target_column: str, date_column: Optional[str]) -> pd.DataFrame:
+    def _prepare_time_series(
+        self,
+        df: pd.DataFrame,
+        target_column: str,
+        date_column: Optional[str] = None
+    ) -> pd.DataFrame:
         """Prepare data for time series forecasting"""
         ts_df = pd.DataFrame()
         
         # Handle dates
         if date_column and date_column in df.columns:
-            ts_df['ds'] = df[date_column]
-            logger.info(f"Using provided date column: {date_column}")
-        else:
+            try:
+                ts_df['ds'] = pd.to_datetime(df[date_column], errors='coerce')
+                ts_df = ts_df.dropna(subset=['ds'])
+                logger.info(f"Using provided date column: {date_column}")
+            except:
+                date_column = None
+        
+        if date_column is None or len(ts_df) == 0:
             # Create synthetic monthly dates
             end_date = datetime.now()
             start_date = end_date - timedelta(days=30 * len(df))
@@ -168,42 +238,42 @@ class ForecastService:
             logger.info(f"Generated synthetic monthly dates")
         
         # Target values
-        ts_df['y'] = df[target_column].astype(float)
+        ts_df['y'] = pd.to_numeric(df[target_column], errors='coerce').fillna(0)
         
-        # Remove any remaining nulls
-        ts_df = ts_df.dropna().reset_index(drop=True)
+        # Sort by date and remove duplicates
+        ts_df = ts_df.sort_values('ds').drop_duplicates(subset=['ds']).reset_index(drop=True)
         
         return ts_df
 
     async def _parse_scenario(self, scenario: str, available_columns: List[str]) -> Dict[str, Any]:
-        """Parse natural language scenario"""
-        if self.openai_client:
+        """Parse natural language scenario using GPT or fallback"""
+        if self.openai_client and scenario.strip():
             try:
-                logger.info("Using LLM for scenario parsing")
-                return await self._llm_parse_scenario(scenario, available_columns)
+                logger.info("Using GPT for scenario parsing")
+                return await self._gpt_parse_scenario(scenario, available_columns)
             except Exception as e:
-                logger.warning(f"LLM scenario parsing failed: {e}, falling back to pattern matching")
+                logger.warning(f"GPT scenario parsing failed: {e}, using fallback")
         
-        logger.info("Using fallback pattern matching for scenario parsing")
         return self._fallback_scenario_parsing(scenario)
 
-    async def _llm_parse_scenario(self, scenario: str, available_columns: List[str]) -> Dict[str, Any]:
-        """Use OpenAI to parse scenario"""
+    async def _gpt_parse_scenario(self, scenario: str, available_columns: List[str]) -> Dict[str, Any]:
+        """Use OpenAI to parse scenario into structured parameters"""
         prompt = f"""Parse this business scenario into structured parameters for forecasting:
 
 Scenario: "{scenario}"
 Available columns: {', '.join(available_columns)}
 
 Extract:
-1. Percentage changes (e.g., "increase 10%" -> 1.1 multiplier)
-2. Time horizon expectations
-3. Confidence level
+1. Percentage changes (e.g., "increase 10%" -> 1.1 multiplier, "decrease 15%" -> 0.85 multiplier)
+2. When the change starts (immediately, next month, Q2, etc.)
+3. Ramp-up period (gradual over 3 months, immediate, etc.)
 
-Respond with valid JSON only:
+Respond with valid JSON only (no markdown, no explanation):
 {{
   "adjustments": {{
     "multiplier": 1.0,
-    "trend_change": 0.0
+    "start_period": 0,
+    "ramp_periods": 0
   }},
   "target_change": 0,
   "time_horizon": "monthly",
@@ -212,42 +282,56 @@ Respond with valid JSON only:
 
         try:
             response = await self.openai_client.chat_completion(prompt, max_tokens=300, temperature=0.1)
-            parsed = json.loads(response.strip())
+            
+            # Clean response
+            clean_response = response.strip()
+            if clean_response.startswith("```json"):
+                clean_response = clean_response.split("```json")[1].split("```")[0].strip()
+            elif clean_response.startswith("```"):
+                clean_response = clean_response.split("```")[1].split("```")[0].strip()
+            
+            parsed = json.loads(clean_response)
             return self._validate_scenario_params(parsed)
+            
         except Exception as e:
-            logger.error(f"LLM scenario parsing error: {e}")
+            logger.error(f"GPT scenario parsing error: {e}")
             return self._fallback_scenario_parsing(scenario)
 
     def _fallback_scenario_parsing(self, scenario: str) -> Dict[str, Any]:
-        """Simple pattern-based scenario parsing"""
+        """Pattern-based scenario parsing as fallback"""
         scenario_lower = scenario.lower()
         
-        adjustments = {"multiplier": 1.0, "trend_change": 0.0}
+        adjustments = {
+            "multiplier": 1.0,
+            "start_period": 0,
+            "ramp_periods": 0
+        }
         
-        # Look for percentage increases/decreases
-        if "increase" in scenario_lower or "grow" in scenario_lower or "up" in scenario_lower:
-            if "20%" in scenario_lower or "twenty percent" in scenario_lower:
-                adjustments["multiplier"] = 1.2
-            elif "15%" in scenario_lower or "fifteen percent" in scenario_lower:
-                adjustments["multiplier"] = 1.15
-            elif "10%" in scenario_lower or "ten percent" in scenario_lower:
+        # Extract percentage
+        import re
+        percentage_match = re.search(r'(\d+(?:\.\d+)?)\s*%', scenario)
+        
+        if percentage_match:
+            pct = float(percentage_match.group(1))
+            
+            if any(word in scenario_lower for word in ['increase', 'grow', 'up', 'rise']):
+                adjustments["multiplier"] = 1.0 + (pct / 100)
+            elif any(word in scenario_lower for word in ['decrease', 'decline', 'down', 'fall']):
+                adjustments["multiplier"] = 1.0 - (pct / 100)
+        else:
+            # Default adjustments based on keywords
+            if any(word in scenario_lower for word in ['increase', 'grow']):
                 adjustments["multiplier"] = 1.1
-            elif "5%" in scenario_lower or "five percent" in scenario_lower:
-                adjustments["multiplier"] = 1.05
-            else:
-                adjustments["multiplier"] = 1.1
-                
-        elif "decrease" in scenario_lower or "decline" in scenario_lower or "down" in scenario_lower:
-            if "20%" in scenario_lower:
-                adjustments["multiplier"] = 0.8
-            elif "15%" in scenario_lower:
-                adjustments["multiplier"] = 0.85
-            elif "10%" in scenario_lower:
+            elif any(word in scenario_lower for word in ['decrease', 'decline']):
                 adjustments["multiplier"] = 0.9
-            elif "5%" in scenario_lower:
-                adjustments["multiplier"] = 0.95
-            else:
-                adjustments["multiplier"] = 0.9
+        
+        # Detect ramp-up
+        if 'gradual' in scenario_lower:
+            adjustments["ramp_periods"] = 3
+        
+        # Detect start timing
+        if any(word in scenario_lower for word in ['next month', 'month 2', 'starting']):
+            adjustments["start_period"] = 1
         
         return {
             "adjustments": adjustments,
@@ -257,251 +341,104 @@ Respond with valid JSON only:
         }
 
     def _validate_scenario_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Validate parsed scenario parameters"""
+        """Validate and sanitize scenario parameters"""
         return {
-            "adjustments": params.get("adjustments", {"multiplier": 1.0}),
+            "adjustments": params.get("adjustments", {"multiplier": 1.0, "start_period": 0, "ramp_periods": 0}),
             "target_change": params.get("target_change", 0),
             "time_horizon": params.get("time_horizon", "monthly"),
             "confidence": params.get("confidence", "medium")
         }
 
-    async def _generate_forecast(
+    async def _generate_explanation(
         self,
         ts_df: pd.DataFrame,
+        forecast_df: pd.DataFrame,
         scenario_params: Dict[str, Any],
         target_column: str,
-        model_preference: str,
-        periods_ahead: int,
-        confidence_level: float
-    ) -> Dict[str, Any]:
-        """Generate forecast using specified method"""
+        quality_report: Dict[str, Any],
+        validation_metrics: Optional[Dict[str, float]]
+    ) -> str:
+        """Generate comprehensive explanation using GPT"""
         
-        logger.info(f"Generating forecast with model: {model_preference}")
-        
-        if model_preference == "gpt" and self.openai_client:
-            logger.info("Using GPT model")
-            return await self._gpt_forecast(ts_df, scenario_params, periods_ahead)
-        elif model_preference == "prophet":
-            logger.info("Using Prophet model")
-            return self._prophet_forecast(ts_df, periods_ahead, confidence_level)
-        else:  # hybrid or fallback
-            logger.info("Using hybrid approach")
-            return await self._hybrid_forecast(ts_df, scenario_params, periods_ahead, confidence_level)
-
-    async def _gpt_forecast(self, ts_df: pd.DataFrame, scenario_params: Dict[str, Any], periods_ahead: int) -> Dict[str, Any]:
-        """Pure GPT-based forecasting"""
         if not self.openai_client:
-            logger.error("OpenAI client not available, falling back to simple forecast")
-            return self._simple_forecast(ts_df, periods_ahead)
+            return self._fallback_explanation(ts_df, forecast_df, scenario_params, target_column)
         
-        recent_data = ts_df['y'].tail(min(20, len(ts_df))).tolist()
-        
-        prompt = f"""You are a data analyst. Based on this historical data trend and business scenario, generate a {periods_ahead}-period forecast.
-
-Historical data (most recent {len(recent_data)} points): {recent_data}
-Business scenario: {json.dumps(scenario_params)}
-
-Generate a realistic forecast as a JSON object with exactly this format:
-{{
-  "forecast": [list of {periods_ahead} numbers],
-  "lower": [list of {periods_ahead} numbers for lower confidence bound],
-  "upper": [list of {periods_ahead} numbers for upper confidence bound],
-  "reasoning": "Brief explanation of forecast logic"
-}}
-
-Make sure all arrays have exactly {periods_ahead} values. Base the forecast on trends in the historical data and apply the scenario adjustments logically."""
-
-        try:
-            logger.info("Calling GPT API for forecast")
-            response = await self.openai_client.chat_completion(prompt, max_tokens=800, temperature=0.3)
-            
-            result = json.loads(response.strip())
-            
-            if not all(key in result for key in ['forecast', 'lower', 'upper']):
-                raise ValueError("GPT response missing required keys")
-            
-            if not all(len(result[key]) == periods_ahead for key in ['forecast', 'lower', 'upper']):
-                raise ValueError("GPT response arrays have wrong length")
-            
-            last_date = ts_df['ds'].iloc[-1]
-            timestamps = pd.date_range(
-                start=last_date + pd.DateOffset(months=1),
-                periods=periods_ahead,
-                freq='M'
-            ).strftime('%Y-%m-%d').tolist()
-            
-            logger.info("GPT forecast generated successfully")
-            return {
-                "forecast": [round(float(v), 2) for v in result["forecast"]],
-                "lower": [round(float(v), 2) for v in result["lower"]],
-                "upper": [round(float(v), 2) for v in result["upper"]],
-                "timestamps": timestamps,
-                "model_used": "gpt-4o-mini",
-                "reasoning": result.get("reasoning", "GPT-generated forecast")
-            }
-            
-        except json.JSONDecodeError as e:
-            logger.error(f"GPT returned invalid JSON: {response[:200]}")
-            return self._simple_forecast(ts_df, periods_ahead)
-        except Exception as e:
-            logger.error(f"GPT forecast failed: {e}")
-            return self._simple_forecast(ts_df, periods_ahead)
-
-    def _prophet_forecast(self, ts_df: pd.DataFrame, periods_ahead: int, confidence_level: float) -> Dict[str, Any]:
-        """Prophet-based forecasting"""
-        try:
-            from prophet import Prophet
-            logger.info("✓ Prophet imported successfully")
-            
-            model = Prophet(
-                yearly_seasonality=len(ts_df) >= 24,
-                weekly_seasonality=False,
-                daily_seasonality=False,
-                interval_width=confidence_level
-            )
-            
-            logger.info("Fitting Prophet model")
-            model.fit(ts_df)
-            
-            future = model.make_future_dataframe(periods=periods_ahead, freq='M')
-            forecast = model.predict(future)
-            
-            future_forecast = forecast.tail(periods_ahead)
-            
-            logger.info("✓ Prophet forecast completed")
-            return {
-                "forecast": future_forecast['yhat'].round(2).tolist(),
-                "lower": future_forecast['yhat_lower'].round(2).tolist(),
-                "upper": future_forecast['yhat_upper'].round(2).tolist(),
-                "timestamps": future_forecast['ds'].dt.strftime('%Y-%m-%d').tolist(),
-                "model_used": "prophet",
-                "confidence_level": confidence_level
-            }
-            
-        except ImportError:
-            logger.error("✗ Prophet not available, falling back to simple forecast")
-            return self._simple_forecast(ts_df, periods_ahead)
-        except Exception as e:
-            logger.error(f"✗ Prophet forecast failed: {e}")
-            return self._simple_forecast(ts_df, periods_ahead)
-
-    async def _hybrid_forecast(self, ts_df: pd.DataFrame, scenario_params: Dict[str, Any], 
-                             periods_ahead: int, confidence_level: float) -> Dict[str, Any]:
-        """Hybrid approach: statistical + scenario adjustments"""
-        
-        logger.info("Starting hybrid forecast")
-        base_forecast = self._simple_forecast(ts_df, periods_ahead)
-        
-        multiplier = scenario_params.get("adjustments", {}).get("multiplier", 1.0)
-        
-        if multiplier != 1.0:
-            logger.info(f"Applying scenario multiplier: {multiplier}")
-            adjusted_forecast = [v * multiplier for v in base_forecast["forecast"]]
-            adjusted_lower = [v * multiplier for v in base_forecast["lower"]]
-            adjusted_upper = [v * multiplier for v in base_forecast["upper"]]
-            
-            base_forecast.update({
-                "forecast": [round(v, 2) for v in adjusted_forecast],
-                "lower": [round(v, 2) for v in adjusted_lower],
-                "upper": [round(v, 2) for v in adjusted_upper],
-                "model_used": "hybrid",
-                "scenario_applied": f"Applied {multiplier}x multiplier based on scenario"
-            })
-        
-        return base_forecast
-
-    def _simple_forecast(self, ts_df: pd.DataFrame, periods_ahead: int) -> Dict[str, Any]:
-        """Simple trend-based forecast as fallback"""
-        
-        logger.info("Generating simple trend-based forecast")
-        values = ts_df['y'].values
-        
-        if len(values) < 2:
-            last_value = float(values[-1]) if len(values) > 0 else 0
-            forecast_values = [last_value] * periods_ahead
-            logger.info(f"Insufficient data, using last value: {last_value}")
-        else:
-            x = np.arange(len(values))
-            try:
-                coeffs = np.polyfit(x, values, 1)
-                future_x = np.arange(len(values), len(values) + periods_ahead)
-                forecast_values = np.polyval(coeffs, future_x).tolist()
-                logger.info(f"Linear trend fitted successfully")
-            except Exception:
-                mean_value = float(np.mean(values))
-                forecast_values = [mean_value] * periods_ahead
-                logger.warning(f"Polyfit failed, using mean: {mean_value}")
-        
-        lower_bound = [max(0, v * 0.8) for v in forecast_values]
-        upper_bound = [v * 1.2 for v in forecast_values]
-        
-        last_date = ts_df['ds'].iloc[-1]
-        timestamps = pd.date_range(
-            start=last_date + pd.DateOffset(months=1),
-            periods=periods_ahead,
-            freq='M'
-        ).strftime('%Y-%m-%d').tolist()
-        
-        return {
-            "forecast": [round(v, 2) for v in forecast_values],
-            "lower": [round(v, 2) for v in lower_bound],
-            "upper": [round(v, 2) for v in upper_bound],
-            "timestamps": timestamps,
-            "model_used": "simple_trend",
-            "confidence_level": 0.8
+        # Prepare context
+        historical_stats = {
+            "mean": float(ts_df['y'].mean()),
+            "min": float(ts_df['y'].min()),
+            "max": float(ts_df['y'].max()),
+            "trend": float(ts_df['y'].iloc[-1] - ts_df['y'].iloc[0])
         }
+        
+        forecast_stats = {
+            "mean": float(forecast_df['y'].mean()),
+            "min": float(forecast_df['y'].min()),
+            "max": float(forecast_df['y'].max()),
+            "trend": float(forecast_df['y'].iloc[-1] - forecast_df['y'].iloc[0])
+        }
+        
+        prompt = f"""Analyze this forecast and generate a clear business explanation:
 
-    async def _generate_explanation(self, ts_df: pd.DataFrame, scenario_params: Dict[str, Any], 
-                                  forecast_result: Dict[str, Any], target_column: str) -> str:
-        """Generate explanation of the forecast"""
-        
-        if self.openai_client:
-            try:
-                logger.info("Generating LLM explanation")
-                return await self._llm_explanation(ts_df, scenario_params, forecast_result, target_column)
-            except Exception as e:
-                logger.warning(f"LLM explanation failed: {e}")
-        
-        model_used = forecast_result.get("model_used", "unknown")
-        avg_forecast = np.mean(forecast_result.get("forecast", [0]))
-        
-        explanation = f"Generated forecast for {target_column} using {model_used} model. "
-        explanation += f"Average projected value: {avg_forecast:.2f}. "
-        
-        multiplier = scenario_params.get("adjustments", {}).get("multiplier", 1.0)
-        if multiplier != 1.0:
-            change_pct = (multiplier - 1.0) * 100
-            explanation += f"Applied {change_pct:+.1f}% adjustment based on your scenario. "
-        
-        explanation += "Forecast reflects historical trends and scenario assumptions."
-        
-        logger.info("Fallback explanation generated")
-        return explanation
+Target: {target_column}
+Historical Data: {len(ts_df)} periods
+- Mean: {historical_stats['mean']:.2f}
+- Range: {historical_stats['min']:.2f} to {historical_stats['max']:.2f}
+- Overall trend: {historical_stats['trend']:.2f}
 
-    async def _llm_explanation(self, ts_df: pd.DataFrame, scenario_params: Dict[str, Any], 
-                             forecast_result: Dict[str, Any], target_column: str) -> str:
-        """Generate explanation using OpenAI"""
-        
-        prompt = f"""Generate a clear, business-friendly explanation for this forecast:
+Forecast: {len(forecast_df)} periods ahead
+- Predicted mean: {forecast_stats['mean']:.2f}
+- Predicted range: {forecast_stats['min']:.2f} to {forecast_stats['max']:.2f}
+- Expected trend: {forecast_stats['trend']:.2f}
 
-Target Column: {target_column}
-Historical Data Points: {len(ts_df)}
-Recent Trend: {ts_df['y'].tail(5).tolist()}
-Forecast Values (first 5): {forecast_result.get('forecast', [])[:5]}
-Model Used: {forecast_result.get('model_used', 'unknown')}
 Scenario Applied: {json.dumps(scenario_params)}
+Data Quality: {quality_report['overall_quality']['rating']} ({quality_report['overall_quality']['score']}%)
+Validation Accuracy: {f"MAPE {validation_metrics['mape']:.1f}%" if validation_metrics else "Not available (insufficient data)"}
 
-Write 2-3 sentences explaining:
+Generate a 3-4 sentence business-friendly explanation covering:
 1. What the forecast shows
-2. How the scenario influenced the results
+2. How the scenario affected predictions
 3. Key insights or expectations
+4. Confidence level and caveats
 
-Keep it concise and avoid technical jargon."""
+Be specific with numbers. Avoid jargon."""
 
         try:
-            explanation = await self.openai_client.chat_completion(prompt, max_tokens=200, temperature=0.7)
-            logger.info("LLM explanation generated successfully")
+            explanation = await self.openai_client.chat_completion(prompt, max_tokens=300, temperature=0.7)
             return explanation.strip()
         except Exception as e:
-            logger.error(f"LLM explanation failed: {e}")
-            return f"Forecast generated for {target_column} showing projected trends based on historical data and scenario assumptions."
+            logger.error(f"GPT explanation failed: {e}")
+            return self._fallback_explanation(ts_df, forecast_df, scenario_params, target_column)
+
+    def _fallback_explanation(
+        self,
+        ts_df: pd.DataFrame,
+        forecast_df: pd.DataFrame,
+        scenario_params: Dict[str, Any],
+        target_column: str
+    ) -> str:
+        """Generate basic explanation without GPT"""
+        
+        avg_forecast = forecast_df['y'].mean()
+        avg_historical = ts_df['y'].mean()
+        
+        pct_change = ((avg_forecast - avg_historical) / avg_historical) * 100
+        
+        multiplier = scenario_params.get("adjustments", {}).get("multiplier", 1.0)
+        scenario_change = (multiplier - 1.0) * 100
+        
+        explanation = f"Forecast for {target_column} shows an average value of {avg_forecast:.2f} over the prediction period, "
+        
+        if pct_change > 5:
+            explanation += f"representing a {pct_change:.1f}% increase from historical average. "
+        elif pct_change < -5:
+            explanation += f"representing a {pct_change:.1f}% decrease from historical average. "
+        else:
+            explanation += f"remaining relatively stable compared to historical average. "
+        
+        if abs(scenario_change) > 1:
+            explanation += f"The scenario adjustment of {scenario_change:+.1f}% has been applied to the base forecast. "
+        
+        explanation += "Results reflect both historical trends and scenario assumptions."
+        
+        return explanation
