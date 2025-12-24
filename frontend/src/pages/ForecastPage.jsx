@@ -1,4 +1,4 @@
-// frontend/src/pages/ForecastPage.jsx
+// frontend/src/pages/ForecastPage.jsx (UPDATED)
 import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Brain, AlertTriangle, ArrowUpDown } from 'lucide-react';
@@ -7,6 +7,7 @@ import MiniChartPreview from '../components/forecast/MiniChartPreview';
 import AIInputPanel from '../components/forecast/AIInputPanel';
 import ForecastSummary from '../components/forecast/ForecastSummary';
 import ExpandedChartModal from '../components/forecast/ExpandedChartModal';
+import DataQualityAlert from '../components/forecast/DataQualityAlert';
 import { UserContext } from '../context/UserContext';
 import { useChartData } from '../context/ChartDataContext';
 import aiApi from '../services/aiApi';
@@ -17,7 +18,6 @@ export default function ForecastPage() {
   const { user, theme, setTheme } = useContext(UserContext);
   const { chartData, hasData, isDataLoaded } = useChartData();
   
-  // State
   const [isChartMinimized, setIsChartMinimized] = useState(false);
   const [selectedChart, setSelectedChart] = useState(null);
   const [forecastResult, setForecastResult] = useState(null);
@@ -25,8 +25,8 @@ export default function ForecastPage() {
   const [error, setError] = useState('');
   const [targetColumn, setTargetColumn] = useState('');
   const [sortOrder, setSortOrder] = useState('none');
+  const [dataQualityIssues, setDataQualityIssues] = useState(null);
 
-  // Initialize target column
   useEffect(() => {
     if (!user) {
       navigate('/login');
@@ -41,7 +41,6 @@ export default function ForecastPage() {
     }
   }, [user, hasData, isDataLoaded, chartData, navigate]);
 
-  // Handle forecast submission
   const handleForecastSubmit = async (config) => {
     if (!hasData || !targetColumn) {
       setError('No data available. Please upload data first.');
@@ -51,8 +50,8 @@ export default function ForecastPage() {
     setError('');
     setIsLoading(true);
     setForecastResult(null);
+    setDataQualityIssues(null);
 
-    // Use filtered data if provided, otherwise use full dataset
     const dataToForecast = config.csvData || chartData.data;
     
     const payload = {
@@ -72,6 +71,23 @@ export default function ForecastPage() {
 
     try {
       const result = await aiApi.createWhatIfForecast(payload);
+      
+      // Check for validation data
+      if (result.validation) {
+        console.log('✓ Validation metrics received:', result.validation);
+        
+        // Check for data quality issues
+        if (result.validation.data_quality) {
+          const quality = result.validation.data_quality;
+          if (quality.rating === 'Poor' || quality.score < 40) {
+            setDataQualityIssues({
+              issues: ['Data quality is poor. Results may be unreliable.'],
+              warnings: [`Quality score: ${quality.score}%`]
+            });
+          }
+        }
+      }
+      
       setForecastResult(result);
       setIsChartMinimized(true);
       
@@ -91,18 +107,14 @@ export default function ForecastPage() {
     }
   };
 
-  
-  // Handle chart click
   const handleChartClick = (chartId) => {
     setSelectedChart(chartId);
   };
 
-  // Handle export report
   const handleExportReport = () => {
     console.log('Exporting comprehensive report...');
   };
 
-  // Prepare chart preview data
   const chartPreviewData = hasData ? {
     labels: chartData.data.slice(0, 20).map(row => row[chartData.xAxis] || ''),
     values: chartData.data.slice(0, 20).map(row => {
@@ -111,7 +123,6 @@ export default function ForecastPage() {
     })
   } : null;
 
-  // Extract insights and recommendations from forecast
   const extractInsights = () => {
     if (!forecastResult) return [];
     
@@ -133,7 +144,18 @@ export default function ForecastPage() {
       insights.push(`Stable trend with ${Math.abs(trendPct).toFixed(1)}% variation`);
     }
 
-    insights.push(`Confidence intervals indicate ${forecastResult.metadata?.confidence_level > 0.9 ? 'high' : 'moderate'} prediction certainty`);
+    // Add validation-based insights
+    if (forecastResult.validation?.metrics) {
+      const mape = forecastResult.validation.metrics.mape;
+      if (mape < 10) {
+        insights.push(`Excellent prediction accuracy with MAPE of ${mape.toFixed(1)}%`);
+      } else if (mape < 20) {
+        insights.push(`Good prediction accuracy with MAPE of ${mape.toFixed(1)}%`);
+      } else {
+        insights.push(`Moderate prediction accuracy with MAPE of ${mape.toFixed(1)}%`);
+      }
+    }
+
     insights.push(`Model used: ${forecastResult.metadata?.model_used || 'Hybrid'} for optimal accuracy`);
 
     return insights;
@@ -158,37 +180,44 @@ export default function ForecastPage() {
 
     recommendations.push('Conduct monthly reviews to compare actual vs. forecast performance');
     recommendations.push('Update forecast quarterly as new data becomes available');
-    recommendations.push('Set up automated alerts for significant deviations from projections');
+    
+    // Add validation-based recommendations
+    if (forecastResult.validation?.confidence_score) {
+      const confidence = forecastResult.validation.confidence_score;
+      if (confidence.overall_score < 70) {
+        recommendations.push('Consider collecting more data to improve forecast reliability');
+      }
+      
+      if (confidence.recommendations) {
+        recommendations.push(...confidence.recommendations.slice(0, 2));
+      }
+    }
 
     return recommendations;
   };
 
   const sortedForecastData = React.useMemo(() => {
     if (!forecastResult?.forecast) return null;
-  
-  const forecast = forecastResult.forecast;
-  
-  // FIX: Default returns original order (no sorting)
-  if (sortOrder === 'none') return forecast;
-  
-  // Only sort if explicitly requested
-  const indices = forecast.forecast.map((_, i) => i);
-  const sorted = [...indices].sort((a, b) => {
-    if (sortOrder === 'asc') {
-      return forecast.forecast[a] - forecast.forecast[b];
-    }
-    // sortOrder === 'desc'
-    return forecast.forecast[b] - forecast.forecast[a];
-  });
-  
-  // Return sorted data
-  return {
-    forecast: sorted.map(i => forecast.forecast[i]),
-    lower: forecast.lower ? sorted.map(i => forecast.lower[i]) : undefined,
-    upper: forecast.upper ? sorted.map(i => forecast.upper[i]) : undefined,
-    timestamps: sorted.map(i => forecast.timestamps[i])
-  };
-}, [forecastResult, sortOrder]);
+    
+    const forecast = forecastResult.forecast;
+    
+    if (sortOrder === 'none') return forecast;
+    
+    const indices = forecast.forecast.map((_, i) => i);
+    const sorted = [...indices].sort((a, b) => {
+      if (sortOrder === 'asc') {
+        return forecast.forecast[a] - forecast.forecast[b];
+      }
+      return forecast.forecast[b] - forecast.forecast[a];
+    });
+    
+    return {
+      forecast: sorted.map(i => forecast.forecast[i]),
+      lower: forecast.lower ? sorted.map(i => forecast.lower[i]) : undefined,
+      upper: forecast.upper ? sorted.map(i => forecast.upper[i]) : undefined,
+      timestamps: sorted.map(i => forecast.timestamps[i])
+    };
+  }, [forecastResult, sortOrder]);
 
   if (!user) {
     return (
@@ -223,11 +252,9 @@ export default function ForecastPage() {
 
   return (
     <div className="flex min-h-screen bg-gray-50 dark:bg-slate-950">
-      {/* Sidebar - No Navbar */}
       <Sidebar theme={theme} setTheme={setTheme} onReportChange={() => {}} />
       
       <div className="flex-1 relative">
-        {/* Mini Chart Preview */}
         <MiniChartPreview
           chartData={chartPreviewData}
           isMinimized={isChartMinimized}
@@ -235,7 +262,6 @@ export default function ForecastPage() {
           chartTitle={chartData.chartTitle || targetColumn}
         />
 
-        {/* Main Content */}
         <div className="p-3 sm:p-6 max-w-7xl mx-auto">
           {/* Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
@@ -260,11 +286,21 @@ export default function ForecastPage() {
             </div>
           )}
 
+          {/* Data Quality Alert */}
+          {dataQualityIssues && (
+            <div className="mb-6">
+              <DataQualityAlert
+                issues={dataQualityIssues.issues}
+                warnings={dataQualityIssues.warnings}
+                onDismiss={() => setDataQualityIssues(null)}
+              />
+            </div>
+          )}
+
           {/* Charts Grid - Only show after forecast */}
           {forecastResult && (
             <div className="mb-6">
-              {/* Sorting Toggle */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
                 <div className="text-xs sm:text-sm text-gray-600 dark:text-slate-400">
                   Showing {sortedForecastData?.forecast?.length || 0} forecast periods
                 </div>
@@ -318,7 +354,7 @@ export default function ForecastPage() {
             </div>
           )}
 
-          {/* Summary Section - Only show after forecast */}
+          {/* Summary Section */}
           {forecastResult && (
             <div className="mb-6">
               <ForecastSummary
@@ -331,10 +367,12 @@ export default function ForecastPage() {
                   `${forecastResult.scenario_parsed.target_change > 0 ? 'Increase' : 'Decrease'} by ${Math.abs(forecastResult.scenario_parsed.target_change)}%` : 
                   'Custom scenario'}
                 onExportReport={handleExportReport}
+                validationData={forecastResult.validation}
               />
             </div>
           )}
-          {/* AI Input Panel - Always visible at bottom */}
+
+          {/* AI Input Panel */}
           <AIInputPanel
             onSubmit={handleForecastSubmit}
             isLoading={isLoading}
