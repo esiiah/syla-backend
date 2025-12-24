@@ -71,6 +71,14 @@ async def create_whatif_forecast(
                 status_code=500, 
                 detail=f"Forecast failed: {str(forecast_error)[:200]}"
             )
+              
+        # Ensure validation key exists for frontend compatibility
+        if "validation" not in result:
+            result["validation"] = {
+                "metrics": None,
+                "confidence_score": None,
+                "data_quality": None
+            }
         
         logger.info(f"Forecast completed successfully for user {user_id}")
         return JSONResponse(content=result)
